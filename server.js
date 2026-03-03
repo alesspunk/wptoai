@@ -30,9 +30,10 @@ const mailer = smtpConfigured
 const processedWebhookEvents = new Set();
 
 const ADDON_PRICES = {
-  design_system: { name: "Design System in a Figma File", amount: 200 },
-  blog_powerups: { name: "Powerups for Blog Sites", amount: 200 },
-  ecommerce_powerups: { name: "Powerups for E-commerce", amount: 300 }
+  figma_design_system: { name: "Figma Design System", amount: 100 },
+  notion_docs: { name: "Notion Docs", amount: 100 },
+  storybook_docs: { name: "Storybook Documentation", amount: 100 },
+  vercel_deploy: { name: "Vercel Deploy", amount: 100 }
 };
 
 app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async (req, res) => {
@@ -110,9 +111,21 @@ function extractUrl(value) {
   const raw = value.trim();
   if (!raw) return "";
   const match = raw.match(/https?:\/\/[^\s,]+|www\.[^\s,]+|[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s,]*)?/i);
-  if (!match) return "";
-  const maybeUrl = match[0];
-  return /^https?:\/\//i.test(maybeUrl) ? maybeUrl : `https://${maybeUrl}`;
+  const candidate = match ? match[0] : raw;
+  const normalized = /^https?:\/\//i.test(candidate) ? candidate : `https://${candidate}`;
+
+  try {
+    const parsed = new URL(normalized);
+    const hostname = String(parsed.hostname || "").toLowerCase();
+    if (!hostname || !hostname.includes(".")) return "";
+    if (hostname.startsWith(".") || hostname.endsWith(".")) return "";
+    const labels = hostname.split(".");
+    const tld = labels[labels.length - 1];
+    if (!/^[a-z]{2,63}$/i.test(tld)) return "";
+    return parsed.href;
+  } catch (_error) {
+    return "";
+  }
 }
 
 function getQuoteRule(pages) {
@@ -222,7 +235,7 @@ async function sendOrderEmail(session) {
     `Pricing tier: ${metadata.pricing_tier || "n/a"}`,
     `AI engineers: ${metadata.engineers || "0"}`,
     `Prompts: ${metadata.prompts || "0"}`,
-    `Add-ons: ${metadata.addons || "none"}`,
+    `Deliverables (paid): ${metadata.addons || "none"}`,
     lineItemsText
   ]
     .filter(Boolean)
