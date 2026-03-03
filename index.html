@@ -2792,7 +2792,11 @@
           gap: 16px;
         }
         .hero-top-pill {
-          top: 12px;
+          position: relative;
+          top: auto;
+          left: auto;
+          transform: none;
+          margin: 0 auto 14px;
         }
         .checkout-status {
           top: 60px;
@@ -2879,6 +2883,13 @@
           opacity: 1;
           pointer-events: auto;
           z-index: 320;
+        }
+        body.mobile-sidebar-open .corner-menu-toggle,
+        body.mobile-sidebar-open .corner-menu-panel,
+        body.mobile-sidebar-open .corner-menu-overlay {
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
         }
         body.mobile-sidebar-open .hero-top-pill {
           opacity: 0;
@@ -3512,7 +3523,7 @@
               <span class="deliverable-icon" aria-hidden="true">🤖</span>
               <div class="deliverable-copy">
                 <h3>AI-ready Chatbot</h3>
-                <p>Your migrated site is ready for AI chat workflows.</p>
+                <p>Your migrated site is ready for change-by-chat.</p>
               </div>
               <span class="deliverable-chip deliverable-chip-included">Included in price</span>
             </article>
@@ -4093,6 +4104,11 @@
 
           quickSidebar.classList.toggle('is-collapsed', isCollapsed);
           if (isMobileViewport) {
+            if (!isCollapsed) {
+              document.body.classList.remove('corner-menu-open');
+              var cornerMenuToggle = document.querySelector('.corner-menu-toggle');
+              if (cornerMenuToggle) cornerMenuToggle.setAttribute('aria-expanded', 'false');
+            }
             document.body.classList.remove('sidebar-collapsed');
             document.body.classList.toggle('mobile-sidebar-open', !isCollapsed);
           } else {
@@ -4657,6 +4673,14 @@
             setSidebarCollapsed(false);
           });
         }
+        document.addEventListener('click', function (event) {
+          if (!mobileSidebarMedia.matches) return;
+          if (!document.body.classList.contains('mobile-sidebar-open')) return;
+          if (!quickSidebar) return;
+          if (quickSidebar.contains(event.target)) return;
+          if (quickSidebarFab && quickSidebarFab.contains(event.target)) return;
+          setSidebarCollapsed(true);
+        });
         if (migrateModalClose && migrateModalOverlay) {
           migrateModalClose.addEventListener('click', function () {
             setMigrateModalOpen(false);
