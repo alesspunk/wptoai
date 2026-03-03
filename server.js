@@ -286,7 +286,7 @@ app.post("/api/create-checkout-session", async (req, res) => {
           recurring: { interval: "month" },
           unit_amount: quote.maintenanceTotal * 100,
           product_data: {
-            name: "WP to AI Site Maintenance"
+            name: "WP to AI Monthly Payment"
           }
         },
         quantity: 1
