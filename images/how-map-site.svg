@@ -1,0 +1,18 @@
+<svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="howMapSiteStroke" x1="9" y1="9" x2="63" y2="63" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1DFED6"/>
+      <stop offset="0.58" stop-color="#3558C6"/>
+      <stop offset="1" stop-color="#8D12C5"/>
+    </linearGradient>
+  </defs>
+  <rect x="28" y="16" width="16" height="10" rx="3" stroke="url(#howMapSiteStroke)" stroke-width="2.4"/>
+  <path d="M36 26V34" stroke="url(#howMapSiteStroke)" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M20 34H52" stroke="url(#howMapSiteStroke)" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M20 34V40" stroke="url(#howMapSiteStroke)" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M36 34V40" stroke="url(#howMapSiteStroke)" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M52 34V40" stroke="url(#howMapSiteStroke)" stroke-width="2.6" stroke-linecap="round"/>
+  <rect x="13" y="40" width="14" height="12" rx="3" stroke="url(#howMapSiteStroke)" stroke-width="2.4"/>
+  <rect x="29" y="40" width="14" height="12" rx="3" stroke="url(#howMapSiteStroke)" stroke-width="2.4"/>
+  <rect x="45" y="40" width="14" height="12" rx="3" stroke="url(#howMapSiteStroke)" stroke-width="2.4"/>
+</svg>

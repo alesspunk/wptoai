@@ -1,0 +1,14 @@
+<svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="howUpdateChatStroke" x1="8" y1="8" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1DFED6"/>
+      <stop offset="0.58" stop-color="#3558C6"/>
+      <stop offset="1" stop-color="#8D12C5"/>
+    </linearGradient>
+  </defs>
+  <path d="M16 22C16 19.7909 17.7909 18 20 18H52C54.2091 18 56 19.7909 56 22V40C56 42.2091 54.2091 44 52 44H33L24 52V44H20C17.7909 44 16 42.2091 16 40V22Z" stroke="url(#howUpdateChatStroke)" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M24 28H48" stroke="url(#howUpdateChatStroke)" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M24 34H42" stroke="url(#howUpdateChatStroke)" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M51 48L54 51" stroke="url(#howUpdateChatStroke)" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M51 54L54 51L57 54" stroke="url(#howUpdateChatStroke)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

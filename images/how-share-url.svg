@@ -1,0 +1,16 @@
+<svg width="72" height="72" viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="howShareUrlStroke" x1="8" y1="8" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1DFED6"/>
+      <stop offset="0.6" stop-color="#3558C6"/>
+      <stop offset="1" stop-color="#8D12C5"/>
+    </linearGradient>
+  </defs>
+  <rect x="18" y="18" width="28" height="20" rx="5" stroke="url(#howShareUrlStroke)" stroke-width="2.4"/>
+  <path d="M22 24H42" stroke="url(#howShareUrlStroke)" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M22 30H33" stroke="url(#howShareUrlStroke)" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M48 44L55 37" stroke="url(#howShareUrlStroke)" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M49 33H58V42" stroke="url(#howShareUrlStroke)" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M19 44H33" stroke="url(#howShareUrlStroke)" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M19 50H38" stroke="url(#howShareUrlStroke)" stroke-width="2.4" stroke-linecap="round"/>
+</svg>

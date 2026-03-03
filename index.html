@@ -1,0 +1,4276 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WordPress to AI Migration Service | WP → AI</title>
+    <meta name="description" content="Migrate your WordPress site into an AI self-maintained website. Keep the same design and brand, then request updates by chat.">
+    <meta name="author" content="WP → AI">
+    <meta name="application-name" content="WP → AI">
+    <meta name="keywords" content="WordPress to AI, WordPress migration service, AI-ready website, WordPress maintenance alternative, website updates by chat">
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+    <meta name="googlebot" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="canonical" href="https://wptoai.com/">
+    <link rel="alternate" hreflang="en-US" href="https://wptoai.com/">
+    <link rel="alternate" hreflang="x-default" href="https://wptoai.com/">
+
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="WP → AI">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:title" content="WP → AI | WordPress to AI migration service">
+    <meta property="og:description" content="Migrate your WordPress site into an AI self-maintained website. Same design, same brand, faster updates by chat.">
+    <meta property="og:url" content="https://wptoai.com/">
+    <meta property="og:image" content="https://wptoai.com/images/wptoai-logo-colors.png">
+    <meta property="og:image:alt" content="WP to AI logo">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="WP → AI | WordPress to AI migration service">
+    <meta name="twitter:description" content="Migrate your WordPress site into an AI self-maintained website and request updates by chat.">
+    <meta name="twitter:image" content="https://wptoai.com/images/wptoai-logo-colors.png">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+      :root {
+        --bg: #f5f6fa;
+        --panel: #ffffff;
+        --ink: #1a2238;
+        --muted: #5d6788;
+        --line: #d9deea;
+        --brand: #3f43ea;
+        --brand-dark: #2f33cd;
+        --accent: #f2b227;
+        --accent-dark: #de9920;
+        --accent-soft: #fff3d6;
+        --soft: #eef1ff;
+        --brand-charcoal: #282828;
+        --brand-deep: #111827;
+        --brand-deep-ink: #10203a;
+        --brand-cyan: #1dfed6;
+        --brand-blue: #3558c6;
+        --brand-purple: #8d12c5;
+        --right-rail-width: 380px;
+      }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        background: #fff;
+        color: var(--ink);
+        font-family: "Manrope", "Segoe UI", Arial, sans-serif;
+        line-height: 1.5;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        z-index: 45;
+        pointer-events: none;
+        background: linear-gradient(90deg, #1dfed6 0%, #3558c6 52%, #8d12c5 100%);
+      }
+      a { color: inherit; text-decoration: none; }
+      a:focus-visible,
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      summary:focus-visible {
+        outline: 3px solid rgba(242, 178, 39, 0.45);
+        outline-offset: 2px;
+      }
+      .container { width: min(1180px, 92vw); margin: 0 auto; }
+
+      .site-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 20;
+        background: #fff;
+        border-bottom: 1px solid var(--line);
+        box-shadow: 0 3px 14px rgba(14, 22, 48, 0.05);
+        transform: translateY(-110%);
+        opacity: 0;
+        pointer-events: none;
+        transition: transform 0.24s ease, opacity 0.24s ease;
+      }
+      body.nav-visible .site-header {
+        transform: translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .header-inner {
+        min-height: 78px;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 24px;
+      }
+      .logo {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+      }
+      .site-logo-image {
+        display: block;
+        width: auto;
+        height: clamp(34px, 4.1vw, 44px);
+        object-fit: contain;
+      }
+      .logo-badge {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        display: inline-grid;
+        place-items: center;
+        color: #1e243c;
+        background: linear-gradient(180deg, var(--accent), var(--accent-dark));
+        font-size: 15px;
+      }
+      .logo-text {
+        font-size: 24px;
+        color: #2632de;
+        letter-spacing: -0.01em;
+      }
+
+      .menu-toggle {
+        display: none;
+        min-height: 40px;
+        padding: 0 14px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: #fff;
+        color: #2a3553;
+        font: inherit;
+        font-weight: 700;
+      }
+      .corner-menu-toggle {
+        position: fixed;
+        top: 14px;
+        left: 14px;
+        z-index: 30;
+        width: 36px;
+        height: 36px;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: #25314f;
+        display: inline-grid;
+        place-items: center;
+        cursor: pointer;
+        box-shadow: none;
+        transition: color 0.22s ease, transform 0.18s ease;
+      }
+      .corner-menu-toggle:hover {
+        transform: translateY(-1px);
+      }
+      .corner-menu-bars,
+      .corner-menu-bars::before,
+      .corner-menu-bars::after {
+        display: block;
+        width: 22px;
+        height: 2.2px;
+        border-radius: 999px;
+        background: currentColor;
+        transition: transform 0.28s ease, opacity 0.2s ease;
+      }
+      .corner-menu-bars {
+        position: relative;
+      }
+      .corner-menu-bars::before,
+      .corner-menu-bars::after {
+        content: "";
+        position: absolute;
+        left: 0;
+      }
+      .corner-menu-bars::before {
+        top: -7px;
+      }
+      .corner-menu-bars::after {
+        top: 7px;
+      }
+      .corner-menu-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 28;
+        background: rgba(17, 24, 39, 0.4);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.28s ease, visibility 0.28s ease;
+      }
+      .corner-menu-panel {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        z-index: 29;
+        width: min(360px, 88vw);
+        border-right: 1px solid rgba(29, 254, 214, 0.4);
+        background: var(--brand-deep);
+        box-shadow: 12px 0 34px rgba(11, 21, 56, 0.45);
+        padding: 82px 16px 22px;
+        display: grid;
+        align-content: start;
+        gap: 8px;
+        transform: translateX(-104%);
+        transition: transform 0.34s cubic-bezier(0.22, 0.61, 0.36, 1);
+      }
+      .corner-menu-panel a {
+        display: block;
+        padding: 12px 14px;
+        border: 1px solid rgba(29, 254, 214, 0.25);
+        border-radius: 12px;
+        background: rgba(29, 254, 214, 0.05);
+        color: #1dfed6;
+        font-size: 15px;
+        font-weight: 700;
+        transform: translateX(-16px);
+        opacity: 0;
+        transition: transform 0.3s ease, opacity 0.3s ease, background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+      }
+      .corner-menu-panel a:hover {
+        background: #1dfed6;
+        border-color: #1dfed6;
+        color: var(--brand-deep-ink);
+      }
+      body.corner-menu-open {
+        overflow: hidden;
+      }
+      body.corner-menu-open .corner-menu-overlay {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+      }
+      body.corner-menu-open .corner-menu-panel {
+        transform: translateX(0);
+      }
+      body.corner-menu-open .corner-menu-toggle {
+        background: #1dfed6;
+        color: var(--brand-deep-ink);
+        border-color: #1dfed6;
+      }
+      body.corner-menu-open .corner-menu-bars {
+        background: transparent;
+      }
+      body.corner-menu-open .corner-menu-bars::before {
+        transform: translateY(7px) rotate(45deg);
+      }
+      body.corner-menu-open .corner-menu-bars::after {
+        transform: translateY(-7px) rotate(-45deg);
+      }
+      body.corner-menu-open .corner-menu-panel a {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      body.corner-menu-open .corner-menu-panel a:nth-child(1) { transition-delay: 0.08s; }
+      body.corner-menu-open .corner-menu-panel a:nth-child(2) { transition-delay: 0.11s; }
+      body.corner-menu-open .corner-menu-panel a:nth-child(3) { transition-delay: 0.14s; }
+      body.corner-menu-open .corner-menu-panel a:nth-child(4) { transition-delay: 0.17s; }
+      body.corner-menu-open .corner-menu-panel a:nth-child(5) { transition-delay: 0.2s; }
+      body.nav-visible .corner-menu-toggle,
+      body.nav-visible .corner-menu-panel,
+      body.nav-visible .corner-menu-overlay {
+        display: none;
+      }
+
+      .main-nav {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+      .main-nav a {
+        color: #304060;
+        padding: 6px 10px;
+        border-radius: 8px;
+        transition: color 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
+        border: 1px solid transparent;
+      }
+      .main-nav a:hover {
+        color: #1f2d4d;
+        background: #f3f6ff;
+        border-color: rgba(53, 88, 198, 0.18);
+      }
+      .header-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .header-side-logo {
+        display: block;
+        width: auto;
+        height: 30px;
+        object-fit: contain;
+        opacity: 0.92;
+      }
+      .header-nav-only {
+        min-height: 78px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        width: 100%;
+      }
+      .header-nav-only .main-nav {
+        margin: 0 auto;
+      }
+      .header-nav-only .menu-toggle {
+        display: none;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        border-radius: 9999px;
+        border: 1px solid transparent;
+        padding: 0 18px;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease, background-color 0.18s ease;
+      }
+      .quick-quote-btn,
+      .quick-rail-btn,
+      .quick-rail-assist-btn,
+      .quick-addon-toggle-btn,
+      .footer-cta,
+      .hero-bottom-note {
+        border-radius: 9999px;
+      }
+      .btn-primary {
+        color: #1e243c;
+        border-color: #e5a423;
+        background: linear-gradient(180deg, var(--accent), var(--accent-dark));
+        box-shadow: 0 10px 18px rgba(221, 146, 15, 0.28);
+      }
+      .btn-primary:hover {
+        filter: brightness(1.05);
+        transform: translateY(-1px);
+      }
+      .btn-outline {
+        color: var(--brand-dark);
+        background: #fff;
+        border-color: #bfc7e6;
+      }
+      .btn-outline:hover {
+        background: #f7f8ff;
+        transform: translateY(-1px);
+        box-shadow: 0 8px 16px rgba(16, 28, 74, 0.08);
+      }
+      .btn-block { width: 100%; }
+      .floating-chat {
+        position: fixed;
+        left: 16px;
+        bottom: 16px;
+        z-index: 26;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 54px;
+        padding: 8px 14px 8px 8px;
+        border: 1px solid #d5dced;
+        border-radius: 999px;
+        background: #fff;
+        color: #1d2741;
+        box-shadow: 0 12px 24px rgba(11, 21, 56, 0.14);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+      }
+      .floating-chat:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 16px 30px rgba(11, 21, 56, 0.18);
+      }
+      .floating-chat-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        display: inline-grid;
+        place-items: center;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+        color: #1f2b49;
+        background: linear-gradient(180deg, #ffe5ad, var(--accent));
+        border: 1px solid #efc977;
+      }
+      .floating-chat-text {
+        display: inline-flex;
+        flex-direction: column;
+        line-height: 1.1;
+      }
+      .floating-chat-title {
+        font-size: 14px;
+        font-weight: 800;
+      }
+      .floating-chat-sub {
+        font-size: 12px;
+        color: #556082;
+        font-weight: 600;
+      }
+
+      .hero {
+        min-height: 100vh;
+        padding: 28px 0 62px;
+        background-color: #fff;
+        background-image:
+          radial-gradient(58% 46% at 10% 14%, rgba(29, 254, 214, 0.18) 0%, rgba(29, 254, 214, 0) 75%),
+          radial-gradient(52% 40% at 86% 12%, rgba(53, 88, 198, 0.16) 0%, rgba(53, 88, 198, 0) 74%),
+          radial-gradient(54% 44% at 50% 98%, rgba(141, 18, 197, 0.14) 0%, rgba(141, 18, 197, 0) 76%);
+        color: var(--ink);
+        border-bottom: 1px solid var(--line);
+        position: relative;
+        overflow: visible;
+        isolation: isolate;
+        display: grid;
+        align-items: center;
+      }
+      .hero::before,
+      .hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+      }
+      .hero::before {
+        background:
+          radial-gradient(42% 38% at 16% 42%, rgba(29, 254, 214, 0.44) 0%, rgba(29, 254, 214, 0) 66%),
+          radial-gradient(38% 34% at 80% 28%, rgba(53, 88, 198, 0.4) 0%, rgba(53, 88, 198, 0) 68%),
+          radial-gradient(40% 36% at 52% 84%, rgba(141, 18, 197, 0.34) 0%, rgba(141, 18, 197, 0) 70%);
+        filter: blur(24px);
+        opacity: 0.9;
+        animation: hero-aura-drift 12s ease-in-out infinite;
+      }
+      .hero::after {
+        background:
+          linear-gradient(122deg, rgba(29, 254, 214, 0.16) 0%, rgba(29, 254, 214, 0) 28%, rgba(53, 88, 198, 0.16) 56%, rgba(53, 88, 198, 0) 74%, rgba(141, 18, 197, 0.16) 100%);
+        background-size: 180% 180%;
+        opacity: 0.86;
+        animation: hero-gradient-shift 10s ease-in-out infinite;
+      }
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 26px;
+        align-items: start;
+        justify-items: stretch;
+        text-align: left;
+        position: relative;
+        z-index: 1;
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      .hero-main {
+        max-width: 1140px;
+        margin: 0 auto;
+        text-align: center;
+        display: grid;
+        gap: clamp(14px, 2.2vw, 26px);
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid #d6deef;
+        background: #f7f9ff;
+        color: #344161;
+        font-size: 13px;
+        font-weight: 700;
+        margin: 0 auto;
+      }
+      .hero-top-pill {
+        position: absolute;
+        top: 14px;
+        left: 50%;
+        transform: translateX(-50%);
+        margin: 0;
+        z-index: 2;
+        border: 1px solid #d7e2f6;
+        background: #f8fbff;
+        color: #2a3f6f;
+        font-weight: 700;
+        box-shadow: none;
+      }
+      .hero h1 {
+        margin: 0;
+        font-size: clamp(42px, 7.6vw, 74px);
+        line-height: 1.12;
+        letter-spacing: -0.015em;
+        color: var(--brand-charcoal);
+      }
+      .hero-brand-line {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        width: fit-content;
+        margin: 0 auto 10px;
+      }
+      .hero-brand-arrow {
+        color: #243053;
+        font-size: clamp(24px, 3vw, 32px);
+        line-height: 1;
+      }
+      .hero-brand-logo {
+        width: clamp(68px, 6.3vw, 86px);
+        height: clamp(68px, 6.3vw, 86px);
+        object-fit: contain;
+        display: block;
+      }
+      .hero-slogan {
+        display: block;
+        margin-top: 0;
+      }
+      .hero-slogan > span {
+        display: inline-block;
+        margin: 0 0.1em;
+      }
+      .hero-slogan .word-chat { color: var(--brand-blue); }
+      .hero-slogan .word-change { color: var(--brand-purple); }
+      .hero-slogan .word-done { color: #16bfa4; }
+      .hero h2 {
+        margin: 6px 0 0;
+        font-size: clamp(24px, 4.1vw, 42px);
+        line-height: 1.1;
+        font-weight: 700;
+      }
+      .hero-lead {
+        margin: 0 auto;
+        max-width: 54ch;
+        font-size: 18px;
+        color: #4f5a7b;
+      }
+      .quick-quote {
+        width: min(1180px, 100%);
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .quick-quote-label {
+        margin: 0 0 10px;
+        color: #2b3452;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .quote-line {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #d1d9eb;
+        background: #fff;
+        border-radius: 999px;
+        box-shadow: 0 10px 28px rgba(11, 21, 56, 0.08);
+        padding: 6px;
+        max-width: 1180px;
+        margin: 0 auto;
+      }
+      .quote-line.has-error {
+        border-color: #c83838;
+        box-shadow: 0 0 0 3px rgba(200, 56, 56, 0.14), 0 10px 28px rgba(11, 21, 56, 0.08);
+      }
+      .quick-url-field {
+        flex: 1 1 880px;
+        min-width: 320px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0 6px 0 14px;
+      }
+      .quick-url-prefix {
+        color: #5f6d90;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 0.005em;
+        white-space: nowrap;
+        user-select: none;
+        margin-right: 0;
+        max-width: 0;
+        opacity: 0;
+        overflow: hidden;
+        transform: translateX(-4px);
+        transition: max-width 0.2s ease, opacity 0.18s ease, margin-right 0.18s ease, transform 0.2s ease;
+      }
+      .quick-url-field.is-active .quick-url-prefix {
+        max-width: 72px;
+        opacity: 1;
+        margin-right: 2px;
+        transform: translateX(0);
+      }
+      #quick-quote-input {
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 44px;
+        border: 0;
+        border-radius: 999px;
+        background: transparent;
+        color: #1d2743;
+        font: inherit;
+        font-size: 16px;
+        padding: 0 10px;
+      }
+      .quick-url-field.is-active #quick-quote-input {
+        padding: 0 10px 0 2px;
+      }
+      #quick-quote-input:focus {
+        outline: none;
+      }
+      #quick-quote-input[aria-invalid="true"] {
+        color: #8c1d1d;
+      }
+      .quick-quote-error {
+        margin: 10px 12px 0;
+        color: #b32727;
+        font-size: 13px;
+        font-weight: 700;
+        text-align: left;
+      }
+      .checkout-status {
+        margin: 2px auto 4px;
+        width: min(780px, 100%);
+        padding: 10px 14px;
+        border: 1px solid #c7d8f5;
+        border-radius: 12px;
+        background: #f3f8ff;
+        color: #29406f;
+        font-size: 14px;
+        font-weight: 700;
+        text-align: center;
+        box-shadow: 0 8px 18px rgba(27, 55, 117, 0.08);
+      }
+      .checkout-status.success {
+        border-color: #93ddcf;
+        background: #eafcf8;
+        color: #0f6958;
+      }
+      .checkout-status.cancel {
+        border-color: #efcf9d;
+        background: #fff6e7;
+        color: #835003;
+      }
+      .quote-qty {
+        display: inline-flex;
+        align-items: center;
+        flex: 0 0 auto;
+        border: 1px solid #d1d9eb;
+        border-radius: 999px;
+        background: #f9fbff;
+        overflow: hidden;
+      }
+      .quote-line .quote-qty {
+        display: none;
+      }
+      .quote-qty-label {
+        min-height: 40px;
+        padding: 0 14px;
+        display: inline-flex;
+        align-items: center;
+        color: #364266;
+        font-size: 13px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .quote-pages-input {
+        width: 56px;
+        min-height: 40px;
+        border: 0;
+        border-left: 1px solid #d7deef;
+        border-right: 1px solid #d7deef;
+        background: transparent;
+        color: #1d2743;
+        font: inherit;
+        font-size: 15px;
+        font-weight: 700;
+        padding: 0 4px;
+        text-align: center;
+      }
+      .quote-pages-input::-webkit-outer-spin-button,
+      .quote-pages-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      .quote-pages-input[type=number] {
+        -moz-appearance: textfield;
+      }
+      .quote-qty-btn {
+        width: 36px;
+        min-height: 40px;
+        border: 0;
+        display: grid;
+        place-items: center;
+        background: #fff;
+        color: #2f3f66;
+        font-size: 24px;
+        font-weight: 800;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .quote-qty-btn:hover {
+        background: #eef2ff;
+      }
+      .quote-qty-btn:active {
+        background: #e3e8ff;
+      }
+      .quote-qty-btn:first-of-type {
+        border-left: 1px solid #d7deef;
+      }
+      .quick-quote-btn {
+        min-height: 44px;
+        padding: 0 16px;
+        border-radius: 999px;
+        white-space: nowrap;
+        border: 1px solid #4863c4;
+        background: linear-gradient(135deg, #3558c6 0%, #8d12c5 100%);
+        background-size: 170% 170%;
+        color: #f7fbff;
+        box-shadow: 0 10px 18px rgba(53, 88, 198, 0.28);
+        animation: quote-btn-gradient 4.2s ease-in-out infinite, quote-btn-glow 2.8s ease-in-out infinite;
+      }
+      .quick-quote-btn:hover {
+        filter: brightness(1.06);
+        transform: translateY(-1px);
+      }
+      .quick-quote-btn:active {
+        transform: translateY(0);
+      }
+      .quick-summary {
+        margin-top: 0;
+        border: 1px solid #d4def5;
+        background: #f7fbff;
+        border-radius: 14px;
+        padding: 8px 12px;
+        text-align: left;
+      }
+      .quick-summary-stack {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        gap: 12px;
+        flex: 1 1 auto;
+      }
+      .quick-rail-head {
+        padding: 12px 2px 2px;
+        border-top: 1px solid #cfdbf4;
+        margin-top: auto;
+        flex-shrink: 0;
+      }
+      .quick-rail-monthly-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 0 0 8px;
+      }
+      .quick-rail-one-time-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 0 0 8px;
+      }
+      .quick-rail-one-time-label {
+        color: #35527f;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .quick-rail-one-time-value {
+        color: #3558c6;
+        font-size: 17px;
+        font-weight: 800;
+        line-height: 1;
+      }
+      .quick-rail-monthly-label {
+        color: #35527f;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .quick-rail-monthly-value {
+        color: #3558c6;
+        font-size: 17px;
+        font-weight: 800;
+        line-height: 1;
+      }
+      .quick-rail-total-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        margin: 0 0 10px;
+      }
+      .quick-rail-total-row #quick-total {
+        font-size: clamp(26px, 2.8vw, 34px);
+        line-height: 1;
+        letter-spacing: -0.01em;
+      }
+      .quick-rail-total-label {
+        color: #1f315a;
+        font-size: 18px;
+        font-weight: 800;
+      }
+      .quick-subtotal {
+        margin: 0;
+        color: #252d45;
+        font-size: 19px;
+        font-weight: 600;
+      }
+      .quick-subtotal-rate {
+        margin: 2px 0 10px;
+        color: #5a6487;
+        font-size: 12px;
+        font-weight: 500;
+      }
+      .quick-subtotal strong {
+        color: #1b2238;
+        font-weight: 800;
+      }
+      .quick-rail-btn {
+        display: grid;
+        place-items: center;
+        min-height: 46px;
+        border-radius: 999px;
+        border: 1px solid #4863c4;
+        background: linear-gradient(135deg, #3558c6 0%, #8d12c5 100%);
+        box-shadow: 0 10px 18px rgba(53, 88, 198, 0.28);
+        color: #f7fbff;
+        font-size: 17px;
+        font-weight: 800;
+      }
+      .quick-rail-btn:hover {
+        filter: brightness(1.06);
+      }
+      .quick-rail-btn.is-loading {
+        opacity: 0.78;
+        pointer-events: none;
+      }
+      .quick-rail-assist-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        min-height: 42px;
+        margin: 0 0 12px;
+        border-radius: 999px;
+        border: 1px solid #9fded3;
+        background: linear-gradient(180deg, #ffffff 0%, #f6fffd 100%);
+        color: #1f315a;
+        font-size: 14px;
+        font-weight: 700;
+        box-shadow: 0 6px 14px rgba(29, 254, 214, 0.12);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+      }
+      .quick-rail-assist-btn:hover {
+        border-color: #63d9c6;
+        box-shadow: 0 8px 18px rgba(29, 254, 214, 0.2);
+        transform: translateY(-1px);
+      }
+      .quick-rail-assist-btn:active {
+        transform: translateY(0);
+      }
+      .quick-rail-assist-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        background: #1dfed6;
+        color: #243053;
+        font-size: 12px;
+        line-height: 1;
+      }
+      .quick-summary-sidebar {
+        position: static;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        background: linear-gradient(180deg, #f8fcff 0%, #f2f7ff 56%, #f7f2ff 100%);
+        z-index: 6;
+      }
+      .quick-sidebar-title {
+        margin: 0;
+        color: #2a4278;
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .quick-sidebar-icon {
+        color: #3558c6;
+        font-size: 16px;
+        line-height: 1;
+      }
+      .quick-summary-sidebar .quick-summary {
+        box-shadow: 0 10px 22px rgba(38, 61, 125, 0.11);
+      }
+      .quick-summary-card-title {
+        margin: 2px 2px 10px;
+        padding: 6px 10px;
+        border-radius: 8px;
+        border: 1px solid #c7d7f5;
+        background: linear-gradient(180deg, #eef5ff 0%, #e7f0ff 100%);
+        color: #2f4f95;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .quick-card-title-text {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .quick-card-icon {
+        font-size: 14px;
+        line-height: 1;
+      }
+      .quick-card-toggle {
+        min-height: 24px;
+        padding: 0 10px;
+        border: 1px solid #c4d5f5;
+        border-radius: 999px;
+        background: #ffffff;
+        color: #3558c6;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+        text-transform: none;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .quick-card-toggle:hover {
+        background: #eef4ff;
+      }
+      .quick-card-toggle:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .quick-card-body[hidden] {
+        display: none;
+      }
+      .quick-maintenance-switch {
+        margin: -2px 4px 8px;
+        padding: 8px;
+        border: 1px solid #d5e1f8;
+        border-radius: 10px;
+        background: #f8fbff;
+        display: grid;
+        gap: 6px;
+      }
+      .quick-maintenance-option {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: #324b7c;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .quick-maintenance-option input {
+        margin: 0;
+        accent-color: #3558c6;
+      }
+      .quick-summary-row {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 12px;
+        align-items: center;
+        padding: 10px 4px;
+      }
+      .quick-summary-row + .quick-summary-row {
+        border-top: 1px solid #d8e3f6;
+      }
+      .quick-summary-row.total {
+        grid-template-columns: auto 1fr auto;
+        padding-top: 12px;
+        padding-bottom: 12px;
+      }
+      .quick-summary-row-engineers-qty {
+        grid-template-columns: 1fr auto;
+        row-gap: 6px;
+      }
+      .quick-summary-row-site-qty {
+        grid-template-columns: 1fr auto;
+        row-gap: 6px;
+      }
+      .quick-summary-row-changes {
+        grid-template-columns: 1fr auto;
+      }
+      .quick-summary-row-site-qty .quick-change-qty,
+      .quick-summary-row-engineers-qty .quick-change-qty,
+      .quick-summary-row-changes .quick-change-qty {
+        justify-self: end;
+        width: 106px;
+      }
+      .quick-summary-row-site-qty .quick-summary-rate,
+      .quick-summary-row-engineers-qty .quick-summary-rate {
+        justify-self: end;
+        text-align: right;
+      }
+      .quick-summary-row-site-qty > .quick-summary-rate,
+      .quick-summary-row-engineers-qty > .quick-summary-rate {
+        grid-column: 1 / -1;
+        margin-top: -2px;
+      }
+      .quick-summary-row-addons-meta {
+        grid-template-columns: 1fr auto auto;
+        margin-top: 2px;
+      }
+      .quick-summary-row-addons-meta .quick-summary-count,
+      .quick-summary-row-addons-meta .quick-summary-price {
+        color: #3558c6;
+        font-size: 17px;
+        font-weight: 800;
+      }
+      .quick-addons-reveal {
+        margin: -2px 2px 0;
+        padding: 4px 6px 2px;
+      }
+      .quick-addons-reveal-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: #445987;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .quick-addons-reveal-input {
+        width: 14px;
+        height: 14px;
+        margin: 0;
+        accent-color: #3558c6;
+      }
+      .quick-summary-name {
+        color: #1f2f55;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .changes-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .changes-tooltip-wrap {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+      }
+      .changes-tooltip-trigger {
+        width: 18px;
+        height: 18px;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: #3558c6;
+        font-size: 14px;
+        font-weight: 800;
+        line-height: 1;
+        display: inline-grid;
+        place-items: center;
+        padding: 0;
+        cursor: pointer;
+      }
+      .changes-tooltip-trigger:hover {
+        color: #8d12c5;
+      }
+      .changes-tooltip {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        width: min(250px, 62vw);
+        padding: 10px 12px;
+        border: 1px solid #c8d7f5;
+        border-radius: 10px;
+        background: #ffffff;
+        box-shadow: 0 12px 24px rgba(35, 58, 113, 0.16);
+        z-index: 12;
+      }
+      .changes-tooltip::before {
+        content: "";
+        position: absolute;
+        top: -7px;
+        left: 10px;
+        width: 12px;
+        height: 12px;
+        transform: rotate(45deg);
+        background: #ffffff;
+        border-left: 1px solid #c8d7f5;
+        border-top: 1px solid #c8d7f5;
+      }
+      .changes-tooltip-title {
+        display: block;
+        margin: 0 0 4px;
+        color: #233961;
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .changes-tooltip-body {
+        display: block;
+        margin: 0;
+        color: #4d5f86;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .quick-summary-count {
+        color: #30456f;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .quick-summary-price {
+        color: #233961;
+        font-size: 14px;
+        font-weight: 800;
+      }
+      .quick-summary-rate {
+        color: #5f7094;
+        font-size: 12px;
+        font-weight: 500;
+      }
+      .quick-summary-before {
+        color: #8a91a8;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: line-through;
+      }
+      .quick-summary-total {
+        color: #3558c6;
+        font-size: 17px;
+        font-weight: 800;
+      }
+      .quick-change-qty {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid #cbd9f5;
+        border-radius: 999px;
+        background: #f8fbff;
+        overflow: hidden;
+      }
+      .quick-change-btn {
+        width: 28px;
+        min-height: 28px;
+        border: 0;
+        background: #f8fbff;
+        color: #2e4f95;
+        font-size: 19px;
+        font-weight: 700;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .quick-change-btn:hover {
+        background: #eaf1ff;
+      }
+      .quick-change-input {
+        width: 46px;
+        min-height: 28px;
+        border: 0;
+        border-left: 1px solid #d3def7;
+        border-right: 1px solid #d3def7;
+        color: #21335a;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        text-align: center;
+        padding: 0 3px;
+        background: transparent;
+      }
+      .quick-change-input::-webkit-outer-spin-button,
+      .quick-change-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      .quick-change-input[type=number] {
+        -moz-appearance: textfield;
+      }
+      .quick-addons-list {
+        display: grid;
+        gap: 10px;
+      }
+      .quick-addon-item {
+        display: grid;
+        grid-template-columns: 52px 1fr auto;
+        gap: 12px;
+        align-items: start;
+        padding: 10px;
+        border: 1px solid #d3def6;
+        border-radius: 12px;
+        background: #ffffff;
+      }
+      .quick-addon-tile {
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 900;
+        letter-spacing: 0.02em;
+        border: 1px solid #ced9f4;
+        color: #20365d;
+        background: linear-gradient(145deg, #f7fbff 0%, #e8f0ff 100%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+      }
+      .quick-addon-tile-ds {
+        color: #0f8b76;
+        background: linear-gradient(145deg, rgba(29, 254, 214, 0.2) 0%, #ecfbf8 100%);
+      }
+      .quick-addon-tile-pb {
+        color: #2b4ea8;
+        background: linear-gradient(145deg, rgba(53, 88, 198, 0.2) 0%, #edf2ff 100%);
+      }
+      .quick-addon-tile-pe {
+        color: #7a1987;
+        background: linear-gradient(145deg, rgba(141, 18, 197, 0.19) 0%, #f7ecff 100%);
+      }
+      .quick-addon-copy {
+        min-width: 0;
+      }
+      .quick-addon-title {
+        margin: 0;
+        color: #233962;
+        font-size: 14px;
+        font-weight: 800;
+        line-height: 1.25;
+      }
+      .quick-addon-desc {
+        margin: 5px 0 0;
+        color: #51648f;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .quick-addon-more {
+        margin: 5px 0 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: #3558c6;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.4;
+        text-decoration: underline;
+        cursor: pointer;
+      }
+      .quick-addon-more:hover {
+        color: #8d12c5;
+      }
+      .quick-addon-more:focus-visible {
+        outline: 2px solid #3558c6;
+        outline-offset: 2px;
+        border-radius: 4px;
+      }
+      .quick-addon-details {
+        margin-top: 5px;
+      }
+      .quick-addon-details[hidden] {
+        display: none;
+      }
+      .quick-addon-details .quick-addon-desc {
+        margin-top: 0;
+      }
+      .quick-addon-price {
+        margin: 7px 0 0;
+        color: #233a67;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .quick-addon-includes-title {
+        margin: 7px 0 0;
+        color: #3558c6;
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .quick-addon-includes {
+        margin: 4px 0 0;
+        padding-left: 18px;
+        color: #51648f;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .quick-addon-toggle {
+        position: relative;
+        display: inline-flex;
+        align-self: center;
+      }
+      .quick-addon-toggle input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .quick-addon-toggle-btn {
+        min-width: 82px;
+        min-height: 38px;
+        padding: 0 14px;
+        border-radius: 999px;
+        border: 1px solid #4764c5;
+        background: linear-gradient(135deg, #4f6dce 0%, #3558c6 100%);
+        color: #f7fbff;
+        font-size: 13px;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .quick-addon-toggle-btn::before {
+        content: attr(data-add-text);
+      }
+      .quick-addon-toggle input:checked + .quick-addon-toggle-btn {
+        border-color: #7b10ad;
+        background: #8d12c5;
+        color: #ffffff;
+      }
+      .quick-addon-toggle input:checked + .quick-addon-toggle-btn::before {
+        content: attr(data-added-text);
+      }
+      .quick-quote-note {
+        margin: 12px 0 0;
+        color: #5a6487;
+        font-size: 13px;
+        text-align: center;
+      }
+      .hero-bottom-note-wrap {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 14px;
+        z-index: 2;
+        display: flex;
+        justify-content: center;
+        padding: 0 12px;
+        pointer-events: none;
+      }
+      .hero-bottom-note {
+        margin: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: center;
+        width: fit-content;
+        max-width: 100%;
+        min-height: 48px;
+        padding: 12px 26px;
+        border-radius: 9999px;
+        border: 3px solid transparent;
+        background:
+          linear-gradient(#ffffff, #ffffff) padding-box,
+          linear-gradient(90deg, #1dfed6 0%, #3558c6 52%, #8d12c5 100%) border-box;
+        box-shadow: 0 12px 24px rgba(18, 30, 72, 0.28);
+        color: #282828;
+        text-decoration: none;
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+        line-height: 1.2;
+        white-space: nowrap;
+        text-align: center;
+        pointer-events: auto;
+        opacity: 0;
+        animation: hero-bottom-note-fade 0.7s ease-out 0.35s forwards;
+      }
+      .hero-bottom-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #3558c6;
+        font-weight: 800;
+        text-decoration: none;
+      }
+      .hero-bottom-link:hover {
+        color: #8d12c5;
+      }
+      .hero-bottom-link:focus-visible {
+        outline: 2px solid rgba(53, 88, 198, 0.35);
+        outline-offset: 2px;
+        border-radius: 8px;
+      }
+      .hero-bottom-link-arrow {
+        display: inline-block;
+        font-size: 14px;
+        line-height: 1;
+        animation: hero-bottom-arrow-bob 1.2s ease-in-out infinite;
+      }
+      @keyframes hero-aura-drift {
+        0% {
+          transform: translate3d(-4%, -3%, 0) scale(1);
+        }
+        50% {
+          transform: translate3d(4%, 3%, 0) scale(1.11);
+        }
+        100% {
+          transform: translate3d(-4%, -3%, 0) scale(1);
+        }
+      }
+      @keyframes hero-gradient-shift {
+        0% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
+      @keyframes hero-bottom-note-fade {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes hero-bottom-arrow-bob {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(2px);
+        }
+      }
+      @keyframes quote-btn-gradient {
+        0% {
+          background-position: 0% 50%;
+        }
+        50% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0% 50%;
+        }
+      }
+      @keyframes quote-btn-glow {
+        0% {
+          box-shadow: 0 10px 18px rgba(53, 88, 198, 0.26);
+        }
+        50% {
+          box-shadow: 0 14px 24px rgba(141, 18, 197, 0.26);
+        }
+        100% {
+          box-shadow: 0 10px 18px rgba(53, 88, 198, 0.26);
+        }
+      }
+
+      .summary-card {
+        border: 1px solid #cad2ed;
+        border-radius: 18px;
+        background: #fff;
+        box-shadow: 0 20px 36px rgba(8, 16, 42, 0.15);
+        padding: 20px;
+        color: #1d2641;
+        position: relative;
+      }
+      .summary-card::before {
+        content: "";
+        position: absolute;
+        left: 20px;
+        top: 0;
+        width: 90px;
+        height: 4px;
+        border-radius: 0 0 999px 999px;
+        background: var(--accent);
+      }
+      .summary-card h3 {
+        margin: 0 0 14px;
+        font-size: 32px;
+        line-height: 1.02;
+        letter-spacing: -0.02em;
+      }
+      .summary-cta-note {
+        margin: 0 0 16px;
+        color: #505a7c;
+        font-size: 15px;
+      }
+      .summary-label {
+        margin: 0 0 10px;
+        color: #1f2844;
+        font-size: 17px;
+        font-weight: 800;
+      }
+      .summary-service {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .summary-service-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        display: inline-grid;
+        place-items: center;
+        border: 1px solid #d7ddf0;
+        background: #f5f7ff;
+        color: #2f37cf;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .summary-service strong {
+        font-size: 22px;
+        line-height: 1.02;
+        letter-spacing: -0.02em;
+      }
+      .summary-divider {
+        height: 1px;
+        background: #e4e8f5;
+        margin: 0 0 12px;
+      }
+      .summary-form {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+      .summary-field {
+        display: grid;
+        gap: 6px;
+      }
+      .summary-field span {
+        font-size: 13px;
+        font-weight: 700;
+        color: #3a4563;
+      }
+      .summary-field input,
+      .summary-field select {
+        min-height: 43px;
+        border-radius: 10px;
+        border: 1px solid #c8d0e7;
+        background: #f8faff;
+        color: #1c2740;
+        font: inherit;
+        padding: 0 12px;
+      }
+      .summary-field input:focus,
+      .summary-field select:focus {
+        outline: none;
+        border-color: #7584f7;
+        box-shadow: 0 0 0 3px rgba(79, 95, 244, 0.16);
+      }
+      .summary-item {
+        padding: 10px 0;
+        border-top: 1px solid #e7ebf7;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 14px;
+      }
+      .summary-item strong { font-size: 15px; }
+      .summary-table {
+        margin: 12px 0 16px;
+        border-radius: 12px;
+        border: 1px solid #d6ddef;
+        background: #f4f6ff;
+        padding: 10px;
+      }
+      .summary-table > div {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 8px 4px;
+        border-bottom: 1px solid #dde3f5;
+        font-size: 13px;
+      }
+      .summary-table > div:last-child { border-bottom: 0; }
+      .quote-heading {
+        margin: 0 0 8px;
+        font-size: 17px;
+        font-weight: 800;
+        color: #1f2844;
+      }
+      .quote-box {
+        margin: 0 0 14px;
+        border: 1px solid #d6ddef;
+        background: #f1f3fa;
+        border-radius: 14px;
+        padding: 10px 12px;
+      }
+      .quote-row {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 14px;
+        align-items: center;
+        padding: 10px 4px;
+      }
+      .quote-row + .quote-row {
+        border-top: 1px solid #d8deee;
+      }
+      .quote-row-total {
+        grid-template-columns: auto 1fr auto auto;
+      }
+      .quote-name {
+        color: #222b48;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .quote-count {
+        color: #252f4f;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .quote-price {
+        color: #202b47;
+        font-size: 14px;
+        font-weight: 800;
+      }
+      .summary-total-bar {
+        width: 100%;
+        margin-bottom: 12px;
+        min-height: 54px;
+        border-radius: 12px;
+        border: 1px solid #4e53f0;
+        background: linear-gradient(180deg, #474bef 0%, #3438d6 100%);
+        box-shadow: 0 10px 20px rgba(36, 44, 174, 0.28);
+        display: grid;
+        place-items: center;
+      }
+      .summary-total-line {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .summary-total-prefix {
+        color: #fff;
+        font-size: 16px;
+        font-weight: 800;
+      }
+      .summary-before {
+        color: rgba(255, 255, 255, 0.68);
+        font-size: 15px;
+        font-weight: 700;
+        text-decoration: line-through;
+      }
+      .summary-total {
+        font-weight: 800;
+        color: #fff;
+        font-size: 25px;
+      }
+      .summary-rate-inline {
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .quote-row-total .summary-rate-inline {
+        color: #5a6487;
+      }
+      .quote-row-total .summary-before {
+        color: #8a91a8;
+        font-size: 14px;
+      }
+      .quote-row-total .summary-total {
+        color: #c37b04;
+        font-size: 18px;
+      }
+
+      .proof-strip {
+        padding: 0;
+      }
+      #benefits {
+        position: relative;
+        min-height: 800px;
+        display: grid;
+        align-items: center;
+        overflow: hidden;
+        background:
+          radial-gradient(70% 58% at 14% 18%, rgba(29, 254, 214, 0.28) 0%, rgba(29, 254, 214, 0) 72%),
+          radial-gradient(62% 56% at 88% 24%, rgba(53, 88, 198, 0.32) 0%, rgba(53, 88, 198, 0) 74%),
+          radial-gradient(64% 58% at 50% 92%, rgba(141, 18, 197, 0.26) 0%, rgba(141, 18, 197, 0) 76%),
+          linear-gradient(145deg, #112447 0%, #1d2f5f 42%, #2a2458 100%);
+      }
+      #benefits::before {
+        content: "";
+        position: absolute;
+        inset: -24% -22%;
+        pointer-events: none;
+        background: conic-gradient(from 180deg at 50% 50%, rgba(29, 254, 214, 0.26) 0deg, rgba(53, 88, 198, 0.24) 130deg, rgba(141, 18, 197, 0.24) 240deg, rgba(29, 254, 214, 0.26) 360deg);
+        opacity: 0.28;
+        filter: blur(46px);
+        animation: benefits-bg-drift 18s linear infinite;
+      }
+      #benefits .container {
+        position: relative;
+        z-index: 1;
+        padding-top: 56px;
+        padding-bottom: 56px;
+      }
+      .proof-open-wrap {
+        max-width: 1080px;
+        margin: 0 auto;
+        text-align: center;
+        display: grid;
+        gap: clamp(14px, 2.2vw, 28px);
+        opacity: 0;
+        transform: translateY(14px);
+        transition: opacity 0.48s ease, transform 0.48s ease;
+      }
+      #benefits.is-visible .proof-open-wrap {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .proof-open-kicker {
+        margin: 0;
+        color: rgba(236, 245, 255, 0.86);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .proof-open-heading {
+        margin: 0;
+        font-size: clamp(31px, 5vw, 48px);
+        line-height: 1.05;
+        letter-spacing: -0.02em;
+        color: #f8fbff;
+        text-transform: none;
+        text-shadow: 0 4px 22px rgba(6, 15, 37, 0.34);
+      }
+      .proof-open-origin {
+        margin: 0 auto;
+        max-width: 780px;
+        font-size: clamp(16px, 2vw, 22px);
+        line-height: 1.5;
+        letter-spacing: -0.01em;
+        color: #f8fbff;
+        text-shadow: 0 2px 14px rgba(6, 15, 37, 0.28);
+      }
+      .proof-open-flow {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr auto 1fr;
+        align-items: center;
+        justify-content: center;
+        gap: 8px 12px;
+        margin: 6px auto 2px;
+        max-width: 920px;
+      }
+      .proof-open-actions {
+        margin: 12px auto 0;
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .proof-open-actions .btn {
+        min-width: 170px;
+      }
+      .proof-open-actions .btn-outline {
+        color: #f2f8ff;
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(221, 233, 255, 0.6);
+      }
+      .proof-open-actions .btn-outline:hover {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.16);
+        border-color: rgba(221, 233, 255, 0.82);
+        box-shadow: none;
+      }
+      .proof-open-step {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 54px;
+        padding: 10px 16px;
+        border: 1px solid rgba(255, 255, 255, 0.78);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.06);
+        box-shadow: 0 8px 18px rgba(9, 20, 48, 0.16);
+        font-size: clamp(17px, 2.2vw, 28px);
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        color: #eff5ff;
+        text-shadow: 0 2px 12px rgba(9, 20, 48, 0.34);
+      }
+      .proof-open-step.before {
+        color: #86fff1;
+      }
+      .proof-open-step.decision {
+        color: #97b5ff;
+      }
+      .proof-open-step.now {
+        color: #d8a6ff;
+      }
+      .proof-open-sep {
+        font-size: clamp(18px, 2vw, 24px);
+        font-weight: 700;
+        color: #d7e3ff;
+        opacity: 0.85;
+        animation: benefits-arrow-pulse 1.8s ease-in-out infinite;
+      }
+      .proof-open-benefits {
+        margin: 6px auto 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px 30px;
+        max-width: 860px;
+      }
+      .proof-open-benefits li {
+        font-size: 16px;
+        font-weight: 700;
+        color: #f2f7ff;
+        position: relative;
+        padding-bottom: 6px;
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      .proof-open-benefits li::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 2px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #1dfed6 0%, #3558c6 54%, #8d12c5 100%);
+        opacity: 0.94;
+      }
+      #benefits.is-visible .proof-open-benefits li {
+        animation: benefits-fade-up 0.45s ease forwards;
+      }
+      #benefits.is-visible .proof-open-benefits li:nth-child(1) { animation-delay: 0.08s; }
+      #benefits.is-visible .proof-open-benefits li:nth-child(2) { animation-delay: 0.14s; }
+      #benefits.is-visible .proof-open-benefits li:nth-child(3) { animation-delay: 0.2s; }
+      #benefits.is-visible .proof-open-benefits li:nth-child(4) { animation-delay: 0.26s; }
+      @keyframes benefits-fade-up {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes benefits-arrow-pulse {
+        0%, 100% { opacity: 0.45; transform: translateX(0); }
+        50% { opacity: 0.95; transform: translateX(2px); }
+      }
+      @keyframes benefits-bg-drift {
+        0% {
+          transform: rotate(0deg) scale(1);
+        }
+        50% {
+          transform: rotate(180deg) scale(1.08);
+        }
+        100% {
+          transform: rotate(360deg) scale(1);
+        }
+      }
+
+      #how {
+        background: #ffffff;
+        border-top: 1px solid #dce6fa;
+        border-bottom: 1px solid #dce6fa;
+      }
+      #how .section-head {
+        margin-bottom: 28px;
+      }
+      #how .section-head h2 {
+        color: #1f2f56;
+      }
+      #how .section-head h2::after {
+        width: 110px;
+        background: linear-gradient(90deg, #1dfed6 0%, #3558c6 55%, #8d12c5 100%);
+      }
+      #how .section-head p {
+        color: #5b688a;
+      }
+      #how .how-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 18px;
+      }
+      #how .card {
+        position: relative;
+        border-color: #d8e2f8;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        box-shadow: 0 10px 22px rgba(19, 44, 98, 0.08);
+        border-radius: 16px;
+        transition: transform 0.22s cubic-bezier(0.22, 0.61, 0.36, 1), box-shadow 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+      }
+      #how .card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        border-radius: 16px 16px 0 0;
+        background: linear-gradient(90deg, #1dfed6 0%, #3558c6 60%, #8d12c5 100%);
+        background-size: 170% 100%;
+        background-position: 0 0;
+        transition: height 0.22s ease, background-position 0.35s ease, opacity 0.22s ease;
+      }
+      #how .step {
+        background: #edf4ff;
+        color: #3558c6;
+        border: 1px solid #d5e3fb;
+        transition: background-color 0.22s ease, border-color 0.22s ease, color 0.22s ease;
+      }
+      #how .how-icon {
+        width: 88px;
+        height: 88px;
+        display: block;
+        margin: 14px 0 12px;
+        filter: none;
+        transition: transform 0.22s ease;
+      }
+      #how .card h3 {
+        font-size: 20px;
+        color: #1f2f56;
+        transition: color 0.22s ease;
+      }
+      #how .card p {
+        color: #5a6888;
+        transition: color 0.22s ease;
+      }
+      #how .card:hover {
+        transform: translateY(-5px);
+        border-color: #b7c8ee;
+        background: linear-gradient(180deg, #ffffff 0%, #f1f7ff 100%);
+        box-shadow: 0 16px 34px rgba(19, 44, 98, 0.16);
+      }
+      #how .card:hover::before {
+        height: 5px;
+        opacity: 1;
+        background-position: 100% 0;
+      }
+      #how .card:hover .step {
+        background: #e4efff;
+        border-color: #c3d7fc;
+        color: #294ea9;
+      }
+      #how .card:hover .how-icon {
+        transform: translateY(-1px) scale(1.03);
+      }
+      #how .card:hover h3 {
+        color: #172a52;
+      }
+      #how .card:hover p {
+        color: #4c5f86;
+      }
+      .how-actions {
+        margin: 22px auto 0;
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .how-actions .btn {
+        min-width: 170px;
+      }
+
+      #deliverables {
+        background: #ffffff;
+        border-top: 1px solid #dfe8fb;
+        border-bottom: 1px solid #dfe8fb;
+      }
+      #deliverables .section-head {
+        margin-bottom: 20px;
+      }
+      #deliverables .section-head h2 {
+        color: #1f2f56;
+      }
+      #deliverables .section-head h2::after {
+        width: 118px;
+        background: linear-gradient(90deg, #1dfed6 0%, #3558c6 55%, #8d12c5 100%);
+      }
+      #deliverables .section-head p {
+        color: #5a688a;
+      }
+      #deliverables .deliverables-grid {
+        gap: 12px;
+      }
+      #deliverables .deliverable-item {
+        display: grid;
+        grid-template-columns: 44px 1fr;
+        align-items: flex-start;
+        gap: 12px;
+        border-radius: 14px;
+        border: 1px solid #d7e2fa;
+        background: #ffffff;
+        padding: 14px;
+        box-shadow: 0 8px 20px rgba(19, 40, 86, 0.07);
+        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+      }
+      #deliverables .deliverable-item:hover {
+        transform: translateY(-1px);
+        border-color: #bfcff3;
+        box-shadow: 0 12px 22px rgba(19, 40, 86, 0.1);
+      }
+      #deliverables .deliverable-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: inline-grid;
+        place-items: center;
+        font-size: 21px;
+        background: linear-gradient(180deg, #f4f9ff 0%, #eef5ff 100%);
+        border: 1px solid #d4e0fa;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+      }
+      #deliverables .deliverable-copy h3 {
+        margin: 2px 0 0;
+        color: #20325a;
+        font-size: 21px;
+        line-height: 1.15;
+      }
+      #deliverables .deliverable-copy p {
+        margin: 6px 0 0;
+        color: #536388;
+        font-size: 15px;
+      }
+      #deliverables .deliverables-foot {
+        margin: 12px 0 0;
+        text-align: center;
+        color: #4a5c84;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .deliverables-actions {
+        margin: 16px auto 0;
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .deliverables-actions .btn {
+        min-width: 170px;
+      }
+
+      .section { padding: 72px 0; }
+      .section.alt { background: #fff; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+      .section-head {
+        margin-bottom: 24px;
+        text-align: center;
+      }
+      .section-head.align-left { text-align: left; }
+      .section-head h2 {
+        margin: 0;
+        font-size: clamp(31px, 5vw, 48px);
+        line-height: 1.05;
+        letter-spacing: -0.02em;
+      }
+      .section-head h2::after {
+        content: "";
+        display: block;
+        width: 74px;
+        height: 4px;
+        margin: 12px auto 0;
+        border-radius: 999px;
+        background: var(--accent);
+      }
+      .section-head.align-left h2::after {
+        margin-left: 0;
+        margin-right: 0;
+      }
+      .section-head p { margin: 10px 0 0; color: var(--muted); font-size: 17px; }
+
+      .how-grid,
+      .deliverables-grid,
+      .pricing-grid {
+        display: grid;
+        gap: 14px;
+      }
+      .how-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .deliverables-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .pricing-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+      .card {
+        border: 1px solid #d5dcec;
+        border-radius: 14px;
+        background: #fff;
+        padding: 18px;
+        box-shadow: 0 6px 16px rgba(9, 17, 49, 0.06);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      }
+      .card:hover {
+        transform: translateY(-2px);
+        border-color: #bfc7e6;
+        box-shadow: 0 12px 24px rgba(9, 17, 49, 0.1);
+      }
+      .card h3 {
+        margin: 0;
+        font-size: 24px;
+        line-height: 1.1;
+      }
+      .card p {
+        margin: 10px 0 0;
+        color: #4f5879;
+      }
+      .step {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        border-radius: 999px;
+        padding: 0 10px;
+        background: var(--accent-soft);
+        color: #7c5300;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 10px;
+      }
+
+      .pricing-layout,
+      .get-started-layout {
+        display: grid;
+        grid-template-columns: 1.2fr .8fr;
+        gap: 20px;
+        align-items: start;
+      }
+      .sticky { position: sticky; top: 98px; }
+
+      .price-card .price {
+        margin: 10px 0 0;
+        font-size: 38px;
+        line-height: 1;
+        color: #c37b04;
+        font-weight: 800;
+      }
+      .price-card ul {
+        margin: 12px 0 0;
+        padding-left: 18px;
+        color: #475271;
+      }
+      .price-card li { margin: 7px 0; }
+      .price-card .btn { margin-top: 12px; }
+      .price-badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 26px;
+        border-radius: 999px;
+        padding: 0 10px;
+        border: 1px solid #e2a52c;
+        background: #fff2d4;
+        color: #7e5500;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 10px;
+      }
+      .price-card.featured {
+        border-color: #6f7ef7;
+        box-shadow: 0 12px 24px rgba(42, 61, 221, 0.18);
+        background: linear-gradient(180deg, #fff, #f8f9ff);
+      }
+      .price-card.active {
+        border-color: #e4a426;
+        box-shadow: 0 14px 26px rgba(201, 131, 11, 0.2);
+      }
+
+      #faq {
+        background: linear-gradient(145deg, #121f3f 0%, #1a2a55 52%, #221f4c 100%);
+        border-top: 1px solid rgba(147, 170, 223, 0.28);
+        border-bottom: 1px solid rgba(147, 170, 223, 0.28);
+      }
+      #faq .section-head h2 {
+        color: #f3f8ff;
+      }
+      #faq .section-head h2::after {
+        background: linear-gradient(90deg, #1dfed6 0%, #3558c6 54%, #8d12c5 100%);
+      }
+      #faq .section-head p {
+        color: rgba(232, 241, 255, 0.85);
+      }
+      .faq-list {
+        display: grid;
+        gap: 6px;
+        max-width: 860px;
+        margin: 0 auto;
+      }
+      .faq-item {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        padding: 0;
+        border-bottom: 1px solid rgba(188, 206, 244, 0.2);
+      }
+      .faq-item:last-child {
+        border-bottom: 0;
+      }
+      .faq-item summary {
+        list-style: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        color: #eaf1ff;
+        padding: 12px 10px;
+        border-radius: 8px;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        transition: color 0.18s ease, background-color 0.18s ease;
+      }
+      .faq-item summary::-webkit-details-marker {
+        display: none;
+      }
+      .faq-item summary::after {
+        content: "+";
+        color: #9fc0ff;
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .faq-item[open] summary::after {
+        content: "−";
+      }
+      .faq-item summary:hover {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .faq-item p {
+        margin: 2px 0 8px;
+        padding: 0 10px 4px;
+        color: #1dfed6;
+        font-size: 17px;
+      }
+
+      .lead-form {
+        border: 1px solid #d5dcec;
+        border-radius: 14px;
+        background: #fff;
+        padding: 16px;
+        box-shadow: 0 8px 18px rgba(10, 21, 58, 0.06);
+      }
+      .form-head {
+        margin: 0 0 12px;
+        color: #4c5678;
+        font-size: 14px;
+      }
+      .form-grid { display: grid; gap: 10px; }
+      .form-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .lead-form label {
+        display: grid;
+        gap: 7px;
+        margin-bottom: 10px;
+      }
+      .lead-form span {
+        font-size: 13px;
+        font-weight: 700;
+        color: #3a4563;
+      }
+      .lead-form input,
+      .lead-form select {
+        min-height: 45px;
+        width: 100%;
+        border-radius: 10px;
+        border: 1px solid #c8d0e7;
+        background: #f8faff;
+        color: #1c2740;
+        font: inherit;
+        padding: 0 12px;
+      }
+      .lead-form input:focus,
+      .lead-form select:focus {
+        outline: none;
+        border-color: #7584f7;
+        box-shadow: 0 0 0 3px rgba(79, 95, 244, 0.16);
+      }
+      fieldset {
+        margin: 10px 0 12px;
+        border: 1px solid #cdd5ea;
+        border-radius: 12px;
+        background: #f8faff;
+        padding: 10px 12px 8px;
+      }
+      legend {
+        padding: 0 6px;
+        font-size: 13px;
+        font-weight: 800;
+        color: #384361;
+      }
+      fieldset label {
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: #455071;
+        font-size: 14px;
+      }
+      input[type="checkbox"] { width: 16px; height: 16px; accent-color: #e3a021; }
+      .note { margin: 10px 0 0; color: #5a6487; font-size: 13px; }
+
+      .fit-list {
+        margin: 0;
+        padding-left: 18px;
+        color: #4a5577;
+      }
+      .fit-list li { margin: 8px 0; }
+
+      .site-footer {
+        margin-top: 0;
+        position: relative;
+        background: linear-gradient(180deg, #f6f7fa 0%, #eef1f7 100%);
+        border-top: 1px solid #d5ddef;
+        color: #243457;
+        overflow: hidden;
+      }
+      .site-footer::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #1dfed6 0%, #3558c6 60%, #4a7de8 100%);
+      }
+      .site-footer::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(62% 82% at 8% 0%, rgba(29, 254, 214, 0.08) 0%, rgba(29, 254, 214, 0) 72%),
+          radial-gradient(56% 72% at 88% 0%, rgba(53, 88, 198, 0.09) 0%, rgba(53, 88, 198, 0) 74%),
+          radial-gradient(44% 60% at 50% 100%, rgba(74, 125, 232, 0.08) 0%, rgba(74, 125, 232, 0) 74%);
+        opacity: 1;
+      }
+      .footer-inner {
+        position: relative;
+        z-index: 1;
+        padding: 28px 0 24px;
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) auto;
+        gap: 16px 24px;
+        align-items: center;
+      }
+      .footer-brand {
+        display: grid;
+        gap: 6px;
+      }
+      .footer-logo {
+        width: auto;
+        height: 32px;
+        object-fit: contain;
+      }
+      .footer-tagline {
+        margin: 0;
+        color: #495a82;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .footer-mail {
+        color: #3558c6;
+        font-size: 14px;
+        font-weight: 700;
+        width: fit-content;
+      }
+      .footer-mail:hover {
+        color: #1f3d93;
+      }
+      .footer-nav {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px 16px;
+        flex-wrap: wrap;
+      }
+      .footer-nav a {
+        color: #3b4e79;
+        padding: 2px 0;
+        border: 0;
+        background: transparent;
+        border-radius: 0;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.2;
+        position: relative;
+        transition: color 0.16s ease;
+      }
+      .footer-nav a::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -3px;
+        height: 2px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #1dfed6 0%, #3558c6 58%, #4a7de8 100%);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.2s ease;
+      }
+      .footer-nav a:hover {
+        color: #1f315f;
+      }
+      .footer-nav a:hover::after {
+        transform: scaleX(1);
+      }
+      .footer-end {
+        display: grid;
+        justify-items: end;
+        gap: 6px;
+      }
+      .footer-cta {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 34px;
+        padding: 0 12px;
+        border-radius: 9999px;
+        border: 1px solid #c4d0ea;
+        background: #ffffff;
+        color: #274072;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        box-shadow: none;
+      }
+      .footer-cta:hover {
+        background: #f1f6ff;
+        color: #1d305a;
+      }
+      .footer-end p {
+        margin: 0;
+        color: #4b5d86;
+        font-size: 13px;
+        font-weight: 600;
+        text-align: right;
+      }
+      .footer-copy {
+        color: #7688b0;
+        font-size: 12px;
+      }
+
+      #deliverables,
+      #pricing,
+      #faq,
+      #get-started {
+        scroll-margin-top: 24px;
+      }
+
+      @media (max-width: 1140px) {
+        #benefits {
+          min-height: 720px;
+          padding: 56px 0;
+        }
+        #benefits .container {
+          padding-top: 34px;
+          padding-bottom: 34px;
+        }
+        #how .how-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .proof-open-flow {
+          grid-template-columns: 1fr;
+          gap: 6px;
+        }
+        .proof-open-sep {
+          transform: rotate(90deg);
+          margin: -2px 0;
+        }
+      }
+
+      @media (max-width: 1024px) {
+        .proof-strip {
+          padding-top: 0;
+        }
+      }
+
+      @media (max-width: 900px) {
+        .footer-inner {
+          grid-template-columns: 1fr;
+          justify-items: center;
+          row-gap: 10px;
+          padding: 22px 0 20px;
+        }
+        .footer-brand {
+          justify-items: center;
+          text-align: center;
+        }
+        .footer-nav {
+          justify-content: center;
+        }
+        .footer-end {
+          justify-items: center;
+        }
+        .footer-end p {
+          text-align: center;
+        }
+      }
+
+      @media (max-width: 820px) {
+        #benefits {
+          min-height: 620px;
+          padding: 48px 0 44px;
+        }
+        #benefits .container {
+          padding-top: 24px;
+          padding-bottom: 24px;
+        }
+        #how .how-grid {
+          grid-template-columns: 1fr;
+        }
+        .proof-open-wrap {
+          gap: 12px;
+        }
+        .proof-open-origin { font-size: clamp(15px, 4.8vw, 20px); }
+        .proof-open-heading { font-size: clamp(31px, 5vw, 48px); }
+        .proof-open-benefits {
+          grid-template-columns: 1fr;
+          gap: 8px;
+          max-width: 520px;
+        }
+      }
+
+      @media (min-width: 1201px) {
+        body {
+          padding-right: var(--right-rail-width);
+        }
+        .site-header {
+          right: var(--right-rail-width);
+        }
+        body:not(.nav-visible) .quick-summary-sidebar {
+          top: 0;
+        }
+        body.nav-visible .quick-summary-sidebar {
+          top: 78px;
+        }
+        .quick-summary-sidebar {
+          position: fixed;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          width: var(--right-rail-width);
+          border-left: 1px solid #c8d8f5;
+          background: linear-gradient(180deg, #f7fcff 0%, #f1f6ff 55%, #f7f1ff 100%);
+          padding: 14px 12px 18px;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          z-index: 24;
+        }
+        .quick-summary-stack {
+          min-height: 0;
+          overflow: auto;
+          padding-right: 2px;
+        }
+        .quick-summary-sidebar .quick-summary {
+          border-radius: 16px;
+          background: #fff;
+          box-shadow: 0 8px 20px rgba(35, 58, 113, 0.08);
+        }
+      }
+      @media (max-width: 1024px) {
+        .hero-grid,
+        .pricing-layout,
+        .get-started-layout {
+          grid-template-columns: 1fr;
+        }
+        .summary-card h3 { font-size: 32px; }
+        .sticky { position: static; }
+        .deliverables-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+
+      @media (max-width: 820px) {
+        .header-nav-only {
+          min-height: 64px;
+          justify-content: flex-end;
+          padding: 10px 0;
+        }
+        .header-nav-only .menu-toggle {
+          display: inline-flex;
+          min-height: 40px;
+        }
+        .header-nav-only .main-nav {
+          position: absolute;
+          top: calc(100% + 8px);
+          left: 0;
+          right: 0;
+          display: none;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+          background: #fff;
+          box-shadow: 0 10px 24px rgba(10, 18, 48, 0.1);
+        }
+        .header-nav-only .main-nav.open {
+          display: flex;
+        }
+        .header-inner {
+          grid-template-columns: auto auto;
+          grid-template-areas:
+            "logo menu"
+            "nav nav"
+            "cta cta";
+          gap: 10px;
+          padding: 12px 0;
+        }
+        .logo { grid-area: logo; }
+        .menu-toggle { grid-area: menu; justify-self: end; display: inline-flex; }
+        .main-nav {
+          grid-area: nav;
+          display: none;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+          background: #fff;
+        }
+        .main-nav.open { display: flex; }
+        .header-cta { grid-area: cta; }
+        .header-side-logo { display: none; }
+
+        .hero {
+          min-height: auto;
+          padding: 56px 0 36px;
+        }
+        .hero::before {
+          filter: blur(24px);
+          opacity: 0.62;
+        }
+        .hero::after {
+          opacity: 0.54;
+        }
+        .hero h1 { font-size: clamp(36px, 12.6vw, 60px); }
+        .hero h2 { font-size: clamp(22px, 7vw, 36px); }
+        .hero-brand-line {
+          gap: 10px;
+        }
+        .hero-brand-logo {
+          width: clamp(52px, 16.8vw, 70px);
+          height: clamp(52px, 16.8vw, 70px);
+        }
+        .hero-brand-arrow {
+          font-size: clamp(21px, 7vw, 28px);
+        }
+        .hero-grid {
+          text-align: center;
+          justify-items: center;
+        }
+        .hero-main {
+          gap: 16px;
+        }
+        .hero-top-pill {
+          top: 12px;
+        }
+        .hero-lead {
+          margin-left: auto;
+          margin-right: auto;
+        }
+        .hero-main {
+          max-width: 100%;
+        }
+        .quick-quote {
+          width: min(860px, 100%);
+        }
+        .quote-line {
+          border-radius: 16px;
+          padding: 8px;
+          flex-wrap: wrap;
+        }
+        .quick-url-field {
+          min-width: 100%;
+          width: 100%;
+        }
+        .quote-qty {
+          width: 100%;
+          justify-content: flex-start;
+        }
+        .quote-qty-label {
+          flex: 1 1 auto;
+        }
+        .quote-pages-input {
+          width: 60px;
+          flex: 0 0 60px;
+        }
+        .quick-quote-btn {
+          width: 100%;
+        }
+        .quick-summary-sidebar {
+          position: static;
+          width: min(860px, 100%);
+        }
+        .changes-tooltip {
+          width: min(230px, 78vw);
+          left: auto;
+          right: 0;
+        }
+        .changes-tooltip::before {
+          left: auto;
+          right: 10px;
+        }
+        .quick-addon-item {
+          grid-template-columns: 52px 1fr;
+        }
+        .quick-addon-toggle {
+          grid-column: 1 / -1;
+          justify-self: start;
+        }
+        .hero-bottom-note-wrap {
+          position: static;
+          padding: 0 12px;
+          margin: 8px auto 0;
+        }
+        .hero-bottom-note {
+          width: fit-content;
+          max-width: 100%;
+        }
+        .how-grid,
+        .deliverables-grid,
+        .pricing-grid,
+        .form-grid.two {
+          grid-template-columns: 1fr;
+        }
+
+        .btn,
+        .header-cta .btn,
+        .hero-actions .btn {
+          width: 100%;
+        }
+
+        .footer-inner {
+          grid-template-columns: 1fr;
+          justify-items: center;
+          row-gap: 8px;
+          padding: 14px 0;
+        }
+        .floating-chat {
+          left: 12px;
+          bottom: 12px;
+          min-height: 50px;
+          padding-right: 12px;
+        }
+        .floating-chat-title { font-size: 13px; }
+        .floating-chat-sub { font-size: 11px; }
+        .corner-menu-toggle {
+          top: 10px;
+          left: 10px;
+        }
+        .corner-menu-panel {
+          width: min(320px, 92vw);
+          padding: 72px 14px 18px;
+        }
+      }
+      @media (max-width: 520px) {
+        .floating-chat {
+          padding-right: 8px;
+        }
+        .floating-chat-text {
+          display: none;
+        }
+        .hero-bottom-note {
+          min-height: 44px;
+          padding: 10px 18px;
+          font-size: 13px;
+          white-space: normal;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .hero::before,
+        .hero::after,
+        .hero-bottom-note,
+        .hero-bottom-link-arrow,
+        .quick-quote-btn,
+        #benefits::before,
+        .proof-open-sep,
+        #benefits .proof-open-benefits li {
+          animation: none;
+        }
+        .proof-open-wrap,
+        #benefits .proof-open-benefits li {
+          opacity: 1;
+          transform: none;
+        }
+      }
+    </style>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://wptoai.com/#organization",
+            "name": "WP → AI",
+            "url": "https://wptoai.com/",
+            "logo": "https://wptoai.com/images/wptoai-logo-colors.png",
+            "image": "https://wptoai.com/images/wptoai-logo-colors.png",
+            "email": "hello@wptoai.com"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://wptoai.com/#website",
+            "url": "https://wptoai.com/",
+            "name": "WP → AI",
+            "inLanguage": "en-US"
+          },
+          {
+            "@type": "Service",
+            "@id": "https://wptoai.com/#service",
+            "name": "WP → AI",
+            "serviceType": "WordPress site organization for AI tools, search, and automation",
+            "description": "We migrate WordPress sites into AI self-maintained websites while keeping the same design and brand.",
+            "areaServed": {
+              "@type": "Country",
+              "name": "United States"
+            },
+            "provider": {
+              "@id": "https://wptoai.com/#organization"
+            },
+            "offers": {
+              "@type": "Offer",
+              "url": "https://wptoai.com/",
+              "priceCurrency": "USD",
+              "price": "50",
+              "availability": "https://schema.org/InStock"
+            }
+          },
+          {
+            "@type": "HowTo",
+            "@id": "https://wptoai.com/#howto",
+            "name": "How WP to AI works",
+            "description": "Share your URL, we map and migrate your site, then you request changes by chat.",
+            "step": [
+              {
+                "@type": "HowToStep",
+                "position": 1,
+                "name": "Share your URL",
+                "text": "You share your current WordPress URL."
+              },
+              {
+                "@type": "HowToStep",
+                "position": 2,
+                "name": "We map your site",
+                "text": "We map your pages, sections, and reusable components."
+              },
+              {
+                "@type": "HowToStep",
+                "position": 3,
+                "name": "We migrate cleanly",
+                "text": "We migrate your site while keeping the same design and brand."
+              },
+              {
+                "@type": "HowToStep",
+                "position": 4,
+                "name": "You update by chat",
+                "text": "You request updates by chat, like working with an engineer."
+              }
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://wptoai.com/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What exactly are you migrating?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "We migrate your page structure, content, and reusable sections from your current WordPress URL. Your design and brand stay the same."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Do I need to shut down WordPress?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. Your current WordPress site keeps running while we prepare the migrated system."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How long does it take?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Small and medium sites are usually ready in a few business days. Bigger sites take longer based on page count and complexity."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What do we get at handoff?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "You get clean HTML and CSS files with an image folder, a sitemap.xml, a Figma design system, Notion docs, an AI-ready website, and Storybook documentation in a GitHub repo."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Who owns the final result?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "You do. 100% client ownership of files and documentation."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Is our site data private?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. We treat your URL, files, and project details as private and only use them for your migration."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Do you offer monthly maintenance?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. You can add monthly maintenance with AI engineers and prompts for ongoing changes."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <button class="corner-menu-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="corner-menu-panel">
+      <span class="corner-menu-bars" aria-hidden="true"></span>
+    </button>
+    <div class="corner-menu-overlay" aria-hidden="true"></div>
+    <nav id="corner-menu-panel" class="corner-menu-panel" aria-label="Quick menu">
+      <a href="#top">Home</a>
+      <a href="#benefits">Why teams switch</a>
+      <a href="#how">How it works</a>
+      <a href="#deliverables">Deliverables</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+
+    <header class="site-header">
+      <div class="container header-inner header-nav-only">
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav">Menu</button>
+        <nav id="main-nav" class="main-nav" aria-label="Primary">
+          <a href="#top">Home</a>
+          <a href="#benefits">Why teams switch</a>
+          <a href="#how">How it works</a>
+          <a href="#deliverables">Deliverables</a>
+          <a href="#faq">FAQ</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <p class="eyebrow hero-top-pill">WordPress to AI Migration Service</p>
+        <div class="container hero-grid">
+          <div class="hero-main">
+            <h1>
+              <span class="hero-brand-line" aria-label="WordPress to AI">
+                <img class="hero-brand-logo" src="images/wordpress-logo-png-file-11662328823hnwldnbjf4.png" alt="WordPress logo">
+                <span class="hero-brand-arrow" aria-hidden="true">→</span>
+                <img class="hero-brand-logo" src="images/ai-logo,png.png" alt="AI logo">
+              </span>
+              <span class="hero-slogan">
+                <span class="word-chat">Chat.</span>
+                <span class="word-change">Change.</span>
+                <span class="word-done">Done.</span>
+              </span>
+            </h1>
+            <p class="hero-lead">We migrate your WordPress site into an AI self-maintained system with the same design and brand, and you request changes by chat like working with an engineer.</p>
+            <p id="checkout-status" class="checkout-status" role="status" aria-live="polite" hidden></p>
+            <aside class="quick-quote" aria-label="Quick quote">
+              <form id="quick-quote-form" class="quote-line" action="#get-started">
+                <div class="quick-url-field">
+                  <span class="quick-url-prefix" aria-hidden="true">http://</span>
+                  <input id="quick-quote-input" type="text" placeholder="Paste your WordPress URL" aria-label="WordPress URL">
+                </div>
+                <div class="quote-qty" role="group" aria-label="Pages quantity">
+                  <span class="quote-qty-label">How many pages?</span>
+                  <button id="quick-quote-minus" class="quote-qty-btn" type="button" aria-label="Decrease pages">−</button>
+                  <input id="quick-quote-pages" class="quote-pages-input" type="number" min="1" max="25" step="1" value="1" aria-label="Pages to convert">
+                  <button id="quick-quote-plus" class="quote-qty-btn" type="button" aria-label="Increase pages">+</button>
+                </div>
+                <button class="btn btn-primary quick-quote-btn" type="submit">Migrate My Site</button>
+              </form>
+              <p id="quick-quote-error" class="quick-quote-error" aria-live="polite" hidden></p>
+            </aside>
+          </div>
+
+          <aside class="quick-summary-sidebar" aria-label="Quote summary">
+            <p class="quick-sidebar-title">Order Summary</p>
+            <div class="quick-summary-stack" aria-live="polite">
+              <section class="quick-summary quick-summary-card" aria-label="Site quote">
+                <p class="quick-summary-card-title">
+                  <span class="quick-card-title-text"><span class="quick-card-icon" aria-hidden="true">🚀</span>SITE MIGRATION</span>
+                  <button id="quick-site-toggle" class="quick-card-toggle" type="button" aria-expanded="true" aria-controls="quick-site-body">Hide</button>
+                </p>
+                <div id="quick-site-body" class="quick-card-body">
+                  <div class="quick-summary-row">
+                    <span class="quick-summary-name">Homepage</span>
+                    <span id="quick-home-count" class="quick-summary-count">1</span>
+                    <span id="quick-home-price" class="quick-summary-price">$50</span>
+                  </div>
+                  <div class="quick-summary-row">
+                    <span class="quick-summary-name">Innerpage</span>
+                    <span id="quick-inner-count" class="quick-summary-count">0</span>
+                    <span id="quick-inner-price" class="quick-summary-price">$0</span>
+                  </div>
+                  <div class="quick-summary-row quick-summary-row-site-qty">
+                    <span class="quick-summary-name">Pages <span class="quick-summary-rate">/ quantity</span></span>
+                    <div class="quick-change-qty" role="group" aria-label="Site pages quantity">
+                      <button id="quick-sidebar-pages-minus" class="quick-change-btn" type="button" aria-label="Decrease site pages">−</button>
+                      <input id="quick-sidebar-pages-input" class="quick-change-input" type="number" min="1" max="25" step="1" value="1" aria-label="Site pages quantity">
+                      <button id="quick-sidebar-pages-plus" class="quick-change-btn" type="button" aria-label="Increase site pages">+</button>
+                    </div>
+                    <span id="quick-pages-max-hint" class="quick-summary-rate" hidden>(max 25)</span>
+                  </div>
+                </div>
+                <div class="quick-summary-row total">
+                  <span class="quick-summary-name"><span id="quick-site-rate">1-3 pages rate</span> <span class="quick-summary-rate">/ one time payment</span></span>
+                  <span class="quick-summary-rate"></span>
+                  <span id="quick-site-total" class="quick-summary-total">$50</span>
+                </div>
+              </section>
+              <section class="quick-summary quick-summary-card" aria-label="Mantenience quote">
+                <p class="quick-summary-card-title">
+                  <span class="quick-card-title-text"><span class="quick-card-icon" aria-hidden="true">🛠️</span>SITE MANTENIENCE</span>
+                  <button id="quick-maintenance-toggle" class="quick-card-toggle" type="button" aria-expanded="false" aria-controls="quick-maintenance-body" disabled>Off</button>
+                </p>
+                <div class="quick-maintenance-switch" role="radiogroup" aria-label="Maintenance plan">
+                  <label class="quick-maintenance-option">
+                    <input id="quick-maintenance-off" type="radio" name="quick-maintenance-mode" value="off" checked>
+                    <span>No monthly maintenance</span>
+                  </label>
+                  <label class="quick-maintenance-option">
+                    <input id="quick-maintenance-on" type="radio" name="quick-maintenance-mode" value="on">
+                    <span>Include monthly maintenance</span>
+                  </label>
+                </div>
+                <div id="quick-maintenance-body" class="quick-card-body" hidden>
+                  <div class="quick-summary-row">
+                    <span class="quick-summary-name">AI Engineers <span class="quick-summary-rate">/ How many?</span></span>
+                    <span id="quick-engineers-count" class="quick-summary-count">0</span>
+                    <span id="quick-ai-price" class="quick-summary-price">$0.00</span>
+                  </div>
+                  <div class="quick-summary-row quick-summary-row-engineers-qty">
+                    <span class="quick-summary-name">Engineers <span class="quick-summary-rate">/ quantity</span></span>
+                    <div class="quick-change-qty" role="group" aria-label="AI engineers">
+                      <button id="quick-engineers-minus" class="quick-change-btn" type="button" aria-label="Decrease AI engineers">−</button>
+                      <input id="quick-engineers-input" class="quick-change-input" type="number" min="0" max="6" step="1" value="0" aria-label="AI engineers quantity">
+                      <button id="quick-engineers-plus" class="quick-change-btn" type="button" aria-label="Increase AI engineers">+</button>
+                    </div>
+                    <span id="quick-engineers-max-hint" class="quick-summary-rate" hidden>(max 6)</span>
+                  </div>
+                  <div class="quick-summary-row quick-summary-row-changes">
+                    <span class="quick-summary-name changes-label">
+                      <span class="changes-tooltip-wrap">
+                        <button id="changes-tooltip-trigger" class="changes-tooltip-trigger" type="button" aria-label="More info about prompts per month" aria-expanded="false" aria-describedby="changes-tooltip">ⓘ</button>
+                        <span id="changes-tooltip" class="changes-tooltip" role="tooltip" hidden>
+                          <span class="changes-tooltip-title">Example of Prompts</span>
+                          <span id="changes-tooltip-body" class="changes-tooltip-body">Replace or add photos, update H1 copy, swap in a new logo, tweak colors, edit sections, fix spacing, and other small content updates.</span>
+                        </span>
+                      </span>
+                      <span>Prompts <span class="quick-summary-rate">/ month</span></span>
+                    </span>
+                    <div class="quick-change-qty" role="group" aria-label="Prompts per month">
+                      <button id="quick-changes-minus" class="quick-change-btn" type="button" aria-label="Decrease prompts">−</button>
+                      <input id="quick-changes-input" class="quick-change-input" type="number" min="0" max="120" step="1" value="20" aria-label="Prompts per month">
+                      <button id="quick-changes-plus" class="quick-change-btn" type="button" aria-label="Increase prompts">+</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="quick-summary-row total">
+                  <span class="quick-summary-name">Monthly rate</span>
+                  <span class="quick-summary-rate"></span>
+                  <span id="quick-maintenance-total" class="quick-summary-total">$0</span>
+                </div>
+              </section>
+              <div class="quick-addons-reveal">
+                <label class="quick-addons-reveal-label" for="quick-show-addons">
+                  <input id="quick-show-addons" class="quick-addons-reveal-input" type="checkbox" aria-controls="quick-addons-card">
+                  <span>Show optional add-ons</span>
+                </label>
+              </div>
+              <section id="quick-addons-card" class="quick-summary quick-summary-card quick-addons" aria-label="Add-ons quote" hidden>
+                <p class="quick-summary-card-title"><span class="quick-card-title-text"><span class="quick-card-icon" aria-hidden="true">🧩</span>ADD-ONS - MONTHLY PRICE</span></p>
+                <div class="quick-addons-list">
+                  <article class="quick-addon-item">
+                    <span class="quick-addon-tile quick-addon-tile-ds" aria-hidden="true">DS</span>
+                    <div class="quick-addon-copy">
+                      <h4 class="quick-addon-title">Design System in a Figma File</h4>
+                      <button class="quick-addon-more" type="button" aria-expanded="false">Show more</button>
+                      <div class="quick-addon-details" hidden>
+                        <p class="quick-addon-desc">Turn your site into a reusable design system. We extract colors, typography, spacing, and components into a clean Figma file, ready to scale, iterate, and hand off to any designer or developer.</p>
+                      </div>
+                      <p class="quick-addon-price">$200</p>
+                    </div>
+                    <label class="quick-addon-toggle">
+                      <input class="addon-checkbox" type="checkbox" data-addon-id="design_system" data-addon-price="200" aria-label="Add Design System in a Figma File">
+                      <span class="quick-addon-toggle-btn" data-add-text="+ Add" data-added-text="Added"></span>
+                    </label>
+                  </article>
+                  <article class="quick-addon-item">
+                    <span class="quick-addon-tile quick-addon-tile-pb" aria-hidden="true">PB</span>
+                    <div class="quick-addon-copy">
+                      <h4 class="quick-addon-title">Powerups for Blog Sites</h4>
+                      <button class="quick-addon-more" type="button" aria-expanded="false">Show more</button>
+                      <div class="quick-addon-details" hidden>
+                        <p class="quick-addon-desc">Enhance performance, SEO, and content workflows for WordPress blogs. Ideal for creators, writers, and content-driven sites.</p>
+                      </div>
+                      <p class="quick-addon-price">$200</p>
+                    </div>
+                    <label class="quick-addon-toggle">
+                      <input class="addon-checkbox" type="checkbox" data-addon-id="blog_powerups" data-addon-price="200" aria-label="Add Powerups for Blog Sites">
+                      <span class="quick-addon-toggle-btn" data-add-text="+ Add" data-added-text="Added"></span>
+                    </label>
+                  </article>
+                  <article class="quick-addon-item">
+                    <span class="quick-addon-tile quick-addon-tile-pe" aria-hidden="true">PE</span>
+                    <div class="quick-addon-copy">
+                      <h4 class="quick-addon-title">Powerups for <br>E-commerce</h4>
+                      <button class="quick-addon-more" type="button" aria-expanded="false">Show more</button>
+                      <div class="quick-addon-details" hidden>
+                        <p class="quick-addon-desc">Optimize your store for conversions, speed, and scalability, without changing your brand or design.</p>
+                        <p class="quick-addon-includes-title">Includes</p>
+                        <ul class="quick-addon-includes">
+                          <li>Conversion-focused UX improvements</li>
+                          <li>Performance and checkout optimizations</li>
+                          <li>AI-ready product and content structure</li>
+                        </ul>
+                      </div>
+                      <p class="quick-addon-price">$300</p>
+                    </div>
+                    <label class="quick-addon-toggle">
+                      <input class="addon-checkbox" type="checkbox" data-addon-id="ecommerce_powerups" data-addon-price="300" aria-label="Add Powerups for E-commerce">
+                      <span class="quick-addon-toggle-btn" data-add-text="+ Add" data-added-text="Added"></span>
+                    </label>
+                  </article>
+                </div>
+                <div class="quick-summary-row quick-summary-row-addons-meta">
+                  <span class="quick-summary-name">Add-Ons total</span>
+                  <span id="quick-addons-count" class="quick-summary-count">0</span>
+                  <span id="quick-addons-total" class="quick-summary-price">$0</span>
+                </div>
+              </section>
+            </div>
+            <div class="quick-rail-head">
+              <a class="quick-rail-assist-btn" href="#faq">
+                <span class="quick-rail-assist-icon" aria-hidden="true">✦</span>
+                <span>Help finding the right plan?</span>
+              </a>
+              <p class="quick-rail-one-time-row">
+                <span class="quick-rail-one-time-label">One time payment total</span>
+                <span id="quick-one-time-total" class="quick-rail-one-time-value">$50</span>
+              </p>
+              <p class="quick-rail-monthly-row">
+                <span class="quick-rail-monthly-label">Monthly rate total</span>
+                <span id="quick-addons-subtotal" class="quick-rail-monthly-value">$0</span>
+              </p>
+              <p class="quick-rail-total-row">
+                <span class="quick-rail-total-label">Total</span>
+                <span id="quick-total" class="quick-summary-total">$50</span>
+              </p>
+              <a class="quick-rail-btn" href="#get-started">Checkout Now</a>
+            </div>
+          </aside>
+        </div>
+        <div class="hero-bottom-note-wrap">
+          <a class="hero-bottom-note" href="#benefits" aria-label="See benefits">
+            Thoughtfully made for ex-WordPress owners.
+            <span class="hero-bottom-link-arrow" aria-hidden="true">↓</span>
+          </a>
+        </div>
+      </section>
+
+      <section id="how" class="section" aria-labelledby="how-title">
+        <div class="container">
+          <div class="section-head">
+            <h2 id="how-title">How it works</h2>
+            <p>Simple steps. White-glove delivery.</p>
+          </div>
+          <div class="how-grid">
+            <article class="card">
+              <span class="step">Step 1</span>
+              <img class="how-icon" src="images/how-share-url.svg" alt="" aria-hidden="true" loading="lazy">
+              <h3>Share your URL</h3>
+              <p>We review your current WordPress site.</p>
+            </article>
+            <article class="card">
+              <span class="step">Step 2</span>
+              <img class="how-icon" src="images/how-map-site.svg" alt="" aria-hidden="true" loading="lazy">
+              <h3>We map your site</h3>
+              <p>Pages, sections, and reusable parts.</p>
+            </article>
+            <article class="card">
+              <span class="step">Step 3</span>
+              <img class="how-icon" src="images/how-migrate-cleanly.svg" alt="" aria-hidden="true" loading="lazy">
+              <h3>We migrate cleanly</h3>
+              <p>Same design and same brand style.</p>
+            </article>
+            <article class="card">
+              <span class="step">Step 4</span>
+              <img class="how-icon" src="images/how-update-chat.svg" alt="" aria-hidden="true" loading="lazy">
+              <h3>You update by chat</h3>
+              <p>Request changes like with an engineer.</p>
+            </article>
+          </div>
+          <div class="how-actions">
+            <a class="btn btn-primary" href="#top">Migrate My Site</a>
+            <a class="btn btn-outline" href="https://calendly.com/bulkdesign/demo-bulkdesign" target="_blank" rel="noopener noreferrer">Get a Demo</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="benefits" class="proof-strip" aria-label="Trust signals">
+        <div class="container proof-open-wrap">
+          <h2 class="proof-open-heading">Why leaving WordPress?</h2>
+          <p class="proof-open-origin">We built this product after years of plugin conflicts, patch stress, and waiting in engineer queues for simple edits. Teams switch to keep the same design, move faster, and request changes by chat with clear, structured handoff.</p>
+          <div class="proof-open-flow" aria-label="Story flow">
+            <span class="proof-open-step before">No plugins</span>
+            <span class="proof-open-sep" aria-hidden="true">→</span>
+            <span class="proof-open-step decision">No updates</span>
+            <span class="proof-open-sep" aria-hidden="true">→</span>
+            <span class="proof-open-step now">Just chat</span>
+          </div>
+          <div class="proof-open-actions">
+            <a class="btn btn-primary" href="https://calendly.com/bulkdesign/demo-bulkdesign" target="_blank" rel="noopener noreferrer">Get a Demo</a>
+            <a class="btn btn-outline" href="#deliverables">See Deliverables</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="deliverables" class="section alt" aria-labelledby="deliverables-title">
+        <div class="container">
+          <div class="section-head">
+            <h2 id="deliverables-title">Deliverables</h2>
+            <p>Everything your team needs to move faster.</p>
+          </div>
+          <div class="deliverables-grid">
+            <article class="deliverable-item">
+              <span class="deliverable-icon" aria-hidden="true">📁</span>
+              <div class="deliverable-copy">
+                <h3>Content files</h3>
+                <p>Clean HTML, CSS files, and image folder.</p>
+              </div>
+            </article>
+            <article class="deliverable-item">
+              <span class="deliverable-icon" aria-hidden="true">🗺️</span>
+              <div class="deliverable-copy">
+                <h3>Site structure</h3>
+                <p>We deliver a sitemap.xml file.</p>
+              </div>
+            </article>
+            <article class="deliverable-item">
+              <span class="deliverable-icon" aria-hidden="true">🧩</span>
+              <div class="deliverable-copy">
+                <h3>Figma Design System</h3>
+                <p>Reusable components in one Figma system.</p>
+              </div>
+            </article>
+            <article class="deliverable-item">
+              <span class="deliverable-icon" aria-hidden="true">📘</span>
+              <div class="deliverable-copy">
+                <h3>Notion Docs</h3>
+                <p>Clear project documentation in Notion.</p>
+              </div>
+            </article>
+            <article class="deliverable-item">
+              <span class="deliverable-icon" aria-hidden="true">🤖</span>
+              <div class="deliverable-copy">
+                <h3>AI-ready website</h3>
+                <p>Your migrated site is ready for AI workflows.</p>
+              </div>
+            </article>
+            <article class="deliverable-item">
+              <span class="deliverable-icon" aria-hidden="true">✅</span>
+              <div class="deliverable-copy">
+                <h3>Handoff checklist</h3>
+                <p>Storybook documentation in a GitHub repo.</p>
+              </div>
+            </article>
+          </div>
+          <p class="deliverables-foot">You keep every file and every handoff.</p>
+          <div class="deliverables-actions">
+            <a class="btn btn-primary" href="#top">Migrate My Site</a>
+            <a class="btn btn-outline" href="https://calendly.com/bulkdesign/demo-bulkdesign" target="_blank" rel="noopener noreferrer">Get a Demo</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="pricing" class="section" aria-labelledby="pricing-title" hidden>
+        <div class="container pricing-layout">
+          <div>
+            <div class="section-head align-left">
+              <h2 id="pricing-title">Pricing</h2>
+              <p>Clear tiers by site size.</p>
+            </div>
+            <div class="pricing-grid">
+              <article class="card price-card" data-tier="Small site">
+                <h3>Small site</h3>
+                <p class="price">$1,200</p>
+                <ul>
+                  <li>Size: up to 20 pages or posts</li>
+                  <li>Included: structure map, files, components</li>
+                  <li>Delivery: 5 to 7 business days</li>
+                </ul>
+                <a class="btn btn-outline" href="#get-started" data-size="Small site">Start Small</a>
+              </article>
+
+              <article class="card price-card featured active" data-tier="Medium site">
+                <span class="price-badge">Most Chosen</span>
+                <h3>Medium site</h3>
+                <p class="price">$2,400</p>
+                <ul>
+                  <li>Size: 21 to 60 pages or posts</li>
+                  <li>Included: everything in Small site + deeper mapping</li>
+                  <li>Delivery: 10 to 14 business days</li>
+                </ul>
+                <a class="btn btn-primary" href="#get-started" data-size="Medium site">Start Medium</a>
+              </article>
+
+              <article class="card price-card" data-tier="Large site">
+                <h3>Large site</h3>
+                <p class="price">$4,800</p>
+                <ul>
+                  <li>Size: 61 to 150 pages or posts</li>
+                  <li>Included: full structure, full files, full docs</li>
+                  <li>Delivery: 3 to 4 weeks</li>
+                </ul>
+                <a class="btn btn-outline" href="#get-started" data-size="Large site">Start Large</a>
+              </article>
+            </div>
+          </div>
+
+          <aside class="summary-card sticky" aria-label="Pricing summary">
+            <h3>Scope Snapshot</h3>
+            <div class="summary-item"><span>Main benefit</span><strong>Faster, clearer changes</strong></div>
+            <div class="summary-item"><span>Platform</span><strong>WordPress</strong></div>
+            <div class="summary-item"><span>Chosen tier</span><strong id="chosen-tier">Medium site</strong></div>
+            <div class="summary-table">
+              <div><span>Estimated delivery</span><span id="chosen-delivery">10 to 14 business days</span></div>
+              <div><span>Estimated price</span><span id="chosen-price">$2,400</span></div>
+              <div><span>Ownership</span><span>Client</span></div>
+            </div>
+            <a class="btn btn-primary btn-block" href="#get-started">Start Request</a>
+          </aside>
+        </div>
+      </section>
+
+      <section id="faq" class="section alt" aria-labelledby="faq-title">
+        <div class="container">
+          <div class="section-head">
+            <h2 id="faq-title">FAQ</h2>
+            <p>Real questions before you start.</p>
+          </div>
+          <div class="faq-list">
+            <details class="faq-item" open>
+              <summary>What exactly are you migrating?</summary>
+              <p>We migrate your page structure, content, and reusable sections from your current WordPress URL. Your design and brand stay the same.</p>
+            </details>
+            <details class="faq-item">
+              <summary>Do I need to shut down WordPress?</summary>
+              <p>No. Your current WordPress site keeps running while we prepare the migrated system.</p>
+            </details>
+            <details class="faq-item">
+              <summary>How long does it take?</summary>
+              <p>Small and medium sites are usually ready in a few business days. Bigger sites take longer based on page count and complexity.</p>
+            </details>
+            <details class="faq-item">
+              <summary>What do we get at handoff?</summary>
+              <p>You get clean HTML and CSS files with an image folder, a sitemap.xml, a Figma design system, Notion docs, an AI-ready website, and Storybook documentation in a GitHub repo.</p>
+            </details>
+            <details class="faq-item">
+              <summary>Who owns the final result?</summary>
+              <p>You do. 100% client ownership of files and documentation.</p>
+            </details>
+            <details class="faq-item">
+              <summary>Is our site data private?</summary>
+              <p>Yes. We treat your URL, files, and project details as private and only use them for your migration.</p>
+            </details>
+            <details class="faq-item">
+              <summary>Do you offer monthly maintenance?</summary>
+              <p>Yes. You can add monthly maintenance with AI engineers and prompts for ongoing changes.</p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section id="get-started" class="section" aria-labelledby="get-started-title" hidden>
+        <div class="container get-started-layout">
+          <div>
+            <div class="section-head align-left">
+              <h2 id="get-started-title">Get started</h2>
+              <p>Share your site and we reply with scope and timeline.</p>
+            </div>
+
+            <form class="lead-form" action="https://bulkdesign.us21.list-manage.com/subscribe/post?u=1779fa5b16501eca731b79366&amp;id=d308281e38&amp;f_id=00522fe7f0" method="post" target="_blank" novalidate>
+              <p class="form-head">No redesign. You keep WordPress and your current design.</p>
+              <div class="form-grid two">
+                <label>
+                  <span>Your Wordpress URL:</span>
+                  <input type="url" name="WEBSITE_URL" placeholder="https://yourwebsite.com" required>
+                </label>
+                <label>
+                  <span>Site size</span>
+                  <select id="site-size" name="SITE_SIZE" required>
+                    <option value="" selected disabled>Select size</option>
+                    <option value="Small site">Small site</option>
+                    <option value="Medium site">Medium site</option>
+                    <option value="Large site">Large site</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="form-grid two">
+                <label>
+                  <span>Name</span>
+                  <input type="text" name="FNAME" placeholder="Your name" autocomplete="name" required>
+                </label>
+                <label>
+                  <span>Email</span>
+                  <input type="email" name="EMAIL" placeholder="you@company.com" autocomplete="email" required>
+                </label>
+              </div>
+
+              <label>
+                <span>Company</span>
+                <input type="text" name="COMPANY" placeholder="Company name" autocomplete="organization">
+              </label>
+
+              <fieldset>
+                <legend>What they want to use AI for</legend>
+                <label><input type="checkbox" name="AI_USE_SEARCH" value="Better search"> Better search on the site</label>
+                <label><input type="checkbox" name="AI_USE_AUTOMATION" value="Automation"> Workflow automation</label>
+                <label><input type="checkbox" name="AI_USE_ASSISTANT" value="AI assistant"> AI assistant or chatbot</label>
+                <label><input type="checkbox" name="AI_USE_CONTENT" value="Content reuse"> Faster content reuse</label>
+              </fieldset>
+
+              <button class="btn btn-primary" type="submit">Convert my site</button>
+
+              <div style="position:absolute;left:-5000px;" aria-hidden="true">
+                <input type="text" name="b_1779fa5b16501eca731b79366_d308281e38" tabindex="-1" value="">
+              </div>
+              <p class="note">We only use this information to scope your project.</p>
+            </form>
+          </div>
+
+          <aside class="summary-card" aria-label="Who this is for">
+            <h3>Best Fit</h3>
+            <div class="summary-item"><span>Company size</span><strong>Mid-size</strong></div>
+            <div class="summary-item"><span>Region</span><strong>United States</strong></div>
+            <ul class="fit-list">
+              <li>Active WordPress site</li>
+              <li>Need faster delivery</li>
+              <li>Need clearer ownership and docs</li>
+              <li>Preparing for AI workflows</li>
+            </ul>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer" aria-label="Site footer">
+      <div class="container footer-inner">
+        <div class="footer-brand">
+          <img class="footer-logo" src="images/wptoai-logo-colors.png" alt="WP to AI">
+          <p class="footer-tagline">WordPress to AI self-maintained website.</p>
+          <a class="footer-mail" href="mailto:hello@wptoai.com">hello@wptoai.com</a>
+        </div>
+        <nav class="footer-nav" aria-label="Footer navigation">
+          <a href="#top">Home</a>
+          <a href="#benefits">Why teams switch</a>
+          <a href="#how">How it works</a>
+          <a href="#deliverables">Deliverables</a>
+          <a href="#faq">FAQ</a>
+        </nav>
+        <div class="footer-end">
+          <a class="footer-cta" href="#top">Back to top</a>
+          <p class="footer-copy">© 2026 WP → AI</p>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      (function () {
+        var body = document.body;
+        var header = document.querySelector('.site-header');
+        var toggle = document.querySelector('.menu-toggle');
+        var nav = document.querySelector('#main-nav');
+        var cornerToggle = document.querySelector('.corner-menu-toggle');
+        if (!body || !header) return;
+
+        function syncHeaderVisibility() {
+          var foldLimit = Math.max(window.innerHeight - header.offsetHeight, 120);
+          var shouldShow = window.scrollY > foldLimit;
+          body.classList.toggle('nav-visible', shouldShow);
+
+          if (shouldShow) {
+            body.classList.remove('corner-menu-open');
+            if (cornerToggle) cornerToggle.setAttribute('aria-expanded', 'false');
+          }
+
+          if (!shouldShow && toggle && nav) {
+            toggle.setAttribute('aria-expanded', 'false');
+            nav.classList.remove('open');
+          }
+        }
+
+        syncHeaderVisibility();
+        window.addEventListener('scroll', syncHeaderVisibility, { passive: true });
+        window.addEventListener('resize', syncHeaderVisibility);
+      })();
+
+      (function () {
+        var toggle = document.querySelector('.menu-toggle');
+        var nav = document.querySelector('#main-nav');
+        if (!toggle || !nav) return;
+
+        toggle.addEventListener('click', function () {
+          var expanded = toggle.getAttribute('aria-expanded') === 'true';
+          toggle.setAttribute('aria-expanded', String(!expanded));
+          nav.classList.toggle('open');
+        });
+      })();
+
+      (function () {
+        var body = document.body;
+        var toggle = document.querySelector('.corner-menu-toggle');
+        var panel = document.querySelector('#corner-menu-panel');
+        var overlay = document.querySelector('.corner-menu-overlay');
+        if (!body || !toggle || !panel) return;
+
+        function closePanel() {
+          body.classList.remove('corner-menu-open');
+          toggle.setAttribute('aria-expanded', 'false');
+        }
+
+        toggle.addEventListener('click', function () {
+          var isOpen = body.classList.contains('corner-menu-open');
+          toggle.setAttribute('aria-expanded', String(!isOpen));
+          body.classList.toggle('corner-menu-open');
+        });
+
+        if (overlay) {
+          overlay.addEventListener('click', closePanel);
+        }
+
+        panel.addEventListener('click', function (event) {
+          if (event.target && event.target.tagName === 'A') closePanel();
+        });
+
+        document.addEventListener('click', function (event) {
+          if (event.target === toggle || toggle.contains(event.target) || panel.contains(event.target)) return;
+          if (overlay && event.target === overlay) return;
+          closePanel();
+        });
+
+        document.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape') closePanel();
+        });
+      })();
+
+      (function () {
+        var faqItems = Array.prototype.slice.call(document.querySelectorAll('#faq .faq-item'));
+        faqItems.forEach(function (item) {
+          item.addEventListener('toggle', function () {
+            if (!item.open) return;
+            faqItems.forEach(function (other) {
+              if (other !== item) other.open = false;
+            });
+          });
+        });
+      })();
+
+      (function () {
+        var pricingBySize = {
+          "Small site": { price: "$1,200", delivery: "5 to 7 business days" },
+          "Medium site": { price: "$2,400", delivery: "10 to 14 business days" },
+          "Large site": { price: "$4,800", delivery: "3 to 4 weeks" }
+        };
+        var sizeSelect = document.querySelector('#site-size');
+        var chosenTier = document.querySelector('#chosen-tier');
+        var chosenPrice = document.querySelector('#chosen-price');
+        var chosenDelivery = document.querySelector('#chosen-delivery');
+        var pricingCards = Array.prototype.slice.call(document.querySelectorAll('.price-card'));
+        var sizeButtons = Array.prototype.slice.call(document.querySelectorAll('[data-size]'));
+        if (!sizeSelect || !chosenTier || !chosenPrice || !chosenDelivery) return;
+
+        function syncSummary(size) {
+          var info = pricingBySize[size];
+          if (!info) return;
+
+          chosenTier.textContent = size;
+          chosenPrice.textContent = info.price;
+          chosenDelivery.textContent = info.delivery;
+
+          pricingCards.forEach(function (card) {
+            card.classList.toggle('active', card.getAttribute('data-tier') === size);
+          });
+        }
+
+        sizeSelect.addEventListener('change', function () {
+          syncSummary(sizeSelect.value);
+        });
+
+        sizeButtons.forEach(function (button) {
+          button.addEventListener('click', function () {
+            var size = button.getAttribute('data-size');
+            if (!size) return;
+            sizeSelect.value = size;
+            syncSummary(size);
+          });
+        });
+      })();
+
+      (function () {
+        var quickForm = document.querySelector('#quick-quote-form');
+        var quickInput = document.querySelector('#quick-quote-input');
+        var quickUrlField = document.querySelector('.quick-url-field');
+        var quickUrlPrefix = "http://";
+        var quickInputDefaultPlaceholder = "Paste your WordPress URL";
+        var quickInputFocusPlaceholder = "yourwebsite.com";
+        var quickInputError = document.querySelector('#quick-quote-error');
+        var checkoutStatus = document.querySelector('#checkout-status');
+        var quickSubmitBtn = document.querySelector('.quick-quote-btn');
+        var quickCheckoutBtn = document.querySelector('.quick-rail-btn');
+        var quickPagesInput = document.querySelector('#quick-quote-pages');
+        var quickMinusBtn = document.querySelector('#quick-quote-minus');
+        var quickPlusBtn = document.querySelector('#quick-quote-plus');
+        var quickSidebarPagesInput = document.querySelector('#quick-sidebar-pages-input');
+        var quickSidebarPagesMinusBtn = document.querySelector('#quick-sidebar-pages-minus');
+        var quickSidebarPagesPlusBtn = document.querySelector('#quick-sidebar-pages-plus');
+        var quickSiteBody = document.querySelector('#quick-site-body');
+        var quickSiteToggle = document.querySelector('#quick-site-toggle');
+        var quickMaintenanceBody = document.querySelector('#quick-maintenance-body');
+        var quickMaintenanceToggle = document.querySelector('#quick-maintenance-toggle');
+        var quickMaintenanceOn = document.querySelector('#quick-maintenance-on');
+        var quickMaintenanceOff = document.querySelector('#quick-maintenance-off');
+        var quickEngineersInput = document.querySelector('#quick-engineers-input');
+        var quickEngineersMinusBtn = document.querySelector('#quick-engineers-minus');
+        var quickEngineersPlusBtn = document.querySelector('#quick-engineers-plus');
+        var quickChangesInput = document.querySelector('#quick-changes-input');
+        var quickChangesMinusBtn = document.querySelector('#quick-changes-minus');
+        var quickChangesPlusBtn = document.querySelector('#quick-changes-plus');
+        var changesTooltipWrap = document.querySelector('.changes-tooltip-wrap');
+        var changesTooltipTrigger = document.querySelector('#changes-tooltip-trigger');
+        var changesTooltip = document.querySelector('#changes-tooltip');
+        var changesTooltipBody = document.querySelector('#changes-tooltip-body');
+        var quickShowAddons = document.querySelector('#quick-show-addons');
+        var quickAddonsCard = document.querySelector('#quick-addons-card');
+        var addonCheckboxes = Array.prototype.slice.call(document.querySelectorAll('.addon-checkbox'));
+        var addonItems = Array.prototype.slice.call(document.querySelectorAll('.quick-addon-item'));
+        var addonMoreButtons = Array.prototype.slice.call(document.querySelectorAll('.quick-addon-more'));
+        var websiteInput = document.querySelector('input[name="WEBSITE_URL"]');
+        var sizeSelect = document.querySelector('#site-size');
+        var getStarted = document.querySelector('#get-started');
+        var quickHomeCount = document.querySelector('#quick-home-count');
+        var quickInnerCount = document.querySelector('#quick-inner-count');
+        var quickEngineersCount = document.querySelector('#quick-engineers-count');
+        var quickEngineersMaxHint = document.querySelector('#quick-engineers-max-hint');
+        var quickPagesMaxHint = document.querySelector('#quick-pages-max-hint');
+        var quickHomePrice = document.querySelector('#quick-home-price');
+        var quickInnerPrice = document.querySelector('#quick-inner-price');
+        var quickAiPrice = document.querySelector('#quick-ai-price');
+        var quickAddonsCount = document.querySelector('#quick-addons-count');
+        var quickAddonsTotal = document.querySelector('#quick-addons-total');
+        var quickOneTimeTotal = document.querySelector('#quick-one-time-total');
+        var quickSiteRate = document.querySelector('#quick-site-rate');
+        var quickSiteTotal = document.querySelector('#quick-site-total');
+        var quickMaintenanceTotal = document.querySelector('#quick-maintenance-total');
+        var quickAddonsSubtotal = document.querySelector('#quick-addons-subtotal');
+        var quickTotal = document.querySelector('#quick-total');
+        if (!quickForm || !quickInput || !quickPagesInput || !getStarted) return;
+
+        var changesTooltipCopy = {
+          primary: "Replace or add photos, update H1 copy, swap in a new logo, tweak colors, edit sections, fix spacing, and other small content updates.",
+          short: "Swap photos, update H1 text, replace logos, adjust colors, and handle small section or spacing edits.",
+          detailed: "Use this for routine site updates like adding or replacing images, editing H1 and other copy, changing logo files, tweaking brand colors, updating sections, fixing spacing, and similar small content changes."
+        };
+
+        function setChangesTooltipOpen(open) {
+          if (!changesTooltip || !changesTooltipTrigger) return;
+          changesTooltip.hidden = !open;
+          changesTooltipTrigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
+        function extractUrl(text) {
+          var match = text.match(/https?:\/\/[^\s,]+|www\.[^\s,]+|[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s,]*)?/i);
+          if (!match) return "";
+          var url = match[0];
+          if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+          return url;
+        }
+
+        function extractPageCount(text) {
+          var labeled = text.match(/(\d+)\s*(pages?|p)\b/i);
+          if (labeled) return parseInt(labeled[1], 10);
+          if (/^\d+$/.test(text.trim())) return parseInt(text.trim(), 10);
+          return null;
+        }
+
+        function sanitizeQuickInputValue(value) {
+          if (!value) return "";
+          return value.trim().replace(/^https?:\/\//i, "");
+        }
+
+        function getQuickInputRawValue() {
+          var sanitized = sanitizeQuickInputValue(quickInput.value);
+          return sanitized ? quickUrlPrefix + sanitized : "";
+        }
+
+        function updateQuickUrlAssistState() {
+          if (!quickUrlField || !quickInput) return;
+          var hasText = Boolean(sanitizeQuickInputValue(quickInput.value));
+          var isFocused = document.activeElement === quickInput;
+          var shouldActivate = isFocused || hasText;
+          quickUrlField.classList.toggle('is-active', shouldActivate);
+          quickInput.setAttribute('placeholder', shouldActivate ? quickInputFocusPlaceholder : quickInputDefaultPlaceholder);
+        }
+
+        function clearQuickInputError() {
+          quickForm.classList.remove('has-error');
+          quickInput.setAttribute('aria-invalid', 'false');
+          quickInput.removeAttribute('aria-describedby');
+          if (quickInputError) {
+            quickInputError.textContent = "";
+            quickInputError.hidden = true;
+          }
+        }
+
+        function showQuickInputError() {
+          quickForm.classList.add('has-error');
+          quickInput.setAttribute('aria-invalid', 'true');
+          if (quickInputError) {
+            quickInputError.textContent = "Paste your WordPress URL here and we’ll migrate your site.";
+            quickInputError.hidden = false;
+            quickInput.setAttribute('aria-describedby', 'quick-quote-error');
+          }
+          quickInput.focus();
+          quickInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function validateQuickInputUrl() {
+          var raw = getQuickInputRawValue();
+          if (!raw) {
+            showQuickInputError();
+            return false;
+          }
+          var url = extractUrl(raw);
+          if (!url) {
+            showQuickInputError();
+            return false;
+          }
+          clearQuickInputError();
+          return true;
+        }
+
+        function setCardOpen(bodyNode, toggleNode, isOpen) {
+          if (!bodyNode || !toggleNode) return;
+          bodyNode.hidden = !isOpen;
+          toggleNode.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+          if (!toggleNode.disabled) {
+            toggleNode.textContent = isOpen ? 'Hide' : 'Show details';
+          }
+        }
+
+        function syncMaintenanceUI(shouldOpenOnEnable) {
+          if (!quickMaintenanceBody || !quickMaintenanceToggle) return false;
+          var enabled = quickMaintenanceOn ? quickMaintenanceOn.checked : true;
+          quickMaintenanceToggle.disabled = !enabled;
+
+          if (!enabled) {
+            setCardOpen(quickMaintenanceBody, quickMaintenanceToggle, false);
+            quickMaintenanceToggle.textContent = 'Off';
+          } else if (shouldOpenOnEnable || quickMaintenanceBody.hidden) {
+            setCardOpen(quickMaintenanceBody, quickMaintenanceToggle, true);
+          } else {
+            setCardOpen(quickMaintenanceBody, quickMaintenanceToggle, !quickMaintenanceBody.hidden);
+          }
+
+          return enabled;
+        }
+
+        function getQuoteRule(pages) {
+          if (pages <= 3) return { label: "1-3 pages", first: 50, next: 40 };
+          if (pages <= 6) return { label: "3-6 pages", first: 50, next: 40 };
+          return { label: "6+ pages", first: 40, next: 30 };
+        }
+
+        function formatMoney(value) {
+          return "$" + value.toLocaleString("en-US");
+        }
+
+        function formatMoneyCents(value) {
+          return "$" + value.toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          });
+        }
+
+        function normalizePages(value) {
+          var pages = parseInt(value, 10);
+          if (!pages || pages < 1) pages = 1;
+          if (pages > 25) pages = 25;
+          return pages;
+        }
+
+        function normalizeChanges(value) {
+          var changes = parseInt(value, 10);
+          if (isNaN(changes) || changes < 0) changes = 0;
+          if (changes > 120) changes = 120;
+          return changes;
+        }
+
+        function normalizeEngineers(value) {
+          var engineers = parseInt(value, 10);
+          if (isNaN(engineers) || engineers < 0) engineers = 0;
+          if (engineers > 6) engineers = 6;
+          return engineers;
+        }
+
+        function syncQuickSummary() {
+          if (!quickHomeCount || !quickInnerCount || !quickHomePrice || !quickInnerPrice || !quickSiteRate || !quickSiteTotal || !quickTotal) return;
+
+          var pages = normalizePages(quickPagesInput.value);
+          quickPagesInput.value = String(pages);
+          if (quickSidebarPagesInput) quickSidebarPagesInput.value = String(pages);
+          if (quickPagesMaxHint) quickPagesMaxHint.hidden = pages <= 24;
+          var changes = quickChangesInput ? normalizeChanges(quickChangesInput.value) : 20;
+          if (quickChangesInput) quickChangesInput.value = String(changes);
+          var engineers = quickEngineersInput ? normalizeEngineers(quickEngineersInput.value) : 0;
+          if (quickEngineersInput) quickEngineersInput.value = String(engineers);
+
+          var rule = getQuoteRule(pages);
+          var homeCount = 1;
+          var innerCount = Math.max(0, pages - 1);
+          var homePrice = rule.first;
+          var innerPrice = innerCount * rule.next;
+          var oneTimeTotal = homePrice + innerPrice;
+          var aiEngineerUnitPrice = 100;
+          var aiEngineerBase = engineers * aiEngineerUnitPrice;
+          var maintenanceEnabled = quickMaintenanceOn ? quickMaintenanceOn.checked : true;
+          var includedChanges = 20;
+          var overageChanges = Math.max(0, changes - includedChanges);
+          var overagePrice = overageChanges * 5;
+          var addonsEnabled = quickShowAddons ? quickShowAddons.checked : true;
+          var addonsTotal = addonCheckboxes.reduce(function (acc, checkbox) {
+            if (!addonsEnabled || !checkbox.checked) return acc;
+            var addonPrice = parseInt(checkbox.getAttribute('data-addon-price'), 10);
+            return acc + (isNaN(addonPrice) ? 0 : addonPrice);
+          }, 0);
+          var addonsCount = addonCheckboxes.reduce(function (acc, checkbox) {
+            return acc + (addonsEnabled && checkbox.checked ? 1 : 0);
+          }, 0);
+          var monthlyTotal = maintenanceEnabled ? aiEngineerBase + overagePrice : 0;
+          var total = oneTimeTotal + monthlyTotal + addonsTotal;
+
+          quickHomeCount.textContent = String(homeCount);
+          quickInnerCount.textContent = String(innerCount);
+          if (quickEngineersCount) quickEngineersCount.textContent = maintenanceEnabled ? String(engineers) : "0";
+          if (quickEngineersMaxHint) quickEngineersMaxHint.hidden = !maintenanceEnabled || engineers <= 5;
+          quickHomePrice.textContent = formatMoney(homePrice);
+          quickInnerPrice.textContent = formatMoney(innerPrice);
+          if (quickAiPrice) quickAiPrice.textContent = maintenanceEnabled ? formatMoneyCents(aiEngineerBase) : formatMoneyCents(0);
+          if (quickAddonsCount) quickAddonsCount.textContent = String(addonsCount);
+          if (quickAddonsTotal) quickAddonsTotal.textContent = formatMoney(addonsTotal);
+          quickSiteRate.textContent = rule.label + " rate";
+          quickSiteTotal.textContent = formatMoney(oneTimeTotal);
+          if (quickOneTimeTotal) quickOneTimeTotal.textContent = formatMoney(oneTimeTotal);
+          if (quickMaintenanceTotal) quickMaintenanceTotal.textContent = formatMoney(monthlyTotal);
+          if (quickAddonsSubtotal) quickAddonsSubtotal.textContent = formatMoney(monthlyTotal + addonsTotal);
+          quickTotal.textContent = formatMoney(total);
+        }
+
+        function setAddonExpanded(item, expanded) {
+          var details = item.querySelector('.quick-addon-details');
+          var button = item.querySelector('.quick-addon-more');
+          item.classList.toggle('is-expanded', expanded);
+          if (details) details.hidden = !expanded;
+          if (button) {
+            button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            button.textContent = expanded ? 'Show less' : 'Show more';
+          }
+        }
+
+        function toggleAddonsVisibility(show) {
+          if (!quickAddonsCard) return;
+          quickAddonsCard.hidden = !show;
+          if (!show) {
+            addonCheckboxes.forEach(function (checkbox) {
+              checkbox.checked = false;
+            });
+            addonItems.forEach(function (item) {
+              setAddonExpanded(item, false);
+            });
+          }
+          syncQuickSummary();
+        }
+
+        function mapSize(pages) {
+          if (!pages || pages < 1) return "";
+          if (pages <= 20) return "Small site";
+          if (pages <= 60) return "Medium site";
+          return "Large site";
+        }
+
+        function syncQuickLeadFields() {
+          var text = sanitizeQuickInputValue(quickInput.value);
+          var url = extractUrl(getQuickInputRawValue());
+          var pages = normalizePages(quickPagesInput.value);
+          var mappedSize = mapSize(pages);
+
+          if (websiteInput) websiteInput.value = url || text;
+          if (sizeSelect && mappedSize) sizeSelect.value = mappedSize;
+        }
+
+        function buildCheckoutPayload() {
+          var rawInput = getQuickInputRawValue();
+          var parsedUrl = extractUrl(rawInput);
+          var pages = normalizePages(quickPagesInput.value);
+          var prompts = quickChangesInput ? normalizeChanges(quickChangesInput.value) : 20;
+          var engineers = quickEngineersInput ? normalizeEngineers(quickEngineersInput.value) : 0;
+          var maintenanceEnabled = quickMaintenanceOn ? quickMaintenanceOn.checked : false;
+          var addonsEnabled = quickShowAddons ? quickShowAddons.checked : false;
+          var selectedAddons = addonCheckboxes.reduce(function (acc, checkbox) {
+            if (!addonsEnabled || !checkbox.checked) return acc;
+            var addonId = checkbox.getAttribute('data-addon-id');
+            if (addonId) acc.push(addonId);
+            return acc;
+          }, []);
+
+          return {
+            websiteUrl: parsedUrl || rawInput,
+            pages: pages,
+            maintenanceEnabled: maintenanceEnabled,
+            engineers: engineers,
+            prompts: prompts,
+            selectedAddons: selectedAddons
+          };
+        }
+
+        function renderCheckoutStatusFromQuery() {
+          if (!checkoutStatus) return;
+
+          var params = new URLSearchParams(window.location.search);
+          var checkoutState = params.get('checkout');
+          if (!checkoutState) return;
+
+          checkoutStatus.classList.remove('success', 'cancel');
+          if (checkoutState === 'success') {
+            checkoutStatus.textContent = "Checkout complete. We got your request and will contact you soon.";
+            checkoutStatus.classList.add('success');
+            checkoutStatus.hidden = false;
+          } else if (checkoutState === 'cancel') {
+            checkoutStatus.textContent = "Checkout canceled. Your quote is still here when you are ready.";
+            checkoutStatus.classList.add('cancel');
+            checkoutStatus.hidden = false;
+          } else {
+            checkoutStatus.hidden = true;
+            checkoutStatus.textContent = "";
+            return;
+          }
+
+          params.delete('checkout');
+          params.delete('session_id');
+          var nextQuery = params.toString();
+          var nextUrl = window.location.pathname + (nextQuery ? "?" + nextQuery : "") + window.location.hash;
+          window.history.replaceState({}, "", nextUrl);
+        }
+
+        quickForm.addEventListener('submit', function (event) {
+          event.preventDefault();
+          var text = quickInput.value.trim();
+          if (!validateQuickInputUrl()) {
+            return;
+          }
+
+          var typedPages = extractPageCount(text);
+          var pages = normalizePages(quickPagesInput.value);
+          if (typedPages && typedPages > 0) {
+            pages = typedPages;
+            quickPagesInput.value = String(pages);
+          }
+          syncQuickLeadFields();
+
+          syncQuickSummary();
+          getStarted.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+
+        if (quickMinusBtn) {
+          quickMinusBtn.addEventListener('click', function () {
+            var current = normalizePages(quickPagesInput.value);
+            quickPagesInput.value = String(Math.max(1, current - 1));
+            syncQuickSummary();
+          });
+        }
+
+        if (quickPlusBtn) {
+          quickPlusBtn.addEventListener('click', function () {
+            var current = normalizePages(quickPagesInput.value);
+            quickPagesInput.value = String(Math.min(25, current + 1));
+            syncQuickSummary();
+          });
+        }
+
+        if (quickSidebarPagesMinusBtn && quickSidebarPagesInput) {
+          quickSidebarPagesMinusBtn.addEventListener('click', function () {
+            var current = normalizePages(quickSidebarPagesInput.value);
+            quickPagesInput.value = String(Math.max(1, current - 1));
+            syncQuickSummary();
+          });
+        }
+
+        if (quickSidebarPagesPlusBtn && quickSidebarPagesInput) {
+          quickSidebarPagesPlusBtn.addEventListener('click', function () {
+            var current = normalizePages(quickSidebarPagesInput.value);
+            quickPagesInput.value = String(Math.min(25, current + 1));
+            syncQuickSummary();
+          });
+        }
+
+        if (quickChangesMinusBtn && quickChangesInput) {
+          quickChangesMinusBtn.addEventListener('click', function () {
+            var current = normalizeChanges(quickChangesInput.value);
+            quickChangesInput.value = String(Math.max(0, current - 1));
+            syncQuickSummary();
+          });
+        }
+
+        if (quickChangesPlusBtn && quickChangesInput) {
+          quickChangesPlusBtn.addEventListener('click', function () {
+            var current = normalizeChanges(quickChangesInput.value);
+            quickChangesInput.value = String(Math.min(120, current + 1));
+            syncQuickSummary();
+          });
+        }
+
+        if (quickEngineersMinusBtn && quickEngineersInput) {
+          quickEngineersMinusBtn.addEventListener('click', function () {
+            var current = normalizeEngineers(quickEngineersInput.value);
+            quickEngineersInput.value = String(Math.max(0, current - 1));
+            syncQuickSummary();
+          });
+        }
+
+        if (quickEngineersPlusBtn && quickEngineersInput) {
+          quickEngineersPlusBtn.addEventListener('click', function () {
+            var current = normalizeEngineers(quickEngineersInput.value);
+            quickEngineersInput.value = String(Math.min(6, current + 1));
+            syncQuickSummary();
+          });
+        }
+
+        quickPagesInput.addEventListener('change', syncQuickSummary);
+        quickPagesInput.addEventListener('input', syncQuickSummary);
+        if (quickSiteToggle && quickSiteBody) {
+          var shouldCollapseSiteOnMobile = window.matchMedia('(max-width: 820px)').matches;
+          setCardOpen(quickSiteBody, quickSiteToggle, !shouldCollapseSiteOnMobile);
+          quickSiteToggle.addEventListener('click', function () {
+            setCardOpen(quickSiteBody, quickSiteToggle, quickSiteBody.hidden);
+          });
+        }
+        if (quickMaintenanceToggle && quickMaintenanceBody) {
+          syncMaintenanceUI(false);
+          quickMaintenanceToggle.addEventListener('click', function () {
+            if (quickMaintenanceToggle.disabled) return;
+            setCardOpen(quickMaintenanceBody, quickMaintenanceToggle, quickMaintenanceBody.hidden);
+          });
+        }
+        if (quickMaintenanceOn && quickMaintenanceOff) {
+          quickMaintenanceOn.addEventListener('change', function () {
+            if (quickEngineersInput) quickEngineersInput.value = "1";
+            syncMaintenanceUI(true);
+            syncQuickSummary();
+          });
+          quickMaintenanceOff.addEventListener('change', function () {
+            if (quickEngineersInput) quickEngineersInput.value = "0";
+            syncMaintenanceUI(false);
+            syncQuickSummary();
+          });
+        }
+        if (quickEngineersInput) {
+          quickEngineersInput.addEventListener('change', syncQuickSummary);
+          quickEngineersInput.addEventListener('input', syncQuickSummary);
+        }
+        if (quickSubmitBtn) {
+          quickSubmitBtn.addEventListener('click', function (event) {
+            if (!validateQuickInputUrl()) {
+              event.preventDefault();
+            }
+          });
+        }
+        quickInput.addEventListener('input', function () {
+          var sanitizedValue = sanitizeQuickInputValue(quickInput.value);
+          if (quickInput.value !== sanitizedValue) {
+            quickInput.value = sanitizedValue;
+          }
+          updateQuickUrlAssistState();
+          if (quickForm.classList.contains('has-error')) {
+            clearQuickInputError();
+          }
+        });
+        quickInput.addEventListener('focus', updateQuickUrlAssistState);
+        quickInput.addEventListener('blur', updateQuickUrlAssistState);
+        quickInput.addEventListener('paste', function () {
+          setTimeout(function () {
+            quickInput.value = sanitizeQuickInputValue(quickInput.value);
+            updateQuickUrlAssistState();
+          }, 0);
+        });
+        if (quickCheckoutBtn) {
+          quickCheckoutBtn.addEventListener('click', async function (event) {
+            event.preventDefault();
+            if (!validateQuickInputUrl()) {
+              return;
+            }
+
+            syncQuickLeadFields();
+            syncQuickSummary();
+
+            var originalText = quickCheckoutBtn.textContent;
+            quickCheckoutBtn.classList.add('is-loading');
+            quickCheckoutBtn.textContent = 'Redirecting...';
+            quickCheckoutBtn.setAttribute('aria-disabled', 'true');
+
+            try {
+              var checkoutPayload = buildCheckoutPayload();
+              var response = await fetch('/api/create-checkout-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(checkoutPayload)
+              });
+              var responseData = await response.json();
+              if (!response.ok || !responseData.url) {
+                throw new Error(responseData && responseData.error ? responseData.error : 'Unable to start Stripe checkout.');
+              }
+              window.location.href = responseData.url;
+            } catch (error) {
+              var checkoutMessage = (error && error.message) ? error.message : 'Unable to start Stripe checkout.';
+              window.alert(checkoutMessage);
+              quickCheckoutBtn.classList.remove('is-loading');
+              quickCheckoutBtn.textContent = originalText;
+              quickCheckoutBtn.removeAttribute('aria-disabled');
+            }
+          });
+        }
+        if (changesTooltipBody) {
+          changesTooltipBody.textContent = changesTooltipCopy.primary;
+          changesTooltipBody.setAttribute('data-variant-short', changesTooltipCopy.short);
+          changesTooltipBody.setAttribute('data-variant-detailed', changesTooltipCopy.detailed);
+        }
+        if (changesTooltipWrap && changesTooltipTrigger && changesTooltip) {
+          var hasHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+          changesTooltipWrap.addEventListener('mouseenter', function () {
+            if (hasHover) setChangesTooltipOpen(true);
+          });
+          changesTooltipWrap.addEventListener('mouseleave', function () {
+            if (hasHover) setChangesTooltipOpen(false);
+          });
+          changesTooltipTrigger.addEventListener('focus', function () {
+            setChangesTooltipOpen(true);
+          });
+          changesTooltipWrap.addEventListener('focusout', function (event) {
+            if (!changesTooltipWrap.contains(event.relatedTarget)) {
+              setChangesTooltipOpen(false);
+            }
+          });
+          changesTooltipTrigger.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            setChangesTooltipOpen(changesTooltip.hidden);
+          });
+          document.addEventListener('click', function (event) {
+            if (!changesTooltipWrap.contains(event.target)) {
+              setChangesTooltipOpen(false);
+            }
+          });
+          document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+              setChangesTooltipOpen(false);
+              if (document.activeElement === changesTooltipTrigger) {
+                changesTooltipTrigger.blur();
+              }
+            }
+          });
+        }
+        if (quickSidebarPagesInput) {
+          quickSidebarPagesInput.addEventListener('change', function () {
+            quickPagesInput.value = quickSidebarPagesInput.value;
+            syncQuickSummary();
+          });
+          quickSidebarPagesInput.addEventListener('input', function () {
+            quickPagesInput.value = quickSidebarPagesInput.value;
+            syncQuickSummary();
+          });
+        }
+        if (quickChangesInput) {
+          quickChangesInput.addEventListener('change', syncQuickSummary);
+          quickChangesInput.addEventListener('input', syncQuickSummary);
+        }
+        if (quickEngineersInput) {
+          quickEngineersInput.addEventListener('change', syncQuickSummary);
+          quickEngineersInput.addEventListener('input', syncQuickSummary);
+        }
+        addonCheckboxes.forEach(function (checkbox) {
+          checkbox.addEventListener('change', syncQuickSummary);
+        });
+        addonItems.forEach(function (item) {
+          setAddonExpanded(item, false);
+        });
+        addonMoreButtons.forEach(function (button) {
+          button.addEventListener('click', function () {
+            var item = button.closest('.quick-addon-item');
+            if (!item) return;
+            var expandCurrent = !item.classList.contains('is-expanded');
+            addonItems.forEach(function (otherItem) {
+              setAddonExpanded(otherItem, false);
+            });
+            if (expandCurrent) setAddonExpanded(item, true);
+          });
+        });
+        if (quickShowAddons) {
+          quickShowAddons.addEventListener('change', function () {
+            toggleAddonsVisibility(quickShowAddons.checked);
+          });
+          toggleAddonsVisibility(quickShowAddons.checked);
+        }
+        updateQuickUrlAssistState();
+        renderCheckoutStatusFromQuery();
+        var benefitsSection = document.querySelector('#benefits');
+        if (benefitsSection) {
+          var revealBenefits = function () {
+            benefitsSection.classList.add('is-visible');
+          };
+          if ('IntersectionObserver' in window) {
+            var benefitsObserver = new IntersectionObserver(function (entries, observer) {
+              entries.forEach(function (entry) {
+                if (!entry.isIntersecting) return;
+                revealBenefits();
+                observer.unobserve(entry.target);
+              });
+            }, { threshold: 0.22 });
+            benefitsObserver.observe(benefitsSection);
+          } else {
+            revealBenefits();
+          }
+        }
+        syncQuickSummary();
+      })();
+    </script>
+  </body>
+</html>
