@@ -4469,7 +4469,6 @@
           <a href="https://calendly.com/bulkdesign/demo-services" target="_blank" rel="noopener noreferrer">Get a Demo</a>
         </nav>
         <div class="footer-end">
-          <a class="footer-cta" href="#top">Back to top</a>
           <p class="footer-copy">© 2026 WP → AI</p>
         </div>
       </div>
@@ -4887,10 +4886,12 @@
           if (!domain) {
             quickSidebarFabDomain.hidden = true;
             quickSidebarFabDomain.textContent = '';
+            if (quickSidebarFab) quickSidebarFab.setAttribute('data-domain', '');
             return;
           }
           quickSidebarFabDomain.textContent = domain;
-          quickSidebarFabDomain.hidden = false;
+          quickSidebarFabDomain.hidden = true;
+          if (quickSidebarFab) quickSidebarFab.setAttribute('data-domain', domain);
         }
 
         function clearHeroPreviewTimers() {
