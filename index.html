@@ -5002,10 +5002,23 @@
         var siteMaintenanceTourEnabled = false;
         var siteDeliverablesTourDismissed = false;
         var siteDeliverablesTourEnabled = false;
+        var quickQuoteCardUsage = {
+          site: false,
+          maintenance: false,
+          deliverables: false
+        };
         var pendingSidebarPages = 0;
         var quickQuoteStateKey = 'wptoai.quickQuoteState.v1';
         var heroPreviewStateKey = 'wptoai.heroPreviewState.v1';
         var heroPreviewJourneyStateKey = 'wptoai.heroPreviewJourneyState.v1';
+        var stripeReturnInQuery = (function () {
+          try {
+            var params = new URLSearchParams(window.location.search);
+            return params.has('checkout') || params.has('session_id');
+          } catch (_error) {
+            return false;
+          }
+        })();
         var mobileSidebarMedia = window.matchMedia('(max-width: 820px)');
         var wasMobileSidebarViewport = mobileSidebarMedia.matches;
         var heroPreviewTimerIds = [];
@@ -5746,6 +5759,34 @@
           }
         }
 
+        function restoreCardsFromUsageOnStripeReturn() {
+          if (!stripeReturnInQuery) return;
+          var hasWebsiteInput = Boolean(extractUrl(getEffectiveQuickInputRawValue()));
+          if (!hasWebsiteInput) return;
+
+          var pages = normalizePages(quickPagesInput.value);
+          var maintenanceEnabled = quickMaintenanceOn ? quickMaintenanceOn.checked : false;
+          var engineers = quickEngineersInput ? normalizeEngineers(quickEngineersInput.value) : 0;
+          var prompts = quickChangesInput ? normalizeChanges(quickChangesInput.value) : 15;
+          var optionalAddonsSelected = addonCheckboxes.some(function (checkbox) {
+            return checkbox.checked && !checkbox.hasAttribute('data-included');
+          });
+
+          var shouldOpenSite = quickQuoteCardUsage.site || pages > 1;
+          var shouldOpenMaintenance = quickQuoteCardUsage.maintenance || maintenanceEnabled || engineers > 0 || prompts !== 15;
+          var shouldOpenDeliverables = quickQuoteCardUsage.deliverables || optionalAddonsSelected;
+
+          if (quickSiteBody && quickSiteToggle) {
+            setCardOpen(quickSiteBody, quickSiteToggle, shouldOpenSite);
+          }
+          if (quickMaintenanceBody && quickMaintenanceToggle) {
+            setCardOpen(quickMaintenanceBody, quickMaintenanceToggle, shouldOpenMaintenance);
+          }
+          if (quickDeliverablesBody && quickDeliverablesToggle) {
+            setCardOpen(quickDeliverablesBody, quickDeliverablesToggle, shouldOpenDeliverables);
+          }
+        }
+
         function setSidebarCollapsed(isCollapsed) {
           if (!quickSidebar) return;
           var isMobileViewport = mobileSidebarMedia.matches;
@@ -5842,6 +5883,34 @@
           return engineers;
         }
 
+        function normalizeCardUsage(value) {
+          var usage = value && typeof value === 'object' ? value : {};
+          return {
+            site: Boolean(usage.site),
+            maintenance: Boolean(usage.maintenance),
+            deliverables: Boolean(usage.deliverables)
+          };
+        }
+
+        function setQuickQuoteCardUsage(nextUsage) {
+          quickQuoteCardUsage = normalizeCardUsage(nextUsage);
+        }
+
+        function resetQuickQuoteCardUsage() {
+          setQuickQuoteCardUsage({
+            site: false,
+            maintenance: false,
+            deliverables: false
+          });
+        }
+
+        function markQuickQuoteCardUsage(key) {
+          if (key !== 'site' && key !== 'maintenance' && key !== 'deliverables') return;
+          if (quickQuoteCardUsage[key]) return;
+          quickQuoteCardUsage[key] = true;
+          writeQuickQuoteState();
+        }
+
         function writeQuickQuoteState() {
           try {
             var selectedAddons = addonCheckboxes.reduce(function (acc, checkbox) {
@@ -5855,7 +5924,8 @@
               maintenanceMode: quickMaintenanceOn && quickMaintenanceOn.checked ? 'on' : 'off',
               engineers: quickEngineersInput ? normalizeEngineers(quickEngineersInput.value) : 0,
               prompts: quickChangesInput ? normalizeChanges(quickChangesInput.value) : 15,
-              selectedAddons: selectedAddons
+              selectedAddons: selectedAddons,
+              cardUsage: normalizeCardUsage(quickQuoteCardUsage)
             };
             window.sessionStorage.setItem(quickQuoteStateKey, JSON.stringify(state));
           } catch (_error) {
@@ -5876,6 +5946,7 @@
 
         function applyQuickQuoteState(state) {
           resetDeliverableSelections();
+          resetQuickQuoteCardUsage();
           if (!state) return;
 
           if (typeof state.websiteInput === 'string') {
@@ -5909,6 +5980,8 @@
             if (!addonId) return;
             checkbox.checked = selectedAddons.indexOf(addonId) !== -1;
           });
+
+          setQuickQuoteCardUsage(state.cardUsage);
         }
 
         function syncQuickSummary() {
@@ -5923,6 +5996,15 @@
           var pages = normalizePages(quickPagesInput.value);
           if (!hasWebsiteInput) {
             pages = 0;
+            if (quickMaintenanceOff && quickMaintenanceOn) {
+              quickMaintenanceOff.checked = true;
+              quickMaintenanceOn.checked = false;
+            }
+            if (quickEngineersInput) quickEngineersInput.value = "0";
+            if (quickChangesInput) quickChangesInput.value = "15";
+            resetDeliverableSelections();
+            syncMaintenanceUI(false);
+            resetQuickQuoteCardUsage();
           } else if (pages < 1) {
             pages = 1;
           }
@@ -6184,6 +6266,7 @@
 
         if (quickSidebarPagesMinusBtn && quickSidebarPagesInput) {
           quickSidebarPagesMinusBtn.addEventListener('click', function () {
+            markQuickQuoteCardUsage('site');
             var current = normalizePages(quickSidebarPagesInput.value);
             var nextPages = Math.max(0, current - 1);
             var previousPages = normalizePages(quickPagesInput.value);
@@ -6199,6 +6282,7 @@
 
         if (quickSidebarPagesPlusBtn && quickSidebarPagesInput) {
           quickSidebarPagesPlusBtn.addEventListener('click', function () {
+            markQuickQuoteCardUsage('site');
             var current = normalizePages(quickSidebarPagesInput.value);
             var nextPages = Math.min(25, current + 1);
             var previousPages = normalizePages(quickPagesInput.value);
@@ -6214,6 +6298,7 @@
 
         if (quickChangesMinusBtn && quickChangesInput) {
           quickChangesMinusBtn.addEventListener('click', function () {
+            markQuickQuoteCardUsage('maintenance');
             var current = normalizeChanges(quickChangesInput.value);
             quickChangesInput.value = String(Math.max(0, current - 1));
             syncQuickSummary();
@@ -6222,6 +6307,7 @@
 
         if (quickChangesPlusBtn && quickChangesInput) {
           quickChangesPlusBtn.addEventListener('click', function () {
+            markQuickQuoteCardUsage('maintenance');
             var current = normalizeChanges(quickChangesInput.value);
             quickChangesInput.value = String(Math.min(120, current + 1));
             syncQuickSummary();
@@ -6230,6 +6316,7 @@
 
         if (quickEngineersMinusBtn && quickEngineersInput) {
           quickEngineersMinusBtn.addEventListener('click', function () {
+            markQuickQuoteCardUsage('maintenance');
             var current = normalizeEngineers(quickEngineersInput.value);
             quickEngineersInput.value = String(Math.max(0, current - 1));
             syncQuickSummary();
@@ -6238,6 +6325,7 @@
 
         if (quickEngineersPlusBtn && quickEngineersInput) {
           quickEngineersPlusBtn.addEventListener('click', function () {
+            markQuickQuoteCardUsage('maintenance');
             var current = normalizeEngineers(quickEngineersInput.value);
             quickEngineersInput.value = String(Math.min(6, current + 1));
             syncQuickSummary();
@@ -6317,19 +6405,27 @@
         }
         if (quickMaintenanceOn && quickMaintenanceOff) {
           quickMaintenanceOn.addEventListener('change', function () {
+            markQuickQuoteCardUsage('maintenance');
             if (quickEngineersInput) quickEngineersInput.value = "1";
             syncMaintenanceUI(true);
             syncQuickSummary();
           });
           quickMaintenanceOff.addEventListener('change', function () {
+            markQuickQuoteCardUsage('maintenance');
             if (quickEngineersInput) quickEngineersInput.value = "0";
             syncMaintenanceUI(false);
             syncQuickSummary();
           });
         }
         if (quickEngineersInput) {
-          quickEngineersInput.addEventListener('change', syncQuickSummary);
-          quickEngineersInput.addEventListener('input', syncQuickSummary);
+          quickEngineersInput.addEventListener('change', function () {
+            markQuickQuoteCardUsage('maintenance');
+            syncQuickSummary();
+          });
+          quickEngineersInput.addEventListener('input', function () {
+            markQuickQuoteCardUsage('maintenance');
+            syncQuickSummary();
+          });
         }
         if (quickSubmitBtn) {
           quickSubmitBtn.addEventListener('click', function (event) {
@@ -6484,6 +6580,7 @@
         });
         if (quickSidebarPagesInput) {
           quickSidebarPagesInput.addEventListener('change', function () {
+            markQuickQuoteCardUsage('site');
             var nextPages = normalizePages(quickSidebarPagesInput.value);
             var previousPages = normalizePages(quickPagesInput.value);
             quickPagesInput.value = String(nextPages);
@@ -6495,6 +6592,7 @@
             maybeTriggerSiteMaintenanceTour(nextPages, previousPages);
           });
           quickSidebarPagesInput.addEventListener('input', function () {
+            markQuickQuoteCardUsage('site');
             var nextPages = normalizePages(quickSidebarPagesInput.value);
             var previousPages = normalizePages(quickPagesInput.value);
             quickPagesInput.value = String(nextPages);
@@ -6520,6 +6618,7 @@
               showSidebarUrlError("Enter a valid WordPress URL (example: yoursite.com).");
               return;
             }
+            markQuickQuoteCardUsage('site');
             setSidebarUrlRowVisible(false);
             syncQuickSummary();
           });
@@ -6530,6 +6629,7 @@
               showSidebarUrlError("Enter a valid WordPress URL (example: yoursite.com).");
               return;
             }
+            markQuickQuoteCardUsage('site');
             setSidebarUrlRowVisible(false);
             syncQuickSummary();
           });
@@ -6545,15 +6645,30 @@
           });
         }
         if (quickChangesInput) {
-          quickChangesInput.addEventListener('change', syncQuickSummary);
-          quickChangesInput.addEventListener('input', syncQuickSummary);
+          quickChangesInput.addEventListener('change', function () {
+            markQuickQuoteCardUsage('maintenance');
+            syncQuickSummary();
+          });
+          quickChangesInput.addEventListener('input', function () {
+            markQuickQuoteCardUsage('maintenance');
+            syncQuickSummary();
+          });
         }
         if (quickEngineersInput) {
-          quickEngineersInput.addEventListener('change', syncQuickSummary);
-          quickEngineersInput.addEventListener('input', syncQuickSummary);
+          quickEngineersInput.addEventListener('change', function () {
+            markQuickQuoteCardUsage('maintenance');
+            syncQuickSummary();
+          });
+          quickEngineersInput.addEventListener('input', function () {
+            markQuickQuoteCardUsage('maintenance');
+            syncQuickSummary();
+          });
         }
         addonCheckboxes.forEach(function (checkbox) {
-          checkbox.addEventListener('change', syncQuickSummary);
+          checkbox.addEventListener('change', function () {
+            markQuickQuoteCardUsage('deliverables');
+            syncQuickSummary();
+          });
         });
         if (quickDeliverablesToggle && quickDeliverablesBody) {
           setCardOpen(quickDeliverablesBody, quickDeliverablesToggle, false);
@@ -6674,6 +6789,7 @@
         siteMaintenanceTourEnabled = shouldRestoreConfiguredStep;
         siteDeliverablesTourEnabled = shouldRestoreConfiguredStep;
         setSidebarCollapsed(!shouldRestoreConfiguredStep);
+        restoreCardsFromUsageOnStripeReturn();
         syncQuickSummary();
       })();
     </script>
