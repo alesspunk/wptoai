@@ -21,13 +21,13 @@
     <meta property="og:title" content="WP → AI | WordPress to AI migration service">
     <meta property="og:description" content="Migrate your WordPress site into an AI self-maintained website. Same design, same brand, faster updates by chat.">
     <meta property="og:url" content="https://wptoai.com/">
-    <meta property="og:image" content="https://wptoai.com/images/WPtoai_Logo2x.png">
+    <meta property="og:image" content="https://wptoai.com/images/wptoai-logo-blackandwhite.png">
     <meta property="og:image:alt" content="WP to AI logo">
 
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="WP → AI | WordPress to AI migration service">
     <meta name="twitter:description" content="Migrate your WordPress site into an AI self-maintained website and request updates by chat.">
-    <meta name="twitter:image" content="https://wptoai.com/images/WPtoai_Logo2x.png">
+    <meta name="twitter:image" content="https://wptoai.com/images/wptoai-logo-blackandwhite.png">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -468,6 +468,48 @@
         color: #556082;
         font-weight: 600;
       }
+      .back-to-top-fab {
+        position: fixed;
+        left: 16px;
+        bottom: 18px;
+        z-index: 120;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        border-radius: 999px;
+        border: 1px solid #c9d6ef;
+        background: rgba(255, 255, 255, 0.94);
+        color: #27314d;
+        box-shadow: 0 10px 24px rgba(17, 28, 62, 0.16);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        opacity: 0;
+        transform: translateY(10px);
+        pointer-events: none;
+        transition: opacity 0.22s ease, transform 0.22s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+      }
+      .back-to-top-fab:hover {
+        transform: translateY(8px);
+        box-shadow: 0 14px 28px rgba(17, 28, 62, 0.2);
+        background: #ffffff;
+      }
+      .back-to-top-fab svg {
+        width: 20px;
+        height: 20px;
+        display: block;
+      }
+      body.nav-visible .back-to-top-fab {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+      }
+      body.mobile-sidebar-open .back-to-top-fab {
+        opacity: 0;
+        transform: translateY(10px);
+        pointer-events: none;
+      }
 
       .hero {
         min-height: 100vh;
@@ -528,6 +570,32 @@
         display: grid;
         gap: clamp(14px, 2.2vw, 26px);
       }
+      .hero-fold-logo {
+        position: absolute;
+        top: clamp(14px, 2.2vw, 26px);
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .hero-fold-logo:focus-visible {
+        outline: 2px solid #89a9e8;
+        outline-offset: 4px;
+        border-radius: 8px;
+      }
+      .hero-fold-logo-image {
+        display: block;
+        width: auto;
+        height: auto;
+        max-height: 40px;
+        max-width: min(240px, 70vw);
+        margin: 0;
+        object-fit: contain;
+      }
       .eyebrow {
         display: inline-flex;
         align-items: center;
@@ -543,11 +611,33 @@
       .hero-top-pill {
         position: relative;
         margin: 0 auto 14px;
-        border: 1px solid #d7e2f6;
-        background: #f8fbff;
+        border: 1px solid rgba(255, 255, 255, 0.58);
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.64) 0%,
+          rgba(244, 249, 255, 0.48) 52%,
+          rgba(236, 245, 255, 0.4) 100%
+        );
+        -webkit-backdrop-filter: blur(12px) saturate(150%);
+        backdrop-filter: blur(12px) saturate(150%);
         color: #2a3f6f;
         font-weight: 700;
-        box-shadow: none;
+        box-shadow:
+          inset 0 1px 0 rgba(255, 255, 255, 0.78),
+          0 10px 22px rgba(42, 63, 111, 0.12);
+        overflow: hidden;
+      }
+      .hero-top-pill::after {
+        content: "";
+        position: absolute;
+        inset: 1px;
+        border-radius: inherit;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.36) 0%,
+          rgba(255, 255, 255, 0) 100%
+        );
+        pointer-events: none;
       }
       .hero h1 {
         margin: 0;
@@ -1382,10 +1472,6 @@
         display: block;
       }
       .quick-sidebar-fab {
-        position: fixed;
-        top: 14px;
-        right: 14px;
-        z-index: 120;
         min-height: 62px;
         min-width: 0;
         width: fit-content;
@@ -1405,12 +1491,88 @@
         box-shadow: 0 16px 32px rgba(10, 13, 20, 0.4);
         text-align: left;
       }
+      .quick-top-actions {
+        position: fixed;
+        top: 14px;
+        right: 20px;
+        z-index: 360;
+        display: inline-flex;
+        align-items: center;
+        gap: 20px;
+        transition: right 0.24s ease;
+      }
+      .quick-auth-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .quick-auth-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 0;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: #27314d;
+        font-size: var(--text-sm);
+        font-weight: 600;
+        letter-spacing: 0;
+        line-height: var(--leading-tight);
+        text-decoration: none;
+        box-shadow: none;
+        transition: color 0.18s ease, opacity 0.18s ease;
+      }
+      .quick-auth-btn.sign-in {
+        color: #3558c6;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+      }
+      .quick-auth-btn:hover {
+        color: #27314d;
+        opacity: 0.92;
+      }
+      .quick-auth-btn.sign-up {
+        color: rgba(39, 49, 77, 0.78);
+        font-weight: 500;
+        position: relative;
+        margin-left: 2px;
+        padding-left: 14px;
+      }
+      .quick-auth-btn.sign-up:hover {
+        color: #27314d;
+        opacity: 0.92;
+      }
+      .quick-auth-btn.sign-up::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 50%;
+        width: 1px;
+        height: 14px;
+        transform: translateY(-50%);
+        background: rgba(39, 49, 77, 0.28);
+        pointer-events: none;
+      }
+      .quick-auth-btn:focus-visible {
+        outline: 2px solid #89a9e8;
+        outline-offset: 2px;
+        border-radius: 4px;
+      }
+      .quick-top-actions .quick-sidebar-fab {
+        position: static;
+        top: auto;
+        right: auto;
+        z-index: auto;
+      }
       .quick-sidebar-fab:hover {
         filter: brightness(1.03);
       }
       .quick-sidebar-fab svg {
-        width: 20px;
-        height: 20px;
+        width: 26px;
+        height: 26px;
         display: block;
         flex: 0 0 auto;
       }
@@ -1441,9 +1603,6 @@
         font-size: var(--text-6xl);
         font-weight: 900;
         line-height: var(--leading-none);
-      }
-      body.sidebar-collapsed .quick-sidebar-fab {
-        top: 9px;
       }
       .quick-sidebar-fab[hidden] {
         display: none !important;
@@ -3091,6 +3250,12 @@
           background: #fff;
           box-shadow: 0 8px 20px rgba(35, 58, 113, 0.08);
         }
+        body:not(.sidebar-collapsed) .quick-top-actions {
+          right: calc(var(--right-rail-width) + 20px);
+        }
+        body.sidebar-collapsed .quick-top-actions {
+          right: 20px;
+        }
       }
       @media (max-width: 1024px) {
         .hero-grid,
@@ -3327,16 +3492,22 @@
           overflow: auto;
           padding-right: 2px;
         }
-        .quick-sidebar-fab {
+        .quick-top-actions {
           top: 10px;
           right: 10px;
+          gap: 12px;
+        }
+        .quick-auth-actions {
+          gap: 10px;
+        }
+        .quick-auth-btn {
+          font-size: var(--text-xs);
+        }
+        .quick-sidebar-fab {
           min-width: 0;
           min-height: 48px;
           padding: 7px 12px 7px 10px;
           gap: 8px;
-        }
-        body.sidebar-collapsed .quick-sidebar-fab {
-          top: 5px;
         }
         .quick-sidebar-fab-label {
           display: none;
@@ -3397,6 +3568,16 @@
           min-height: 50px;
           padding-right: 12px;
         }
+        .back-to-top-fab {
+          left: 12px;
+          bottom: 12px;
+          width: 44px;
+          height: 44px;
+        }
+        .back-to-top-fab svg {
+          width: 18px;
+          height: 18px;
+        }
         .floating-chat-title { font-size: var(--text-sm); }
         .floating-chat-sub { font-size: var(--text-2xs); }
         .corner-menu-toggle {
@@ -3409,6 +3590,9 @@
         }
       }
       @media (max-width: 520px) {
+        .quick-auth-btn {
+          font-size: var(--text-2xs);
+        }
         .floating-chat {
           padding-right: 8px;
         }
@@ -3460,8 +3644,8 @@
             "@id": "https://wptoai.com/#organization",
             "name": "WP → AI",
             "url": "https://wptoai.com/",
-            "logo": "https://wptoai.com/images/WPtoai_Logo2x.png",
-            "image": "https://wptoai.com/images/WPtoai_Logo2x.png",
+            "logo": "https://wptoai.com/images/wptoai-logo-blackandwhite.png",
+            "image": "https://wptoai.com/images/wptoai-logo-blackandwhite.png",
             "email": "hello@wptoai.com"
           },
           {
@@ -3621,6 +3805,9 @@
     <main id="top">
       <section class="hero">
         <p id="checkout-status" class="checkout-status" role="status" aria-live="polite" hidden></p>
+        <a class="hero-fold-logo" href="#top" aria-label="Back to top">
+          <img class="hero-fold-logo-image" src="images/wptoai-logo-blackandwhite.png" alt="WP to AI">
+        </a>
         <div class="container hero-grid">
           <div class="hero-main">
             <p class="eyebrow hero-top-pill">WordPress to AI Migration Service</p>
@@ -3638,7 +3825,7 @@
                     <span class="word-done">Done.</span>
                   </span>
                 </h1>
-                <p class="hero-lead">We migrate your WordPress site into an AI self-maintained system with the same design and brand, and you request changes by chat like working with an engineer.</p>
+                <p class="hero-lead">We migrate your WordPress site into an AI-maintained system with the same design and brand. After that, you request changes by chat — just like working with a real engineer.</p>
                 <aside class="quick-quote" aria-label="Quick quote">
                   <form id="quick-quote-form" class="quote-line" action="#get-started">
                     <div class="quick-url-field">
@@ -3727,7 +3914,7 @@
                     </li>
                     <li class="hero-preview-stepper-item" data-step="configure" data-state="pending">
                       <span class="hero-preview-stepper-dot">2</span>
-                      <span>Configure</span>
+                      <span>Site Setup</span>
                     </li>
                     <li class="hero-preview-stepper-item" data-step="checkout" data-state="pending">
                       <span class="hero-preview-stepper-dot">3</span>
@@ -3748,7 +3935,7 @@
 
           <aside class="quick-summary-sidebar" aria-label="Quote summary">
             <div class="quick-sidebar-head">
-              <p class="quick-sidebar-title">Order Summary</p>
+              <p class="quick-sidebar-title">Site Setup</p>
               <button id="quick-sidebar-collapse" class="quick-sidebar-collapse-btn" type="button" aria-label="Collapse order summary sidebar" aria-expanded="true">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <rect x="3.5" y="3.5" width="17" height="17" rx="3" ry="3" fill="none" stroke="currentColor" stroke-width="1.6"></rect>
@@ -3943,25 +4130,36 @@
           </aside>
         </div>
         <div class="hero-bottom-note-wrap">
-          <a class="hero-bottom-note" href="#benefits" aria-label="See benefits">
+          <a class="hero-bottom-note" href="#how" aria-label="See how it works">
             Thoughtfully made for WordPress owners.
             <span class="hero-bottom-link-arrow" aria-hidden="true">↓</span>
           </a>
         </div>
       </section>
 
-      <button id="quick-sidebar-fab" class="quick-sidebar-fab" type="button" aria-label="Open order summary sidebar" hidden>
+      <div class="quick-top-actions" aria-label="Quick account and cart actions">
+        <div class="quick-auth-actions">
+          <a class="quick-auth-btn sign-in" href="#top">Sign In</a>
+          <a class="quick-auth-btn sign-up" href="#top">Sign Up</a>
+        </div>
+        <button id="quick-sidebar-fab" class="quick-sidebar-fab" type="button" aria-label="Open order summary sidebar" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M2.75 4.5H5l2.15 9.1h10.35l2.05-6.25H7.35" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"></path>
+            <circle cx="9.65" cy="18.25" r="1.65" fill="none" stroke="currentColor" stroke-width="1.85"></circle>
+            <circle cx="16.95" cy="18.25" r="1.65" fill="none" stroke="currentColor" stroke-width="1.85"></circle>
+          </svg>
+          <span class="quick-sidebar-fab-copy">
+            <span class="quick-sidebar-fab-label">Cart</span>
+            <span id="quick-sidebar-fab-domain" class="quick-sidebar-fab-domain" hidden>wptoai.com</span>
+            <span id="quick-sidebar-fab-total" class="quick-sidebar-fab-total">$0</span>
+          </span>
+        </button>
+      </div>
+      <a class="back-to-top-fab" href="#top" aria-label="Back to top">
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M2.75 4.5H5l2.15 9.1h10.35l2.05-6.25H7.35" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"></path>
-          <circle cx="9.65" cy="18.25" r="1.65" fill="none" stroke="currentColor" stroke-width="1.85"></circle>
-          <circle cx="16.95" cy="18.25" r="1.65" fill="none" stroke="currentColor" stroke-width="1.85"></circle>
+          <path d="M12 5.5l-6 6M12 5.5l6 6M12 5.5V18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"></path>
         </svg>
-        <span class="quick-sidebar-fab-copy">
-          <span class="quick-sidebar-fab-label">Order Summary</span>
-          <span id="quick-sidebar-fab-domain" class="quick-sidebar-fab-domain" hidden>wptoai.com</span>
-          <span id="quick-sidebar-fab-total" class="quick-sidebar-fab-total">$0</span>
-        </span>
-      </button>
+      </a>
 
       <section id="how" class="section" aria-labelledby="how-title">
         <div class="container">
@@ -4259,7 +4457,7 @@
     <footer class="site-footer" aria-label="Site footer">
       <div class="container footer-inner">
         <div class="footer-brand">
-          <img class="footer-logo" src="images/WPtoai_Logo2x.png" alt="WP to AI">
+          <img class="footer-logo" src="images/wptoai-logo-blackandwhite.png" alt="WP to AI">
           <p class="footer-tagline">WordPress to AI self-maintained website.</p>
           <a class="footer-mail" href="mailto:hello@wptoai.com">hello@wptoai.com</a>
         </div>
