@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>WordPress to AI Migration Service | WP → AI</title>
-    <meta name="description" content="Migrate your WordPress site into an AI self-maintained website. Keep the same design and brand, then request updates by chat.">
+    <meta name="description" content="Migrate your WordPress site into an AI-maintained website. Keep the same design and brand, then request updates by chat.">
     <meta name="author" content="WP → AI">
     <meta name="application-name" content="WP → AI">
     <meta name="keywords" content="WordPress to AI, WordPress migration service, AI-ready chatbot, WordPress maintenance alternative, website updates by chat">
@@ -19,14 +19,14 @@
     <meta property="og:site_name" content="WP → AI">
     <meta property="og:locale" content="en_US">
     <meta property="og:title" content="WP → AI | WordPress to AI migration service">
-    <meta property="og:description" content="Migrate your WordPress site into an AI self-maintained website. Same design, same brand, faster updates by chat.">
+    <meta property="og:description" content="Migrate your WordPress site into an AI-maintained website. Same design, same brand, faster updates by chat.">
     <meta property="og:url" content="https://wptoai.com/">
     <meta property="og:image" content="https://wptoai.com/images/wptoai-logo-blackandwhite.png">
     <meta property="og:image:alt" content="WP to AI logo">
 
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="WP → AI | WordPress to AI migration service">
-    <meta name="twitter:description" content="Migrate your WordPress site into an AI self-maintained website and request updates by chat.">
+    <meta name="twitter:description" content="Migrate your WordPress site into an AI-maintained website and request updates by chat.">
     <meta name="twitter:image" content="https://wptoai.com/images/wptoai-logo-blackandwhite.png">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -131,6 +131,10 @@
         outline-offset: 2px;
       }
       .container { width: min(1180px, 92vw); margin: 0 auto; }
+      body.hero-flow-locked {
+        overflow: hidden;
+        overscroll-behavior: none;
+      }
 
       .site-header {
         position: fixed;
@@ -509,6 +513,104 @@
         opacity: 0;
         transform: translateY(10px);
         pointer-events: none;
+      }
+      .site-migration-tour {
+        position: fixed;
+        right: calc(var(--right-rail-width) + 24px);
+        top: 206px;
+        z-index: 130;
+        width: min(320px, 24vw);
+        display: grid;
+        justify-items: start;
+        gap: 10px;
+        opacity: 0;
+        transform: translateX(14px);
+        pointer-events: none;
+        transition: opacity 0.34s ease, transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .site-migration-tour[data-visible="true"] {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      .site-migration-tour.site-maintenance-tour {
+        top: 378px;
+      }
+      .site-migration-tour.site-deliverables-tour {
+        top: 552px;
+      }
+      .site-migration-tour-copy {
+        max-width: 270px;
+      }
+      .site-migration-tour-title {
+        margin: 0;
+        color: #8d12c5;
+        font-size: clamp(28px, 2.4vw, 40px);
+        font-weight: 800;
+        line-height: var(--leading-tight);
+        letter-spacing: var(--tracking-tight);
+      }
+      .site-migration-tour-desc {
+        margin: 6px 0 0;
+        color: #3558c6;
+        font-size: var(--text-2xl);
+        font-weight: 700;
+        line-height: var(--leading-snug);
+      }
+      .site-migration-tour-svg {
+        width: min(300px, 22vw);
+        height: auto;
+        overflow: visible;
+      }
+      .site-migration-tour-path {
+        fill: none;
+        stroke: #ba49ff;
+        stroke-width: 3.2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-dasharray: 420;
+        stroke-dashoffset: 420;
+        filter: drop-shadow(0 0 8px rgba(186, 73, 255, 0.32));
+      }
+      .site-migration-tour-arrow {
+        fill: none;
+        stroke: #ba49ff;
+        stroke-width: 3.2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        opacity: 0;
+      }
+      .site-migration-tour-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: #ba49ff;
+        box-shadow: 0 0 0 6px rgba(186, 73, 255, 0.14);
+        margin-left: 18px;
+        opacity: 0;
+      }
+      .site-migration-tour[data-visible="true"] .site-migration-tour-path {
+        animation: site-tour-draw 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
+      .site-migration-tour[data-visible="true"] .site-migration-tour-arrow {
+        animation: site-tour-arrow-in 0.34s ease 0.72s forwards;
+      }
+      .site-migration-tour[data-visible="true"] .site-migration-tour-dot {
+        animation: site-tour-dot-in 0.42s ease 0.18s forwards;
+      }
+      @keyframes site-tour-draw {
+        to {
+          stroke-dashoffset: 0;
+        }
+      }
+      @keyframes site-tour-arrow-in {
+        to {
+          opacity: 1;
+        }
+      }
+      @keyframes site-tour-dot-in {
+        to {
+          opacity: 1;
+        }
       }
 
       .hero {
@@ -1478,8 +1580,8 @@
         max-width: calc(100vw - 28px);
         padding: 10px 20px 10px 16px;
         border-radius: 999px;
-        border: 1px solid #2b3140;
-        background: #2c406b;
+        border: 1px solid #2b49a7;
+        background: var(--brand-blue);
         color: #f7fbff;
         font-size: var(--text-lg);
         font-weight: 700;
@@ -1488,12 +1590,12 @@
         align-items: center;
         gap: 12px;
         cursor: pointer;
-        box-shadow: 0 16px 32px rgba(10, 13, 20, 0.4);
+        box-shadow: 0 16px 32px rgba(53, 88, 198, 0.34);
         text-align: left;
       }
       .quick-top-actions {
         position: fixed;
-        top: 14px;
+        top: 9px;
         right: 20px;
         z-index: 360;
         display: inline-flex;
@@ -1505,6 +1607,7 @@
         display: inline-flex;
         align-items: center;
         gap: 10px;
+        transition: transform 0.24s ease;
       }
       .quick-auth-btn {
         display: inline-flex;
@@ -1588,7 +1691,7 @@
         opacity: 0.95;
       }
       .quick-sidebar-fab-domain {
-        display: block;
+        display: none !important;
         max-width: min(240px, 36vw);
         white-space: nowrap;
         overflow: hidden;
@@ -1742,6 +1845,65 @@
       .quick-summary-row-engineers-qty > .quick-summary-rate {
         grid-column: 1 / -1;
         margin-top: -2px;
+      }
+      .quick-sidebar-url-row {
+        margin: 6px 4px 0;
+        padding-top: 9px;
+        border-top: 1px dashed #d6e2f7;
+        display: grid;
+        gap: 6px;
+      }
+      .quick-sidebar-url-row[hidden] {
+        display: none;
+      }
+      .quick-sidebar-url-label {
+        color: #4a5e88;
+        font-size: var(--text-2xs);
+        font-weight: 700;
+        letter-spacing: var(--tracking-semi-wide);
+        line-height: var(--leading-tight);
+      }
+      .quick-sidebar-url-field {
+        min-height: 32px;
+        border: 1px solid #cddbf5;
+        border-radius: 10px;
+        background: #f8fbff;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 8px;
+      }
+      .quick-sidebar-url-prefix {
+        color: #8a97b8;
+        font-size: var(--text-2xs);
+        font-weight: 700;
+        line-height: var(--leading-none);
+        white-space: nowrap;
+      }
+      .quick-sidebar-url-input {
+        width: 100%;
+        min-height: 30px;
+        border: 0;
+        padding: 0;
+        background: transparent;
+        color: #1f3159;
+        font: inherit;
+        font-size: var(--text-xs);
+        font-weight: 700;
+      }
+      .quick-sidebar-url-input:focus {
+        outline: none;
+      }
+      .quick-sidebar-url-row.is-error .quick-sidebar-url-field {
+        border-color: #d24b66;
+        box-shadow: 0 0 0 2px rgba(210, 75, 102, 0.14);
+      }
+      .quick-sidebar-url-error {
+        margin: 0;
+        color: #c03757;
+        font-size: var(--text-2xs);
+        font-weight: 700;
+        line-height: var(--leading-snug);
       }
       .quick-summary-row-addons-meta {
         grid-template-columns: 1fr auto auto;
@@ -2848,7 +3010,7 @@
         background: linear-gradient(145deg, #121f3f 0%, #1a2a55 52%, #221f4c 100%);
         border-top: 1px solid rgba(147, 170, 223, 0.28);
         border-bottom: 1px solid rgba(147, 170, 223, 0.28);
-        padding: 172px 0;
+        padding: 147px 0;
       }
       #faq .section-head h2 {
         color: #f3f8ff;
@@ -3017,20 +3179,21 @@
       .footer-inner {
         position: relative;
         z-index: 1;
-        padding: 28px 0 24px;
+        padding: 53px 0 49px;
         display: grid;
-        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
         gap: 16px 24px;
-        align-items: center;
+        align-items: start;
       }
       .footer-brand {
         display: grid;
-        gap: 6px;
+        gap: 7px;
       }
       .footer-logo {
         width: auto;
         height: 32px;
         object-fit: contain;
+        margin-left: -5px;
       }
       .footer-tagline {
         margin: 0;
@@ -3049,7 +3212,7 @@
       }
       .footer-nav {
         display: flex;
-        justify-content: center;
+        justify-content: flex-end;
         align-items: center;
         gap: 10px 16px;
         flex-wrap: wrap;
@@ -3117,8 +3280,11 @@
         text-align: right;
       }
       .footer-copy {
-        color: #7688b0;
+        color: #8d9bbc;
         font-size: var(--text-xs);
+      }
+      .footer-copy-inline {
+        margin-top: 1px;
       }
 
       #deliverables,
@@ -3256,6 +3422,12 @@
         body.sidebar-collapsed .quick-top-actions {
           right: 20px;
         }
+        body:not(.sidebar-collapsed) .quick-auth-actions {
+          transform: translateY(25px);
+        }
+        body.sidebar-collapsed .quick-auth-actions {
+          transform: translateY(0);
+        }
       }
       @media (max-width: 1024px) {
         .hero-grid,
@@ -3266,6 +3438,11 @@
         .summary-card h3 { font-size: var(--text-8xl); }
         .sticky { position: static; }
         .deliverables-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 1200px) {
+        .site-migration-tour {
+          display: none !important;
+        }
       }
 
       @media (max-width: 820px) {
@@ -3493,7 +3670,7 @@
           padding-right: 2px;
         }
         .quick-top-actions {
-          top: 10px;
+          top: 5px;
           right: 10px;
           gap: 12px;
         }
@@ -3560,7 +3737,7 @@
           grid-template-columns: 1fr;
           justify-items: center;
           row-gap: 8px;
-          padding: 14px 0;
+          padding: 39px 0;
         }
         .floating-chat {
           left: 12px;
@@ -3619,6 +3796,9 @@
         .hero-scan-robot,
         .hero-scan-step,
         .hero-scan-step-icon,
+        .site-migration-tour-path,
+        .site-migration-tour-arrow,
+        .site-migration-tour-dot,
         #benefits::before,
         .proof-open-sep,
         #benefits .proof-open-benefits li {
@@ -3660,7 +3840,7 @@
             "@id": "https://wptoai.com/#service",
             "name": "WP → AI",
             "serviceType": "WordPress site organization for AI tools, search, and automation",
-            "description": "We migrate WordPress sites into AI self-maintained websites while keeping the same design and brand.",
+            "description": "We migrate WordPress sites into AI-maintained websites while keeping the same design and brand.",
             "areaServed": {
               "@type": "Country",
               "name": "United States"
@@ -3825,7 +4005,7 @@
                     <span class="word-done">Done.</span>
                   </span>
                 </h1>
-                <p class="hero-lead">We migrate your WordPress site into an AI-maintained system with the same design and brand. After that, you request changes by chat — just like working with a real engineer.</p>
+                <p class="hero-lead">We migrate your WordPress site into an AI-maintained system that keeps your design and brand intact. Request updates by chat and the AI applies them — like working with a real engineer.</p>
                 <aside class="quick-quote" aria-label="Quick quote">
                   <form id="quick-quote-form" class="quote-line" action="#get-started">
                     <div class="quick-url-field">
@@ -3944,7 +4124,7 @@
               </button>
             </div>
             <div class="quick-summary-stack" aria-live="polite">
-              <section class="quick-summary quick-summary-card" aria-label="Site quote">
+              <section id="quick-site-card" class="quick-summary quick-summary-card" aria-label="Site quote">
                 <p class="quick-summary-card-title">
                   <span class="quick-card-title-text"><span class="quick-card-step" aria-hidden="true">1</span>SITE MIGRATION<span class="quick-card-icon" aria-hidden="true">🚀</span></span>
                   <button id="quick-site-toggle" class="quick-card-toggle" type="button" aria-expanded="true" aria-controls="quick-site-body">Hide</button>
@@ -3968,6 +4148,14 @@
                       <button id="quick-sidebar-pages-plus" class="quick-change-btn" type="button" aria-label="Increase site pages">+</button>
                     </div>
                     <span id="quick-pages-max-hint" class="quick-summary-rate" hidden>(max 25)</span>
+                  </div>
+                  <div id="quick-sidebar-url-row" class="quick-sidebar-url-row" hidden>
+                    <label class="quick-sidebar-url-label" for="quick-sidebar-url-input">Add your WordPress URL</label>
+                    <div class="quick-sidebar-url-field">
+                      <span class="quick-sidebar-url-prefix" aria-hidden="true">http://</span>
+                      <input id="quick-sidebar-url-input" class="quick-sidebar-url-input" type="text" placeholder="yourwebsite.com" aria-label="WordPress URL in sidebar">
+                    </div>
+                    <p id="quick-sidebar-url-error" class="quick-sidebar-url-error" aria-live="polite" hidden></p>
                   </div>
                 </div>
                 <div class="quick-summary-row total">
@@ -4154,6 +4342,39 @@
             <span id="quick-sidebar-fab-total" class="quick-sidebar-fab-total">$0</span>
           </span>
         </button>
+      </div>
+      <div id="site-migration-tour" class="site-migration-tour" aria-hidden="true" hidden>
+        <svg class="site-migration-tour-svg" viewBox="0 0 260 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="site-migration-tour-path" d="M16 156C16 112 58 100 92 98C126 96 142 80 152 54C161 30 179 20 236 20"></path>
+          <path class="site-migration-tour-arrow" d="M224 10L238 20L224 30"></path>
+        </svg>
+        <div class="site-migration-tour-copy">
+          <p class="site-migration-tour-title">Set up your migration</p>
+          <p class="site-migration-tour-desc">Adjust pages and options before checkout.</p>
+        </div>
+        <span class="site-migration-tour-dot" aria-hidden="true"></span>
+      </div>
+      <div id="site-maintenance-tour" class="site-migration-tour site-maintenance-tour" aria-hidden="true" hidden>
+        <svg class="site-migration-tour-svg" viewBox="0 0 260 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="site-migration-tour-path" d="M16 176C18 132 58 120 92 116C128 112 144 96 158 72C170 50 188 40 236 40"></path>
+          <path class="site-migration-tour-arrow" d="M224 30L238 40L224 50"></path>
+        </svg>
+        <div class="site-migration-tour-copy">
+          <p class="site-migration-tour-title">Need ongoing updates?</p>
+          <p class="site-migration-tour-desc">Enable monthly maintenance to keep improving your site with AI engineers.</p>
+        </div>
+        <span class="site-migration-tour-dot" aria-hidden="true"></span>
+      </div>
+      <div id="site-deliverables-tour" class="site-migration-tour site-deliverables-tour" aria-hidden="true" hidden>
+        <svg class="site-migration-tour-svg" viewBox="0 0 260 210" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path class="site-migration-tour-path" d="M16 184C18 146 54 132 86 126C120 120 146 108 166 86C184 66 202 58 236 58"></path>
+          <path class="site-migration-tour-arrow" d="M224 48L238 58L224 68"></path>
+        </svg>
+        <div class="site-migration-tour-copy">
+          <p class="site-migration-tour-title">What&#39;s included</p>
+          <p class="site-migration-tour-desc">Your migration already includes core files and an AI chatbot. Expand to add optional tools.</p>
+        </div>
+        <span class="site-migration-tour-dot" aria-hidden="true"></span>
       </div>
       <a class="back-to-top-fab" href="#top" aria-label="Back to top">
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -4458,8 +4679,9 @@
       <div class="container footer-inner">
         <div class="footer-brand">
           <img class="footer-logo" src="images/wptoai-logo-blackandwhite.png" alt="WP to AI">
-          <p class="footer-tagline">WordPress to AI self-maintained website.</p>
+          <p class="footer-tagline">WordPress to AI-maintained website.</p>
           <a class="footer-mail" href="mailto:hello@wptoai.com">hello@wptoai.com</a>
+          <p class="footer-copy footer-copy-inline">© 2026 WP → AI</p>
         </div>
         <nav class="footer-nav" aria-label="Footer navigation">
           <a href="#top">Home</a>
@@ -4468,9 +4690,6 @@
           <a href="#deliverables">Deliverables</a>
           <a href="https://calendly.com/bulkdesign/demo-services" target="_blank" rel="noopener noreferrer">Get a Demo</a>
         </nav>
-        <div class="footer-end">
-          <p class="footer-copy">© 2026 WP → AI</p>
-        </div>
       </div>
     </footer>
 
@@ -4643,6 +4862,7 @@
         var heroCancelScanBtn = document.querySelector('#hero-cancel-scan');
         var heroChangeUrlReadyBtn = document.querySelector('#hero-change-url-ready');
         var heroReadyContinueBtn = document.querySelector('#hero-ready-continue');
+        var heroBottomNoteLink = document.querySelector('.hero-bottom-note');
         var heroPreviewStepperItems = Array.prototype.slice.call(document.querySelectorAll('.hero-preview-stepper-item'));
         var quickSubmitBtn = document.querySelector('.quick-quote-btn');
         var quickCheckoutBtn = document.querySelector('.quick-rail-btn');
@@ -4652,9 +4872,14 @@
         var quickSidebarPagesInput = document.querySelector('#quick-sidebar-pages-input');
         var quickSidebarPagesMinusBtn = document.querySelector('#quick-sidebar-pages-minus');
         var quickSidebarPagesPlusBtn = document.querySelector('#quick-sidebar-pages-plus');
+        var quickSidebarUrlRow = document.querySelector('#quick-sidebar-url-row');
+        var quickSidebarUrlInput = document.querySelector('#quick-sidebar-url-input');
+        var quickSidebarUrlError = document.querySelector('#quick-sidebar-url-error');
+        var quickSiteCard = document.querySelector('#quick-site-card');
         var quickSiteBody = document.querySelector('#quick-site-body');
         var quickSiteToggle = document.querySelector('#quick-site-toggle');
         var quickMaintenanceBody = document.querySelector('#quick-maintenance-body');
+        var quickMaintenanceCard = quickMaintenanceBody ? quickMaintenanceBody.closest('.quick-summary-card') : null;
         var quickMaintenanceToggle = document.querySelector('#quick-maintenance-toggle');
         var quickDeliverablesBody = document.querySelector('#quick-deliverables-body');
         var quickDeliverablesToggle = document.querySelector('#quick-deliverables-toggle');
@@ -4663,6 +4888,7 @@
         var quickSidebarFab = document.querySelector('#quick-sidebar-fab');
         var quickMaintenanceOn = document.querySelector('#quick-maintenance-on');
         var quickMaintenanceOff = document.querySelector('#quick-maintenance-off');
+        var hamburgerNavLinks = Array.prototype.slice.call(document.querySelectorAll('#corner-menu-panel a, #main-nav a'));
         var quickEngineersInput = document.querySelector('#quick-engineers-input');
         var quickEngineersMinusBtn = document.querySelector('#quick-engineers-minus');
         var quickEngineersPlusBtn = document.querySelector('#quick-engineers-plus');
@@ -4695,9 +4921,23 @@
         var quickTotal = document.querySelector('#quick-total');
         var quickSidebarFabTotal = document.querySelector('#quick-sidebar-fab-total');
         var quickSidebarFabDomain = document.querySelector('#quick-sidebar-fab-domain');
+        var siteMigrationTour = document.querySelector('#site-migration-tour');
+        var siteMaintenanceTour = document.querySelector('#site-maintenance-tour');
+        var siteDeliverablesTour = document.querySelector('#site-deliverables-tour');
         var checkoutStatusHideTimer = null;
         var quickInputErrorHideTimer = null;
         var quickInputErrorFadeTimer = null;
+        var siteMigrationTourHideTimer = null;
+        var siteMaintenanceTourHideTimer = null;
+        var siteDeliverablesTourHideTimer = null;
+        var siteDeliverablesTourDelayTimer = null;
+        var siteMigrationTourDismissed = false;
+        var siteMigrationTourPrimed = false;
+        var siteMaintenanceTourDismissed = false;
+        var siteMaintenanceTourEnabled = false;
+        var siteDeliverablesTourDismissed = false;
+        var siteDeliverablesTourEnabled = false;
+        var pendingSidebarPages = 0;
         var quickQuoteStateKey = 'wptoai.quickQuoteState.v1';
         var heroPreviewStateKey = 'wptoai.heroPreviewState.v1';
         var heroPreviewJourneyStateKey = 'wptoai.heroPreviewJourneyState.v1';
@@ -4707,6 +4947,7 @@
         var heroPreviewRequestTimer = null;
         var heroPreviewRunToken = 0;
         var heroPreviewState = 'idle';
+        var heroFlowScrollLocked = false;
         var heroPreviewJourneyStep = 'preview';
         var heroLastNormalizedUrl = '';
         var heroLastDomain = '';
@@ -4795,6 +5036,96 @@
           return sanitized ? quickUrlPrefix + sanitized : "";
         }
 
+        function getSidebarQuickInputRawValue() {
+          if (!quickSidebarUrlRow || quickSidebarUrlRow.hidden) return "";
+          if (!quickSidebarUrlInput) return "";
+          var sanitized = sanitizeQuickInputValue(quickSidebarUrlInput.value);
+          return sanitized ? quickUrlPrefix + sanitized : "";
+        }
+
+        function getEffectiveQuickInputRawValue() {
+          var primaryRaw = getQuickInputRawValue();
+          if (primaryRaw) return primaryRaw;
+          return getSidebarQuickInputRawValue();
+        }
+
+        function clearSidebarUrlError() {
+          if (!quickSidebarUrlRow) return;
+          quickSidebarUrlRow.classList.remove('is-error');
+          if (quickSidebarUrlError) {
+            quickSidebarUrlError.hidden = true;
+            quickSidebarUrlError.textContent = "";
+          }
+        }
+
+        function showSidebarUrlError(message) {
+          if (!quickSidebarUrlRow) return;
+          quickSidebarUrlRow.classList.add('is-error');
+          if (quickSidebarUrlError) {
+            quickSidebarUrlError.hidden = false;
+            quickSidebarUrlError.textContent = message || "Add your WordPress URL to start the quote.";
+          }
+        }
+
+        function setSidebarUrlRowVisible(visible, focusInput) {
+          if (!quickSidebarUrlRow) return;
+          quickSidebarUrlRow.hidden = !visible;
+          if (!visible) {
+            clearSidebarUrlError();
+            if (quickSidebarUrlInput) {
+              quickSidebarUrlInput.value = "";
+            }
+            return;
+          }
+          if (quickSidebarUrlInput && !sanitizeQuickInputValue(quickSidebarUrlInput.value)) {
+            quickSidebarUrlInput.value = sanitizeQuickInputValue(quickInput.value);
+          }
+          if (focusInput && quickSidebarUrlInput) {
+            quickSidebarUrlInput.focus();
+            quickSidebarUrlInput.select();
+          }
+        }
+
+        function syncMainInputFromSidebarUrl() {
+          if (!quickSidebarUrlInput) return false;
+          var parsed = extractUrl(getSidebarQuickInputRawValue());
+          if (!parsed) return false;
+          quickInput.value = sanitizeQuickInputValue(parsed);
+          if (pendingSidebarPages > 0 && normalizePages(quickPagesInput.value) < 1) {
+            quickPagesInput.value = String(normalizePages(pendingSidebarPages));
+            if (quickSidebarPagesInput) {
+              quickSidebarPagesInput.value = quickPagesInput.value;
+            }
+          }
+          pendingSidebarPages = 0;
+          updateQuickUrlAssistState();
+          clearSidebarUrlError();
+          return true;
+        }
+
+        function maybeRevealSidebarUrlPromptForPages(nextPages) {
+          if (nextPages < 1) {
+            pendingSidebarPages = 0;
+            return true;
+          }
+          var parsed = extractUrl(getEffectiveQuickInputRawValue());
+          if (parsed) {
+            if (!getQuickInputRawValue()) {
+              quickInput.value = sanitizeQuickInputValue(parsed);
+              updateQuickUrlAssistState();
+            }
+            pendingSidebarPages = 0;
+            setSidebarUrlRowVisible(false);
+            return true;
+          }
+          pendingSidebarPages = normalizePages(nextPages);
+          setSidebarUrlRowVisible(true, true);
+          showSidebarUrlError("Add your WordPress URL to start the quote.");
+          quickPagesInput.value = "0";
+          if (quickSidebarPagesInput) quickSidebarPagesInput.value = "0";
+          return false;
+        }
+
         function updateQuickUrlAssistState() {
           if (!quickUrlField || !quickInput) return;
           var hasText = Boolean(sanitizeQuickInputValue(quickInput.value));
@@ -4853,7 +5184,10 @@
 
         function validateQuickInputUrl() {
           var missingDomainMessage = "Please include a valid domain (for example, yoursite.com) so we can prepare your quote.";
-          var raw = getQuickInputRawValue();
+          if (!getQuickInputRawValue()) {
+            syncMainInputFromSidebarUrl();
+          }
+          var raw = getEffectiveQuickInputRawValue();
           if (!raw) {
             showQuickInputError();
             return false;
@@ -4883,15 +5217,135 @@
 
         function setSummaryPillDomain(domain) {
           if (!quickSidebarFabDomain) return;
-          if (!domain) {
-            quickSidebarFabDomain.hidden = true;
-            quickSidebarFabDomain.textContent = '';
-            if (quickSidebarFab) quickSidebarFab.setAttribute('data-domain', '');
-            return;
-          }
-          quickSidebarFabDomain.textContent = domain;
           quickSidebarFabDomain.hidden = true;
-          if (quickSidebarFab) quickSidebarFab.setAttribute('data-domain', domain);
+          quickSidebarFabDomain.textContent = '';
+          if (quickSidebarFab) quickSidebarFab.removeAttribute('data-domain');
+        }
+
+        function hideSiteMigrationTour(markDismissed) {
+          if (!siteMigrationTour) return;
+          if (markDismissed) {
+            siteMigrationTourDismissed = true;
+          }
+          if (markDismissed) {
+            siteMigrationTourPrimed = false;
+          }
+          siteMigrationTour.setAttribute('data-visible', 'false');
+          if (siteMigrationTourHideTimer) {
+            window.clearTimeout(siteMigrationTourHideTimer);
+          }
+          siteMigrationTourHideTimer = window.setTimeout(function () {
+            if (siteMigrationTour.getAttribute('data-visible') === 'true') return;
+            siteMigrationTour.hidden = true;
+          }, 360);
+        }
+
+        function showSiteMigrationTour() {
+          if (!siteMigrationTour || siteMigrationTourDismissed || !siteMigrationTourPrimed) return;
+          if (mobileSidebarMedia.matches) return;
+          if (!quickSidebar || quickSidebar.classList.contains('is-collapsed')) return;
+          if (heroPreviewJourneyStep !== 'configure') return;
+
+          if (siteMigrationTourHideTimer) {
+            window.clearTimeout(siteMigrationTourHideTimer);
+            siteMigrationTourHideTimer = null;
+          }
+          siteMigrationTour.hidden = false;
+          window.requestAnimationFrame(function () {
+            if (!siteMigrationTour || siteMigrationTourDismissed) return;
+            siteMigrationTour.setAttribute('data-visible', 'true');
+            siteMigrationTourPrimed = false;
+          });
+        }
+
+        function hideSiteMaintenanceTour(markDismissed) {
+          if (!siteMaintenanceTour) return;
+          if (markDismissed) {
+            siteMaintenanceTourDismissed = true;
+          }
+          siteMaintenanceTour.setAttribute('data-visible', 'false');
+          if (siteMaintenanceTourHideTimer) {
+            window.clearTimeout(siteMaintenanceTourHideTimer);
+          }
+          siteMaintenanceTourHideTimer = window.setTimeout(function () {
+            if (siteMaintenanceTour.getAttribute('data-visible') === 'true') return;
+            siteMaintenanceTour.hidden = true;
+          }, 360);
+        }
+
+        function showSiteMaintenanceTour() {
+          if (!siteMaintenanceTour || siteMaintenanceTourDismissed || !siteMaintenanceTourEnabled) return;
+          if (mobileSidebarMedia.matches) return;
+          if (!quickSidebar || quickSidebar.classList.contains('is-collapsed')) return;
+
+          hideSiteMigrationTour(false);
+          if (siteMaintenanceTourHideTimer) {
+            window.clearTimeout(siteMaintenanceTourHideTimer);
+            siteMaintenanceTourHideTimer = null;
+          }
+          siteMaintenanceTour.hidden = false;
+          window.requestAnimationFrame(function () {
+            if (!siteMaintenanceTour || siteMaintenanceTourDismissed) return;
+            siteMaintenanceTour.setAttribute('data-visible', 'true');
+          });
+        }
+
+        function maybeTriggerSiteMaintenanceTour(nextPages, previousPages) {
+          if (!siteMaintenanceTourEnabled || siteMaintenanceTourDismissed) return;
+          if (normalizePages(nextPages) !== 2) return;
+          if (normalizePages(previousPages) === 2) return;
+          if (!extractUrl(getEffectiveQuickInputRawValue())) return;
+          showSiteMaintenanceTour();
+        }
+
+        function hideSiteDeliverablesTour(markDismissed) {
+          if (siteDeliverablesTourDelayTimer) {
+            window.clearTimeout(siteDeliverablesTourDelayTimer);
+            siteDeliverablesTourDelayTimer = null;
+          }
+          if (!siteDeliverablesTour) return;
+          if (markDismissed) {
+            siteDeliverablesTourDismissed = true;
+          }
+          siteDeliverablesTour.setAttribute('data-visible', 'false');
+          if (siteDeliverablesTourHideTimer) {
+            window.clearTimeout(siteDeliverablesTourHideTimer);
+          }
+          siteDeliverablesTourHideTimer = window.setTimeout(function () {
+            if (siteDeliverablesTour.getAttribute('data-visible') === 'true') return;
+            siteDeliverablesTour.hidden = true;
+          }, 360);
+        }
+
+        function showSiteDeliverablesTour() {
+          if (!siteDeliverablesTour || siteDeliverablesTourDismissed || !siteDeliverablesTourEnabled) return;
+          if (mobileSidebarMedia.matches) return;
+          if (!quickSidebar || quickSidebar.classList.contains('is-collapsed')) return;
+
+          hideSiteMigrationTour(false);
+          hideSiteMaintenanceTour(false);
+          if (siteDeliverablesTourHideTimer) {
+            window.clearTimeout(siteDeliverablesTourHideTimer);
+            siteDeliverablesTourHideTimer = null;
+          }
+          siteDeliverablesTour.hidden = false;
+          window.requestAnimationFrame(function () {
+            if (!siteDeliverablesTour || siteDeliverablesTourDismissed) return;
+            siteDeliverablesTour.setAttribute('data-visible', 'true');
+          });
+        }
+
+        function scheduleSiteDeliverablesTour() {
+          if (!siteDeliverablesTourEnabled || siteDeliverablesTourDismissed) return;
+          if (mobileSidebarMedia.matches) return;
+          if (!quickSidebar || quickSidebar.classList.contains('is-collapsed')) return;
+          if (siteDeliverablesTourDelayTimer) {
+            window.clearTimeout(siteDeliverablesTourDelayTimer);
+          }
+          siteDeliverablesTourDelayTimer = window.setTimeout(function () {
+            siteDeliverablesTourDelayTimer = null;
+            showSiteDeliverablesTour();
+          }, 8000);
         }
 
         function clearHeroPreviewTimers() {
@@ -4905,8 +5359,14 @@
           heroPreviewTimerIds = [];
         }
 
+        function setHeroFlowScrollLock(shouldLock) {
+          heroFlowScrollLocked = Boolean(shouldLock);
+          document.body.classList.toggle('hero-flow-locked', heroFlowScrollLocked);
+        }
+
         function setHeroPreviewState(nextState) {
           heroPreviewState = nextState;
+          setHeroFlowScrollLock(nextState === 'scanning' || nextState === 'ready');
           if (heroPreviewFlow) {
             heroPreviewFlow.setAttribute('data-state', nextState);
           }
@@ -5086,6 +5546,12 @@
           heroPreviewRunToken += 1;
           setHeroPreviewJourneyStep('preview', true);
           setHeroPreviewState('idle');
+          siteMigrationTourPrimed = false;
+          siteMaintenanceTourEnabled = false;
+          siteDeliverablesTourEnabled = false;
+          hideSiteMigrationTour(false);
+          hideSiteMaintenanceTour(false);
+          hideSiteDeliverablesTour(false);
           if (keepInputFocus && quickInput) {
             quickInput.focus();
           }
@@ -5209,6 +5675,14 @@
           }
           if (heroPreviewState === 'ready') {
             setHeroPreviewJourneyStep(isCollapsed ? 'preview' : 'configure');
+          }
+
+          if (isCollapsed || isMobileViewport) {
+            hideSiteMigrationTour(false);
+            hideSiteMaintenanceTour(false);
+            hideSiteDeliverablesTour(false);
+          } else {
+            showSiteMigrationTour();
           }
         }
 
@@ -5339,7 +5813,18 @@
         function syncQuickSummary() {
           if (!quickHomeCount || !quickInnerCount || !quickHomePrice || !quickInnerPrice || !quickSiteRate || !quickSiteTotal || !quickTotal) return;
 
+          var resolvedUrl = extractUrl(getEffectiveQuickInputRawValue());
+          var hasWebsiteInput = Boolean(resolvedUrl);
+          if (hasWebsiteInput && !getQuickInputRawValue()) {
+            quickInput.value = sanitizeQuickInputValue(resolvedUrl);
+            updateQuickUrlAssistState();
+          }
           var pages = normalizePages(quickPagesInput.value);
+          if (!hasWebsiteInput) {
+            pages = 0;
+          } else if (pages < 1) {
+            pages = 1;
+          }
           quickPagesInput.value = String(pages);
           if (quickSidebarPagesInput) quickSidebarPagesInput.value = String(pages);
           if (quickPagesMaxHint) quickPagesMaxHint.hidden = pages <= 24;
@@ -5372,14 +5857,20 @@
           var monthlyTotal = maintenanceEnabled ? aiEngineerBase + overagePrice : 0;
           var total = oneTimeTotal + monthlyTotal + addonsTotal;
 
+          if (!hasWebsiteInput) {
+            monthlyTotal = 0;
+            addonsTotal = 0;
+            total = 0;
+          }
+
           quickHomeCount.textContent = String(homeCount);
           quickInnerCount.textContent = String(innerCount);
           if (quickEngineersCount) quickEngineersCount.textContent = maintenanceEnabled ? String(engineers) : "0";
           if (quickEngineersMaxHint) quickEngineersMaxHint.hidden = !maintenanceEnabled || engineers <= 5;
           quickHomePrice.textContent = formatMoney(homePrice);
           quickInnerPrice.textContent = formatMoney(innerPrice);
-          if (quickAiPrice) quickAiPrice.textContent = maintenanceEnabled ? formatMoneyCents(aiEngineerBase) : formatMoneyCents(0);
-          if (quickAddonsCount) quickAddonsCount.textContent = String(addonsCount);
+          if (quickAiPrice) quickAiPrice.textContent = (hasWebsiteInput && maintenanceEnabled) ? formatMoneyCents(aiEngineerBase) : formatMoneyCents(0);
+          if (quickAddonsCount) quickAddonsCount.textContent = hasWebsiteInput ? String(addonsCount) : "0";
           if (quickAddonsTotal) quickAddonsTotal.textContent = formatMoney(addonsTotal);
           quickSiteRate.textContent = rule.label + " rate";
           quickSiteTotal.textContent = formatMoney(oneTimeTotal);
@@ -5388,8 +5879,11 @@
           if (quickAddonsSubtotal) quickAddonsSubtotal.textContent = formatMoney(monthlyTotal + addonsTotal);
           quickTotal.textContent = formatMoney(total);
           if (quickSidebarFabTotal) quickSidebarFabTotal.textContent = formatMoney(total);
+          if (hasWebsiteInput) {
+            setSidebarUrlRowVisible(false);
+          }
           if (quickCheckoutBtn) {
-            var disableCheckout = pages < 1 || total <= 0;
+            var disableCheckout = !hasWebsiteInput || pages < 1 || total <= 0;
             quickCheckoutBtn.classList.toggle('is-disabled', disableCheckout);
             quickCheckoutBtn.setAttribute('aria-disabled', disableCheckout ? 'true' : 'false');
           }
@@ -5412,7 +5906,7 @@
 
         function syncQuickLeadFields() {
           var text = sanitizeQuickInputValue(quickInput.value);
-          var url = extractUrl(getQuickInputRawValue());
+          var url = extractUrl(getEffectiveQuickInputRawValue());
           var pages = normalizePages(quickPagesInput.value);
           var mappedSize = mapSize(pages);
 
@@ -5421,7 +5915,7 @@
         }
 
         function buildCheckoutPayload() {
-          var rawInput = getQuickInputRawValue();
+          var rawInput = getEffectiveQuickInputRawValue();
           var parsedUrl = extractUrl(rawInput);
           var pages = normalizePages(quickPagesInput.value);
           var prompts = quickChangesInput ? normalizeChanges(quickChangesInput.value) : 15;
@@ -5530,12 +6024,13 @@
 
         quickForm.addEventListener('submit', function (event) {
           event.preventDefault();
+          pendingSidebarPages = 0;
           var text = quickInput.value.trim();
           if (!validateQuickInputUrl()) {
             setHeroPreviewState('error');
             return;
           }
-          var normalizedUrl = extractUrl(getQuickInputRawValue());
+          var normalizedUrl = extractUrl(getEffectiveQuickInputRawValue());
           var domain = getDomainFromUrl(normalizedUrl);
           if (!normalizedUrl || !domain) {
             setHeroPreviewState('error');
@@ -5556,6 +6051,15 @@
 
           syncQuickSummary();
           setSummaryPillDomain(domain);
+          siteMigrationTourDismissed = false;
+          siteMigrationTourPrimed = false;
+          siteMaintenanceTourDismissed = false;
+          siteMaintenanceTourEnabled = false;
+          siteDeliverablesTourDismissed = false;
+          siteDeliverablesTourEnabled = false;
+          hideSiteMigrationTour(false);
+          hideSiteMaintenanceTour(false);
+          hideSiteDeliverablesTour(false);
           startHeroScanFlow(normalizedUrl, domain);
         });
 
@@ -5578,16 +6082,30 @@
         if (quickSidebarPagesMinusBtn && quickSidebarPagesInput) {
           quickSidebarPagesMinusBtn.addEventListener('click', function () {
             var current = normalizePages(quickSidebarPagesInput.value);
-            quickPagesInput.value = String(Math.max(0, current - 1));
+            var nextPages = Math.max(0, current - 1);
+            var previousPages = normalizePages(quickPagesInput.value);
+            quickPagesInput.value = String(nextPages);
+            if (!maybeRevealSidebarUrlPromptForPages(nextPages)) {
+              syncQuickSummary();
+              return;
+            }
             syncQuickSummary();
+            maybeTriggerSiteMaintenanceTour(nextPages, previousPages);
           });
         }
 
         if (quickSidebarPagesPlusBtn && quickSidebarPagesInput) {
           quickSidebarPagesPlusBtn.addEventListener('click', function () {
             var current = normalizePages(quickSidebarPagesInput.value);
-            quickPagesInput.value = String(Math.min(25, current + 1));
+            var nextPages = Math.min(25, current + 1);
+            var previousPages = normalizePages(quickPagesInput.value);
+            quickPagesInput.value = String(nextPages);
+            if (!maybeRevealSidebarUrlPromptForPages(nextPages)) {
+              syncQuickSummary();
+              return;
+            }
             syncQuickSummary();
+            maybeTriggerSiteMaintenanceTour(nextPages, previousPages);
           });
         }
 
@@ -5632,6 +6150,61 @@
             setCardOpen(quickSiteBody, quickSiteToggle, quickSiteBody.hidden);
           });
         }
+        if (quickSiteCard) {
+          var dismissSiteMigrationTour = function () {
+            if (!siteMigrationTour || siteMigrationTour.hidden) return;
+            hideSiteMigrationTour(true);
+          };
+          ['pointerdown', 'input', 'change'].forEach(function (eventName) {
+            quickSiteCard.addEventListener(eventName, dismissSiteMigrationTour, true);
+          });
+          quickSiteCard.addEventListener('keydown', function (event) {
+            if (event.key === 'Tab' || event.key === 'Shift') return;
+            dismissSiteMigrationTour();
+          }, true);
+        }
+        var dismissSiteMaintenanceTourOutsideSiteCard = function (event) {
+          if (!siteMaintenanceTour || siteMaintenanceTour.hidden) return;
+          if (quickSiteCard && quickSiteCard.contains(event.target)) return;
+          hideSiteMaintenanceTour(true);
+        };
+        ['pointerdown', 'input', 'change'].forEach(function (eventName) {
+          document.addEventListener(eventName, dismissSiteMaintenanceTourOutsideSiteCard, true);
+        });
+        document.addEventListener('keydown', function (event) {
+          if (!siteMaintenanceTour || siteMaintenanceTour.hidden) return;
+          if (event.key === 'Tab' || event.key === 'Shift') return;
+          var activeTarget = event.target || document.activeElement;
+          if (quickSiteCard && activeTarget && quickSiteCard.contains(activeTarget)) return;
+          hideSiteMaintenanceTour(true);
+        }, true);
+        if (quickMaintenanceCard) {
+          var scheduleDeliverablesTourFromMaintenanceCard = function () {
+            scheduleSiteDeliverablesTour();
+          };
+          ['pointerdown', 'input', 'change'].forEach(function (eventName) {
+            quickMaintenanceCard.addEventListener(eventName, scheduleDeliverablesTourFromMaintenanceCard, true);
+          });
+          quickMaintenanceCard.addEventListener('keydown', function (event) {
+            if (event.key === 'Tab' || event.key === 'Shift') return;
+            scheduleDeliverablesTourFromMaintenanceCard();
+          }, true);
+        }
+        var dismissSiteDeliverablesTourOutsideMaintenanceCard = function (event) {
+          if (!siteDeliverablesTour || siteDeliverablesTour.hidden) return;
+          if (quickMaintenanceCard && quickMaintenanceCard.contains(event.target)) return;
+          hideSiteDeliverablesTour(true);
+        };
+        ['pointerdown', 'input', 'change'].forEach(function (eventName) {
+          document.addEventListener(eventName, dismissSiteDeliverablesTourOutsideMaintenanceCard, true);
+        });
+        document.addEventListener('keydown', function (event) {
+          if (!siteDeliverablesTour || siteDeliverablesTour.hidden) return;
+          if (event.key === 'Tab' || event.key === 'Shift') return;
+          var activeTarget = event.target || document.activeElement;
+          if (quickMaintenanceCard && activeTarget && quickMaintenanceCard.contains(activeTarget)) return;
+          hideSiteDeliverablesTour(true);
+        }, true);
         if (quickMaintenanceToggle && quickMaintenanceBody) {
           syncMaintenanceUI(false);
           quickMaintenanceToggle.addEventListener('click', function () {
@@ -5674,6 +6247,15 @@
           if (quickForm.classList.contains('has-error')) {
             clearQuickInputError();
           }
+          if (sanitizeQuickInputValue(quickInput.value)) {
+            pendingSidebarPages = 0;
+            setSidebarUrlRowVisible(false);
+          }
+          if (!extractUrl(getEffectiveQuickInputRawValue())) {
+            quickPagesInput.value = "0";
+            if (quickSidebarPagesInput) quickSidebarPagesInput.value = "0";
+            syncQuickSummary();
+          }
         });
         quickInput.addEventListener('focus', updateQuickUrlAssistState);
         quickInput.addEventListener('blur', updateQuickUrlAssistState);
@@ -5701,7 +6283,18 @@
         if (heroReadyContinueBtn) {
           heroReadyContinueBtn.addEventListener('click', function (event) {
             event.preventDefault();
+            if (quickMaintenanceOff && quickMaintenanceOn) {
+              quickMaintenanceOff.checked = true;
+              quickMaintenanceOn.checked = false;
+            }
+            if (quickEngineersInput) quickEngineersInput.value = "0";
+            syncMaintenanceUI(false);
+            syncQuickSummary();
+            siteMigrationTourPrimed = true;
+            siteMaintenanceTourEnabled = true;
+            siteDeliverablesTourEnabled = true;
             setSidebarCollapsed(false);
+            window.setTimeout(showSiteMigrationTour, 120);
           });
         }
         if (quickCheckoutBtn) {
@@ -5785,12 +6378,64 @@
         });
         if (quickSidebarPagesInput) {
           quickSidebarPagesInput.addEventListener('change', function () {
-            quickPagesInput.value = quickSidebarPagesInput.value;
+            var nextPages = normalizePages(quickSidebarPagesInput.value);
+            var previousPages = normalizePages(quickPagesInput.value);
+            quickPagesInput.value = String(nextPages);
+            if (!maybeRevealSidebarUrlPromptForPages(nextPages)) {
+              syncQuickSummary();
+              return;
+            }
             syncQuickSummary();
+            maybeTriggerSiteMaintenanceTour(nextPages, previousPages);
           });
           quickSidebarPagesInput.addEventListener('input', function () {
-            quickPagesInput.value = quickSidebarPagesInput.value;
+            var nextPages = normalizePages(quickSidebarPagesInput.value);
+            var previousPages = normalizePages(quickPagesInput.value);
+            quickPagesInput.value = String(nextPages);
+            if (!maybeRevealSidebarUrlPromptForPages(nextPages)) {
+              syncQuickSummary();
+              return;
+            }
             syncQuickSummary();
+            maybeTriggerSiteMaintenanceTour(nextPages, previousPages);
+          });
+        }
+        if (quickSidebarUrlInput) {
+          quickSidebarUrlInput.addEventListener('input', function () {
+            var sanitizedValue = sanitizeQuickInputValue(quickSidebarUrlInput.value);
+            if (quickSidebarUrlInput.value !== sanitizedValue) {
+              quickSidebarUrlInput.value = sanitizedValue;
+            }
+            if (!sanitizedValue) {
+              clearSidebarUrlError();
+              return;
+            }
+            if (!syncMainInputFromSidebarUrl()) {
+              showSidebarUrlError("Enter a valid WordPress URL (example: yoursite.com).");
+              return;
+            }
+            setSidebarUrlRowVisible(false);
+            syncQuickSummary();
+          });
+          quickSidebarUrlInput.addEventListener('keydown', function (event) {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            if (!syncMainInputFromSidebarUrl()) {
+              showSidebarUrlError("Enter a valid WordPress URL (example: yoursite.com).");
+              return;
+            }
+            setSidebarUrlRowVisible(false);
+            syncQuickSummary();
+          });
+          quickSidebarUrlInput.addEventListener('blur', function () {
+            var sanitizedValue = sanitizeQuickInputValue(quickSidebarUrlInput.value);
+            if (!sanitizedValue) {
+              clearSidebarUrlError();
+              return;
+            }
+            if (!extractUrl(getSidebarQuickInputRawValue())) {
+              showSidebarUrlError("Enter a valid WordPress URL (example: yoursite.com).");
+            }
           });
         }
         if (quickChangesInput) {
@@ -5818,6 +6463,42 @@
         if (quickSidebarFab) {
           quickSidebarFab.addEventListener('click', function () {
             setSidebarCollapsed(false);
+          });
+        }
+        if (hamburgerNavLinks.length) {
+          hamburgerNavLinks.forEach(function (link) {
+            link.addEventListener('click', function () {
+              if (siteMigrationTour && !siteMigrationTour.hidden) {
+                hideSiteMigrationTour(true);
+              }
+              if (siteMaintenanceTour && !siteMaintenanceTour.hidden) {
+                hideSiteMaintenanceTour(true);
+              }
+              if (siteDeliverablesTour && !siteDeliverablesTour.hidden) {
+                hideSiteDeliverablesTour(true);
+              }
+              var href = link.getAttribute('href') || '';
+              if (!heroFlowScrollLocked) return;
+              if (href.charAt(0) === '#' && href !== '#top') {
+                setHeroFlowScrollLock(false);
+              }
+            });
+          });
+        }
+        if (heroBottomNoteLink) {
+          heroBottomNoteLink.addEventListener('click', function () {
+            if (siteMigrationTour && !siteMigrationTour.hidden) {
+              hideSiteMigrationTour(true);
+            }
+            if (siteMaintenanceTour && !siteMaintenanceTour.hidden) {
+              hideSiteMaintenanceTour(true);
+            }
+            if (siteDeliverablesTour && !siteDeliverablesTour.hidden) {
+              hideSiteDeliverablesTour(true);
+            }
+            if (heroFlowScrollLocked) {
+              setHeroFlowScrollLock(false);
+            }
           });
         }
         document.addEventListener('click', function (event) {
@@ -5870,6 +6551,8 @@
           restoredHeroJourneyState &&
           restoredHeroJourneyState.step === 'configure'
         );
+        siteMaintenanceTourEnabled = shouldRestoreConfiguredStep;
+        siteDeliverablesTourEnabled = shouldRestoreConfiguredStep;
         setSidebarCollapsed(!shouldRestoreConfiguredStep);
         syncQuickSummary();
       })();
