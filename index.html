@@ -292,6 +292,9 @@
         border-color: #1dfed6;
         color: var(--brand-deep-ink);
       }
+      .corner-menu-panel .mobile-auth-link {
+        display: none;
+      }
       body.corner-menu-open {
         overflow: hidden;
       }
@@ -3622,6 +3625,9 @@
           min-height: var(--mobile-fold-height, 100dvh);
           padding: 56px 0 calc(74px + env(safe-area-inset-bottom));
         }
+        body.hero-flow-locked .hero {
+          padding: 40px 0 calc(64px + env(safe-area-inset-bottom));
+        }
         .hero::before {
           filter: blur(24px);
           opacity: 0.62;
@@ -3647,8 +3653,14 @@
           min-height: calc(var(--mobile-fold-height, 100dvh) - 96px);
           align-content: center;
         }
+        body.hero-flow-locked .hero-grid {
+          min-height: calc(var(--mobile-fold-height, 100dvh) - 80px);
+        }
         .hero-main {
           gap: 16px;
+        }
+        body.hero-flow-locked .hero-main {
+          gap: 10px;
         }
         .hero-top-pill {
           position: relative;
@@ -3656,6 +3668,9 @@
           left: auto;
           transform: none;
           margin: 0 auto 14px;
+        }
+        body.hero-flow-locked .hero-top-pill {
+          margin-bottom: 8px;
         }
         .checkout-status {
           top: 60px;
@@ -3674,16 +3689,39 @@
           padding: 14px;
           border-radius: 16px;
         }
+        .hero-preview-flow[data-state="scanning"],
+        .hero-preview-flow[data-state="ready"] {
+          min-height: calc(var(--mobile-fold-height, 100dvh) - 230px);
+          display: grid;
+          align-content: center;
+        }
+        body.hero-flow-locked .hero-state-scan,
+        body.hero-flow-locked .hero-state-ready {
+          margin-top: 0;
+          max-height: calc(var(--mobile-fold-height, 100dvh) - 230px);
+          overflow: auto;
+          -webkit-overflow-scrolling: touch;
+        }
         .hero-scan-stage {
           grid-template-columns: 1fr;
           gap: 12px;
         }
+        body.hero-flow-locked .hero-scan-stage {
+          margin-top: 8px;
+          gap: 10px;
+        }
         .hero-scan-visual {
           min-height: 180px;
+        }
+        body.hero-flow-locked .hero-scan-visual {
+          min-height: 148px;
         }
         .hero-scan-step {
           padding: 9px 10px;
           grid-template-columns: 22px 1fr;
+        }
+        body.hero-flow-locked .hero-scan-step {
+          padding: 8px 9px;
         }
         .hero-scan-step-icon {
           width: 22px;
@@ -3699,6 +3737,11 @@
         .hero-ready-card,
         #hero-ready-image {
           min-height: 200px;
+        }
+        body.hero-flow-locked .hero-ready-card,
+        body.hero-flow-locked #hero-ready-image {
+          min-height: 150px;
+          max-height: 32vh;
         }
         .hero-ready-head {
           flex-direction: column;
@@ -3794,57 +3837,7 @@
           gap: 12px;
         }
         .quick-auth-actions {
-          gap: 0;
-        }
-        .quick-auth-toggle {
-          display: inline-grid;
-        }
-        .quick-auth-menu {
-          position: absolute;
-          top: calc(100% + 8px);
-          right: 0;
-          min-width: 132px;
-          padding: 6px;
-          border: 1px solid #c7d7f5;
-          border-radius: 12px;
-          background: #ffffff;
-          box-shadow: 0 12px 24px rgba(35, 58, 113, 0.16);
-          display: grid;
-          gap: 4px;
-          opacity: 0;
-          visibility: hidden;
-          pointer-events: none;
-          transform: translateY(-4px);
-          transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
-          z-index: 350;
-        }
-        .quick-auth-actions.is-open .quick-auth-menu {
-          opacity: 1;
-          visibility: visible;
-          pointer-events: auto;
-          transform: translateY(0);
-        }
-        .quick-auth-actions.is-open .quick-auth-toggle {
-          color: #3558c6;
-        }
-        .quick-auth-menu a {
-          display: block;
-          padding: 9px 10px;
-          border: 1px solid #d6e2f8;
-          border-radius: 10px;
-          background: #f7fbff;
-          color: #27314d;
-          font-size: var(--text-xs);
-          font-weight: 700;
-          line-height: var(--leading-tight);
-          text-decoration: none;
-        }
-        .quick-auth-menu a:hover {
-          background: #edf4ff;
-          border-color: #b8cbf0;
-        }
-        .quick-auth-btn {
-          display: none;
+          gap: 10px;
         }
         .quick-sidebar-fab {
           min-width: 0;
@@ -3933,9 +3926,6 @@
         }
       }
       @media (max-width: 520px) {
-        .quick-auth-menu a {
-          font-size: var(--text-2xs);
-        }
         .floating-chat {
           padding-right: 8px;
         }
@@ -3947,6 +3937,15 @@
           padding: 10px 18px;
           font-size: var(--text-sm);
           white-space: normal;
+        }
+      }
+      @media (max-width: 820px) {
+        .quick-auth-actions {
+          display: none;
+        }
+        .corner-menu-panel .mobile-auth-link,
+        #main-nav .mobile-auth-link {
+          display: block;
         }
       }
       @media (prefers-reduced-motion: reduce) {
@@ -4129,6 +4128,8 @@
     <div class="corner-menu-overlay" aria-hidden="true"></div>
     <nav id="corner-menu-panel" class="corner-menu-panel" aria-label="Quick menu">
       <a href="#top">Home</a>
+      <a class="mobile-auth-link" href="#top">Sign In</a>
+      <a class="mobile-auth-link" href="#top">Sign Up</a>
       <a href="#benefits">Why leaving WordPress?</a>
       <a href="#how">How it works</a>
       <a href="#deliverables">Deliverables</a>
@@ -4141,6 +4142,8 @@
         <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav">Menu</button>
         <nav id="main-nav" class="main-nav" aria-label="Primary">
           <a href="#top">Home</a>
+          <a class="mobile-auth-link" href="#top">Sign In</a>
+          <a class="mobile-auth-link" href="#top">Sign Up</a>
           <a href="#benefits">Why leaving WordPress?</a>
           <a href="#how">How it works</a>
           <a href="#deliverables">Deliverables</a>
@@ -4496,16 +4499,6 @@
 
       <div class="quick-top-actions" aria-label="Quick account and cart actions">
         <div class="quick-auth-actions">
-          <button id="quick-auth-toggle" class="quick-auth-toggle" type="button" aria-label="Open user menu" aria-expanded="false" aria-controls="quick-auth-menu">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="8" r="4.2" fill="none" stroke="currentColor" stroke-width="1.9"></circle>
-              <path d="M4.7 19.2C5.9 16.1 8.6 14.3 12 14.3C15.4 14.3 18.1 16.1 19.3 19.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"></path>
-            </svg>
-          </button>
-          <nav id="quick-auth-menu" class="quick-auth-menu" aria-label="User actions">
-            <a href="#top">Sign In</a>
-            <a href="#top">Sign Up</a>
-          </nav>
           <a class="quick-auth-btn sign-in" href="#top">Sign In</a>
           <a class="quick-auth-btn sign-up" href="#top">Sign Up</a>
         </div>
@@ -4967,50 +4960,6 @@
       })();
 
       (function () {
-        var authActions = document.querySelector('.quick-auth-actions');
-        var authToggle = document.querySelector('#quick-auth-toggle');
-        var authMenu = document.querySelector('#quick-auth-menu');
-        if (!authActions || !authToggle || !authMenu) return;
-
-        function closeAuthMenu() {
-          authActions.classList.remove('is-open');
-          authToggle.setAttribute('aria-expanded', 'false');
-        }
-
-        authToggle.addEventListener('click', function (event) {
-          event.preventDefault();
-          event.stopPropagation();
-          var isOpen = authActions.classList.contains('is-open');
-          authActions.classList.toggle('is-open', !isOpen);
-          authToggle.setAttribute('aria-expanded', String(!isOpen));
-        });
-
-        authMenu.addEventListener('click', function (event) {
-          if (event.target && event.target.tagName === 'A') {
-            closeAuthMenu();
-          }
-        });
-
-        document.addEventListener('click', function (event) {
-          if (!authActions.contains(event.target)) {
-            closeAuthMenu();
-          }
-        });
-
-        document.addEventListener('keydown', function (event) {
-          if (event.key === 'Escape') {
-            closeAuthMenu();
-          }
-        });
-
-        window.addEventListener('resize', function () {
-          if (window.innerWidth > 820) {
-            closeAuthMenu();
-          }
-        });
-      })();
-
-      (function () {
         var faqItems = Array.prototype.slice.call(document.querySelectorAll('#faq .faq-item'));
         faqItems.forEach(function (item) {
           item.addEventListener('toggle', function () {
@@ -5163,6 +5112,7 @@
         var siteMaintenanceTourEnabled = false;
         var siteDeliverablesTourDismissed = false;
         var siteDeliverablesTourEnabled = false;
+        var suppressNextMobileSidebarDismiss = false;
         var quickQuoteCardUsage = {
           site: false,
           maintenance: false,
@@ -5651,6 +5601,12 @@
 
         function setHeroPreviewState(nextState) {
           heroPreviewState = nextState;
+          if (window.matchMedia('(max-width: 820px)').matches) {
+            var vh = window.innerHeight;
+            if (vh && vh >= 320) {
+              document.documentElement.style.setProperty('--mobile-fold-height', vh + 'px');
+            }
+          }
           setHeroFlowScrollLock(nextState === 'scanning' || nextState === 'ready');
           if (heroReadyContinueBtn && nextState !== 'ready') {
             heroReadyContinueBtn.classList.remove('is-fading-out');
@@ -6662,7 +6618,17 @@
         if (heroReadyContinueBtn) {
           heroReadyContinueBtn.addEventListener('click', function (event) {
             event.preventDefault();
-            heroReadyContinueBtn.classList.add('is-fading-out');
+            var isMobileContinue = mobileSidebarMedia.matches;
+            if (isMobileContinue) {
+              event.stopPropagation();
+              suppressNextMobileSidebarDismiss = true;
+              window.setTimeout(function () {
+                suppressNextMobileSidebarDismiss = false;
+              }, 0);
+              heroReadyContinueBtn.classList.remove('is-fading-out');
+            } else {
+              heroReadyContinueBtn.classList.add('is-fading-out');
+            }
             if (quickMaintenanceOff && quickMaintenanceOn) {
               quickMaintenanceOff.checked = true;
               quickMaintenanceOn.checked = false;
@@ -6898,6 +6864,7 @@
         document.addEventListener('click', function (event) {
           if (!mobileSidebarMedia.matches) return;
           if (!document.body.classList.contains('mobile-sidebar-open')) return;
+          if (suppressNextMobileSidebarDismiss) return;
           if (!quickSidebar) return;
           if (quickSidebar.contains(event.target)) return;
           if (quickSidebarFab && quickSidebarFab.contains(event.target)) return;
