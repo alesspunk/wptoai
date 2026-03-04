@@ -386,7 +386,7 @@
       .header-nav-only .header-side-logo {
         position: absolute;
         top: 50%;
-        left: 0;
+        left: 15px;
         transform: translateY(-50%);
       }
       .header-nav-only .menu-toggle {
@@ -6517,6 +6517,14 @@
 
         quickForm.addEventListener('submit', function (event) {
           event.preventDefault();
+          try {
+            window.scrollTo({
+              top: 0,
+              behavior: prefersReducedMotion ? 'auto' : 'smooth'
+            });
+          } catch (_error) {
+            window.scrollTo(0, 0);
+          }
           pendingSidebarPages = 0;
           var text = quickInput.value.trim();
           if (!validateQuickInputUrl()) {
