@@ -4398,6 +4398,7 @@
         var quickInputErrorHideTimer = null;
         var quickInputErrorFadeTimer = null;
         var quickQuoteStateKey = 'wptoai.quickQuoteState.v1';
+        var heroPreviewStateKey = 'wptoai.heroPreviewState.v1';
         var mobileSidebarMedia = window.matchMedia('(max-width: 820px)');
         var wasMobileSidebarViewport = mobileSidebarMedia.matches;
         var heroPreviewTimerIds = [];
@@ -4607,6 +4608,7 @@
           if (heroIdleContent) heroIdleContent.hidden = nextState !== 'idle' && nextState !== 'error';
           if (heroScanContent) heroScanContent.hidden = nextState !== 'scanning';
           if (heroReadyContent) heroReadyContent.hidden = nextState !== 'ready';
+          writeHeroPreviewState();
         }
 
         function setHeroScanStepState(activeIndex) {
@@ -4726,6 +4728,84 @@
           if (keepInputFocus && quickInput) {
             quickInput.focus();
           }
+        }
+
+        function writeHeroPreviewState() {
+          try {
+            if (heroPreviewState !== 'scanning' && heroPreviewState !== 'ready') {
+              window.sessionStorage.removeItem(heroPreviewStateKey);
+              return;
+            }
+            var state = {
+              state: heroPreviewState,
+              rawInput: sanitizeQuickInputValue(quickInput.value),
+              normalizedUrl: heroLastNormalizedUrl || '',
+              domain: heroLastDomain || ''
+            };
+            window.sessionStorage.setItem(heroPreviewStateKey, JSON.stringify(state));
+          } catch (_error) {
+          }
+        }
+
+        function readHeroPreviewState() {
+          try {
+            var raw = window.sessionStorage.getItem(heroPreviewStateKey);
+            if (!raw) return null;
+            var parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== 'object') return null;
+            return parsed;
+          } catch (_error) {
+            return null;
+          }
+        }
+
+        function restoreHeroPreviewState() {
+          var state = readHeroPreviewState();
+          if (!state) return false;
+
+          if (typeof state.rawInput === 'string') {
+            quickInput.value = sanitizeQuickInputValue(state.rawInput);
+          }
+
+          var normalizedUrl = '';
+          if (typeof state.normalizedUrl === 'string' && state.normalizedUrl) {
+            normalizedUrl = extractUrl(state.normalizedUrl);
+          }
+          if (!normalizedUrl) {
+            normalizedUrl = extractUrl(getQuickInputRawValue());
+          }
+          var domain = '';
+          if (typeof state.domain === 'string' && state.domain) {
+            domain = state.domain.toLowerCase();
+          }
+          if (!domain) {
+            domain = getDomainFromUrl(normalizedUrl);
+          }
+          if (!normalizedUrl || !domain) {
+            return false;
+          }
+
+          heroLastNormalizedUrl = normalizedUrl;
+          heroLastDomain = domain;
+          if (heroScanDomainChip) heroScanDomainChip.textContent = domain;
+          if (heroReadyDomainChip) heroReadyDomainChip.textContent = domain;
+          setSummaryPillDomain(domain);
+
+          if (state.state === 'ready') {
+            if (heroReadyImage) {
+              heroReadyImage.src = buildPreviewPlaceholder(domain);
+            }
+            setHeroScanStepState(heroScanSteps.length);
+            setHeroPreviewState('ready');
+            return true;
+          }
+
+          if (state.state === 'scanning') {
+            startHeroScanFlow(normalizedUrl, domain);
+            return true;
+          }
+
+          return false;
         }
 
         function setCardOpen(bodyNode, toggleNode, isOpen) {
@@ -5393,9 +5473,12 @@
         var restoredQuickQuoteState = readQuickQuoteState();
         applyQuickQuoteState(restoredQuickQuoteState);
         syncMaintenanceUI(Boolean(restoredQuickQuoteState && restoredQuickQuoteState.maintenanceMode === 'on'));
-        setHeroPreviewState('idle');
         updateQuickUrlAssistState();
-        setSummaryPillDomain(getDomainFromUrl(extractUrl(getQuickInputRawValue())));
+        var restoredHeroPreviewState = restoreHeroPreviewState();
+        if (!restoredHeroPreviewState) {
+          setHeroPreviewState('idle');
+          setSummaryPillDomain(getDomainFromUrl(extractUrl(getQuickInputRawValue())));
+        }
         renderCheckoutStatusFromQuery();
         var benefitsSection = document.querySelector('#benefits');
         if (benefitsSection) {
