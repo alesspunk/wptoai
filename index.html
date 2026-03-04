@@ -5772,6 +5772,30 @@
           document.body.classList.toggle('hero-flow-locked', heroFlowScrollLocked);
         }
 
+        function forcePageToTopForPreview() {
+          var active = document.activeElement;
+          if (active && typeof active.blur === 'function') {
+            active.blur();
+          }
+
+          function jumpTop() {
+            try {
+              window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+            } catch (_error) {
+              window.scrollTo(0, 0);
+            }
+            var scrollingRoot = document.scrollingElement || document.documentElement;
+            if (scrollingRoot) scrollingRoot.scrollTop = 0;
+            if (document.documentElement) document.documentElement.scrollTop = 0;
+            if (document.body) document.body.scrollTop = 0;
+          }
+
+          jumpTop();
+          window.requestAnimationFrame(jumpTop);
+          window.setTimeout(jumpTop, 80);
+          window.setTimeout(jumpTop, 220);
+        }
+
         function setHeroPreviewState(nextState) {
           heroPreviewState = nextState;
           if (window.matchMedia('(max-width: 820px)').matches) {
@@ -6517,14 +6541,7 @@
 
         quickForm.addEventListener('submit', function (event) {
           event.preventDefault();
-          try {
-            window.scrollTo({
-              top: 0,
-              behavior: prefersReducedMotion ? 'auto' : 'smooth'
-            });
-          } catch (_error) {
-            window.scrollTo(0, 0);
-          }
+          forcePageToTopForPreview();
           pendingSidebarPages = 0;
           var text = quickInput.value.trim();
           if (!validateQuickInputUrl()) {
