@@ -97,7 +97,7 @@ function normalizePages(value) {
 }
 
 function normalizePrompts(value) {
-  const prompts = normalizeInt(value, 20);
+  const prompts = normalizeInt(value, 15);
   return Math.min(Math.max(prompts, 0), 120);
 }
 
@@ -158,7 +158,7 @@ function buildQuote(payload) {
   const innerTotal = innerCount * rule.next;
   const oneTimeTotal = homepageTotal + innerTotal;
 
-  const includedPrompts = 20;
+  const includedPrompts = 15;
   const overagePrompts = Math.max(0, prompts - includedPrompts);
   const maintenanceBase = engineers * 100;
   const maintenanceOverage = overagePrompts * 5;
@@ -181,6 +181,7 @@ function buildQuote(payload) {
     oneTimeTotal,
     maintenanceEnabled,
     maintenanceTotal,
+    addonsTotal,
     monthlyTotal,
     addonItems,
     total: oneTimeTotal + monthlyTotal
@@ -311,25 +312,27 @@ app.post("/api/create-checkout-session", async (req, res) => {
       });
     }
 
-    quote.addonItems.forEach((addon) => {
+    if (quote.addonsTotal > 0) {
       lineItems.push({
         price_data: {
           currency: "usd",
           recurring: { interval: "month" },
-          unit_amount: addon.amount * 100,
+          unit_amount: quote.addonsTotal * 100,
           product_data: {
-            name: addon.name
+            name: "WP to AI Deliverables (Monthly)"
           }
         },
         quantity: 1
       });
-    });
+    }
 
     const metadata = {
       website_url: quote.websiteUrl.slice(0, 500),
       pages: String(quote.pages),
       pricing_tier: quote.ruleLabel,
       one_time_usd: String(quote.oneTimeTotal),
+      maintenance_usd: String(quote.maintenanceTotal),
+      addons_usd: String(quote.addonsTotal),
       monthly_usd: String(quote.monthlyTotal),
       engineers: String(quote.engineers),
       prompts: String(quote.prompts),
