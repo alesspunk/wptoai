@@ -1572,6 +1572,14 @@
       .quick-rail-assist-btn:active {
         transform: translateY(0);
       }
+      .quick-rail-assist-btn[aria-disabled="true"] {
+        cursor: default;
+      }
+      .quick-rail-assist-btn[aria-disabled="true"]:hover {
+        border-color: #9fded3;
+        box-shadow: 0 6px 14px rgba(29, 254, 214, 0.12);
+        transform: none;
+      }
       .quick-rail-assist-icon {
         display: inline-flex;
         align-items: center;
@@ -1669,6 +1677,31 @@
         align-items: center;
         gap: 10px;
         transition: transform 0.24s ease;
+        position: relative;
+      }
+      .quick-auth-toggle {
+        display: none;
+        width: 42px;
+        height: 42px;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: #25314f;
+        padding: 0;
+        place-items: center;
+        cursor: pointer;
+        transition: color 0.18s ease, transform 0.18s ease;
+      }
+      .quick-auth-toggle:hover {
+        transform: translateY(-1px);
+      }
+      .quick-auth-toggle svg {
+        width: 26px;
+        height: 26px;
+        display: block;
+      }
+      .quick-auth-menu {
+        display: none;
       }
       .quick-auth-btn {
         display: inline-flex;
@@ -1942,6 +1975,7 @@
         white-space: nowrap;
       }
       .quick-sidebar-url-input {
+        flex: 1 1 auto;
         width: 100%;
         min-height: 30px;
         border: 0;
@@ -1954,6 +1988,30 @@
       }
       .quick-sidebar-url-input:focus {
         outline: none;
+      }
+      .quick-sidebar-url-apply {
+        width: 22px;
+        min-height: 22px;
+        border-radius: 999px;
+        border: 1px solid #c5d6f7;
+        background: #ffffff;
+        color: #3558c6;
+        font-size: var(--text-xl);
+        font-weight: 800;
+        line-height: var(--leading-none);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        cursor: pointer;
+        flex: 0 0 auto;
+      }
+      .quick-sidebar-url-apply:hover {
+        background: #edf3ff;
+        border-color: #aabfe9;
+      }
+      .quick-sidebar-url-apply:active {
+        background: #e0e9ff;
       }
       .quick-sidebar-url-row.is-error .quick-sidebar-url-field {
         border-color: #d24b66;
@@ -3736,10 +3794,57 @@
           gap: 12px;
         }
         .quick-auth-actions {
-          gap: 10px;
+          gap: 0;
+        }
+        .quick-auth-toggle {
+          display: inline-grid;
+        }
+        .quick-auth-menu {
+          position: absolute;
+          top: calc(100% + 8px);
+          right: 0;
+          min-width: 132px;
+          padding: 6px;
+          border: 1px solid #c7d7f5;
+          border-radius: 12px;
+          background: #ffffff;
+          box-shadow: 0 12px 24px rgba(35, 58, 113, 0.16);
+          display: grid;
+          gap: 4px;
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+          transform: translateY(-4px);
+          transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+          z-index: 350;
+        }
+        .quick-auth-actions.is-open .quick-auth-menu {
+          opacity: 1;
+          visibility: visible;
+          pointer-events: auto;
+          transform: translateY(0);
+        }
+        .quick-auth-actions.is-open .quick-auth-toggle {
+          color: #3558c6;
+        }
+        .quick-auth-menu a {
+          display: block;
+          padding: 9px 10px;
+          border: 1px solid #d6e2f8;
+          border-radius: 10px;
+          background: #f7fbff;
+          color: #27314d;
+          font-size: var(--text-xs);
+          font-weight: 700;
+          line-height: var(--leading-tight);
+          text-decoration: none;
+        }
+        .quick-auth-menu a:hover {
+          background: #edf4ff;
+          border-color: #b8cbf0;
         }
         .quick-auth-btn {
-          font-size: var(--text-xs);
+          display: none;
         }
         .quick-sidebar-fab {
           min-width: 0;
@@ -3828,7 +3933,7 @@
         }
       }
       @media (max-width: 520px) {
-        .quick-auth-btn {
+        .quick-auth-menu a {
           font-size: var(--text-2xs);
         }
         .floating-chat {
@@ -4217,6 +4322,7 @@
                     <div class="quick-sidebar-url-field">
                       <span class="quick-sidebar-url-prefix" aria-hidden="true">http://</span>
                       <input id="quick-sidebar-url-input" class="quick-sidebar-url-input" type="text" placeholder="yourwebsite.com" aria-label="WordPress URL in sidebar">
+                      <button id="quick-sidebar-url-apply" class="quick-sidebar-url-apply" type="button" aria-label="Add URL to quote">+</button>
                     </div>
                     <p id="quick-sidebar-url-error" class="quick-sidebar-url-error" aria-live="polite" hidden></p>
                   </div>
@@ -4360,10 +4466,10 @@
               </section>
             </div>
             <div class="quick-rail-head">
-              <a class="quick-rail-assist-btn" href="#faq">
+              <button class="quick-rail-assist-btn" type="button" aria-disabled="true">
                 <span class="quick-rail-assist-icon" aria-hidden="true">✦</span>
                 <span>Help finding the right plan?</span>
-              </a>
+              </button>
               <p class="quick-rail-one-time-row">
                 <span class="quick-rail-one-time-label">One time payment total</span>
                 <span id="quick-one-time-total" class="quick-rail-one-time-value">$0</span>
@@ -4390,6 +4496,16 @@
 
       <div class="quick-top-actions" aria-label="Quick account and cart actions">
         <div class="quick-auth-actions">
+          <button id="quick-auth-toggle" class="quick-auth-toggle" type="button" aria-label="Open user menu" aria-expanded="false" aria-controls="quick-auth-menu">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="8" r="4.2" fill="none" stroke="currentColor" stroke-width="1.9"></circle>
+              <path d="M4.7 19.2C5.9 16.1 8.6 14.3 12 14.3C15.4 14.3 18.1 16.1 19.3 19.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"></path>
+            </svg>
+          </button>
+          <nav id="quick-auth-menu" class="quick-auth-menu" aria-label="User actions">
+            <a href="#top">Sign In</a>
+            <a href="#top">Sign Up</a>
+          </nav>
           <a class="quick-auth-btn sign-in" href="#top">Sign In</a>
           <a class="quick-auth-btn sign-up" href="#top">Sign Up</a>
         </div>
@@ -4851,6 +4967,50 @@
       })();
 
       (function () {
+        var authActions = document.querySelector('.quick-auth-actions');
+        var authToggle = document.querySelector('#quick-auth-toggle');
+        var authMenu = document.querySelector('#quick-auth-menu');
+        if (!authActions || !authToggle || !authMenu) return;
+
+        function closeAuthMenu() {
+          authActions.classList.remove('is-open');
+          authToggle.setAttribute('aria-expanded', 'false');
+        }
+
+        authToggle.addEventListener('click', function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          var isOpen = authActions.classList.contains('is-open');
+          authActions.classList.toggle('is-open', !isOpen);
+          authToggle.setAttribute('aria-expanded', String(!isOpen));
+        });
+
+        authMenu.addEventListener('click', function (event) {
+          if (event.target && event.target.tagName === 'A') {
+            closeAuthMenu();
+          }
+        });
+
+        document.addEventListener('click', function (event) {
+          if (!authActions.contains(event.target)) {
+            closeAuthMenu();
+          }
+        });
+
+        document.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape') {
+            closeAuthMenu();
+          }
+        });
+
+        window.addEventListener('resize', function () {
+          if (window.innerWidth > 820) {
+            closeAuthMenu();
+          }
+        });
+      })();
+
+      (function () {
         var faqItems = Array.prototype.slice.call(document.querySelectorAll('#faq .faq-item'));
         faqItems.forEach(function (item) {
           item.addEventListener('toggle', function () {
@@ -4937,6 +5097,7 @@
         var quickSidebarPagesPlusBtn = document.querySelector('#quick-sidebar-pages-plus');
         var quickSidebarUrlRow = document.querySelector('#quick-sidebar-url-row');
         var quickSidebarUrlInput = document.querySelector('#quick-sidebar-url-input');
+        var quickSidebarUrlApplyBtn = document.querySelector('#quick-sidebar-url-apply');
         var quickSidebarUrlError = document.querySelector('#quick-sidebar-url-error');
         var quickSiteCard = document.querySelector('#quick-site-card');
         var quickSiteBody = document.querySelector('#quick-site-body');
@@ -5178,6 +5339,25 @@
           pendingSidebarPages = 0;
           updateQuickUrlAssistState();
           clearSidebarUrlError();
+          return true;
+        }
+
+        function applySidebarUrlFromInput() {
+          if (!quickSidebarUrlInput) return false;
+          var sanitizedValue = sanitizeQuickInputValue(quickSidebarUrlInput.value);
+          if (!sanitizedValue) {
+            showSidebarUrlError("Add your WordPress URL to start the quote.");
+            quickSidebarUrlInput.focus();
+            return false;
+          }
+          if (!syncMainInputFromSidebarUrl()) {
+            showSidebarUrlError("Enter a valid WordPress URL (example: yoursite.com).");
+            quickSidebarUrlInput.focus();
+            return false;
+          }
+          markQuickQuoteCardUsage('site');
+          setSidebarUrlRowVisible(false);
+          syncQuickSummary();
           return true;
         }
 
@@ -6614,24 +6794,12 @@
               clearSidebarUrlError();
               return;
             }
-            if (!syncMainInputFromSidebarUrl()) {
-              showSidebarUrlError("Enter a valid WordPress URL (example: yoursite.com).");
-              return;
-            }
-            markQuickQuoteCardUsage('site');
-            setSidebarUrlRowVisible(false);
-            syncQuickSummary();
+            clearSidebarUrlError();
           });
           quickSidebarUrlInput.addEventListener('keydown', function (event) {
             if (event.key !== 'Enter') return;
             event.preventDefault();
-            if (!syncMainInputFromSidebarUrl()) {
-              showSidebarUrlError("Enter a valid WordPress URL (example: yoursite.com).");
-              return;
-            }
-            markQuickQuoteCardUsage('site');
-            setSidebarUrlRowVisible(false);
-            syncQuickSummary();
+            applySidebarUrlFromInput();
           });
           quickSidebarUrlInput.addEventListener('blur', function () {
             var sanitizedValue = sanitizeQuickInputValue(quickSidebarUrlInput.value);
@@ -6642,6 +6810,11 @@
             if (!extractUrl(getSidebarQuickInputRawValue())) {
               showSidebarUrlError("Enter a valid WordPress URL (example: yoursite.com).");
             }
+          });
+        }
+        if (quickSidebarUrlApplyBtn) {
+          quickSidebarUrlApplyBtn.addEventListener('click', function () {
+            applySidebarUrlFromInput();
           });
         }
         if (quickChangesInput) {
