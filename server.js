@@ -291,7 +291,7 @@ app.post("/api/create-checkout-session", async (req, res) => {
           currency: "usd",
           unit_amount: quote.oneTimeTotal * 100,
           product_data: {
-            name: "WP to AI Site Migration (One-time)"
+            name: "WPtoAI Migration — One-time"
           }
         },
         quantity: 1
@@ -305,7 +305,7 @@ app.post("/api/create-checkout-session", async (req, res) => {
           recurring: { interval: "month" },
           unit_amount: quote.maintenanceTotal * 100,
           product_data: {
-            name: "WP to AI Monthly Payment"
+            name: "Site Maintenance — Monthly"
           }
         },
         quantity: 1
@@ -319,7 +319,7 @@ app.post("/api/create-checkout-session", async (req, res) => {
           recurring: { interval: "month" },
           unit_amount: quote.addonsTotal * 100,
           product_data: {
-            name: "WP to AI Deliverables (Monthly)"
+            name: "Developer Tools — Monthly"
           }
         },
         quantity: 1
