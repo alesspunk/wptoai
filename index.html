@@ -386,7 +386,7 @@
       .header-nav-only .header-side-logo {
         position: absolute;
         top: 50%;
-        right: 0;
+        left: 0;
         transform: translateY(-50%);
       }
       .header-nav-only .menu-toggle {
@@ -6814,7 +6814,7 @@
             siteDeliverablesTourEnabled = true;
             setSidebarCollapsed(false);
             if (isMobileContinue && quickSiteBody && quickSiteToggle) {
-              setCardOpen(quickSiteBody, quickSiteToggle, false);
+              setCardOpen(quickSiteBody, quickSiteToggle, true);
             }
             window.setTimeout(showSiteMigrationTour, 120);
           });
