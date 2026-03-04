@@ -536,7 +536,7 @@
         top: 378px;
       }
       .site-migration-tour.site-deliverables-tour {
-        top: 552px;
+        top: 602px;
       }
       .site-migration-tour-copy {
         max-width: 270px;
@@ -1002,6 +1002,20 @@
       .hero-ready-actions > :last-child {
         margin-left: auto;
       }
+      .hero-ready-actions .btn.is-fading-out {
+        animation: hero-ready-continue-fade 0.24s ease forwards;
+        pointer-events: none;
+      }
+      @keyframes hero-ready-continue-fade {
+        from {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+        to {
+          opacity: 0;
+          transform: translateY(-4px) scale(0.96);
+        }
+      }
       .hero-text-btn {
         border: 0;
         background: transparent;
@@ -1462,19 +1476,37 @@
         place-items: center;
         min-height: 46px;
         border-radius: 999px;
-        border: 1px solid #4863c4;
-        background: linear-gradient(135deg, #3558c6 0%, #8d12c5 100%);
-        box-shadow: 0 10px 18px rgba(53, 88, 198, 0.28);
-        color: #f7fbff;
+        position: relative;
+        overflow: visible;
+        border: 1px solid #e5a423;
+        background: linear-gradient(180deg, var(--accent), var(--accent-dark));
+        box-shadow: 0 10px 18px rgba(221, 146, 15, 0.28);
+        color: #1e243c;
         font-size: var(--text-xl);
         font-weight: 800;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease, background-color 0.18s ease;
+      }
+      .quick-rail-btn.has-pending-attention {
+        animation: checkout-attention-glow 1.8s ease-in-out infinite;
+      }
+      .quick-rail-btn.has-pending-attention::after {
+        content: "";
+        position: absolute;
+        inset: -4px;
+        border-radius: inherit;
+        border: 1px solid rgba(221, 146, 15, 0.42);
+        opacity: 0;
+        pointer-events: none;
+        animation: checkout-attention-ring 1.8s ease-out infinite;
       }
       .quick-rail-btn:hover {
-        filter: brightness(1.06);
+        filter: brightness(1.05);
+        transform: translateY(-1px);
       }
       .quick-rail-btn.is-loading {
         opacity: 0.78;
         pointer-events: none;
+        animation: none;
       }
       .quick-rail-btn.is-disabled {
         opacity: 0.46;
@@ -1482,9 +1514,38 @@
         box-shadow: none;
         filter: grayscale(0.2);
         cursor: not-allowed;
+        animation: none;
       }
       .quick-rail-btn.is-disabled:hover {
         filter: grayscale(0.2);
+        transform: none;
+      }
+      .quick-rail-btn.is-loading::after,
+      .quick-rail-btn.is-disabled::after {
+        content: none;
+        animation: none;
+      }
+      @keyframes checkout-attention-glow {
+        0%,
+        100% {
+          box-shadow: 0 10px 18px rgba(221, 146, 15, 0.28);
+        }
+        50% {
+          box-shadow: 0 12px 24px rgba(221, 146, 15, 0.46), 0 0 0 4px rgba(221, 146, 15, 0.12);
+        }
+      }
+      @keyframes checkout-attention-ring {
+        0% {
+          opacity: 0;
+          transform: scale(0.96);
+        }
+        20% {
+          opacity: 0.56;
+        }
+        100% {
+          opacity: 0;
+          transform: scale(1.06);
+        }
       }
       .quick-rail-assist-btn {
         display: inline-flex;
@@ -3796,6 +3857,8 @@
         .hero-scan-robot,
         .hero-scan-step,
         .hero-scan-step-icon,
+        .quick-rail-btn.has-pending-attention,
+        .quick-rail-btn.has-pending-attention::after,
         .site-migration-tour-path,
         .site-migration-tour-arrow,
         .site-migration-tour-dot,
@@ -4107,7 +4170,7 @@
                 </figure>
                 <div class="hero-ready-actions">
                   <button id="hero-change-url-ready" class="btn btn-outline" type="button">Change URL</button>
-                  <a id="hero-ready-continue" class="btn btn-primary" href="#top">Continue</a>
+                  <a id="hero-ready-continue" class="btn btn-primary" href="#top">Continue to Site Setup</a>
                 </div>
               </div>
             </div>
@@ -4883,7 +4946,9 @@
         var quickMaintenanceToggle = document.querySelector('#quick-maintenance-toggle');
         var quickDeliverablesBody = document.querySelector('#quick-deliverables-body');
         var quickDeliverablesToggle = document.querySelector('#quick-deliverables-toggle');
+        var quickAddonsCard = document.querySelector('#quick-addons-card');
         var quickSidebar = document.querySelector('.quick-summary-sidebar');
+        var quickSummaryStack = document.querySelector('.quick-summary-stack');
         var quickSidebarCollapseBtn = document.querySelector('#quick-sidebar-collapse');
         var quickSidebarFab = document.querySelector('#quick-sidebar-fab');
         var quickMaintenanceOn = document.querySelector('#quick-maintenance-on');
@@ -5222,6 +5287,17 @@
           if (quickSidebarFab) quickSidebarFab.removeAttribute('data-domain');
         }
 
+        function areAllToursDismissed() {
+          return siteMigrationTourDismissed && siteMaintenanceTourDismissed && siteDeliverablesTourDismissed;
+        }
+
+        function updateCheckoutAttentionState() {
+          if (!quickCheckoutBtn) return;
+          var checkoutReady = !quickCheckoutBtn.classList.contains('is-disabled') && !quickCheckoutBtn.classList.contains('is-loading');
+          var shouldAnimate = areAllToursDismissed() && checkoutReady;
+          quickCheckoutBtn.classList.toggle('has-pending-attention', shouldAnimate);
+        }
+
         function hideSiteMigrationTour(markDismissed) {
           if (!siteMigrationTour) return;
           if (markDismissed) {
@@ -5234,6 +5310,7 @@
           if (siteMigrationTourHideTimer) {
             window.clearTimeout(siteMigrationTourHideTimer);
           }
+          updateCheckoutAttentionState();
           siteMigrationTourHideTimer = window.setTimeout(function () {
             if (siteMigrationTour.getAttribute('data-visible') === 'true') return;
             siteMigrationTour.hidden = true;
@@ -5267,6 +5344,7 @@
           if (siteMaintenanceTourHideTimer) {
             window.clearTimeout(siteMaintenanceTourHideTimer);
           }
+          updateCheckoutAttentionState();
           siteMaintenanceTourHideTimer = window.setTimeout(function () {
             if (siteMaintenanceTour.getAttribute('data-visible') === 'true') return;
             siteMaintenanceTour.hidden = true;
@@ -5311,6 +5389,7 @@
           if (siteDeliverablesTourHideTimer) {
             window.clearTimeout(siteDeliverablesTourHideTimer);
           }
+          updateCheckoutAttentionState();
           siteDeliverablesTourHideTimer = window.setTimeout(function () {
             if (siteDeliverablesTour.getAttribute('data-visible') === 'true') return;
             siteDeliverablesTour.hidden = true;
@@ -5324,6 +5403,7 @@
 
           hideSiteMigrationTour(false);
           hideSiteMaintenanceTour(false);
+          positionSiteDeliverablesTour();
           if (siteDeliverablesTourHideTimer) {
             window.clearTimeout(siteDeliverablesTourHideTimer);
             siteDeliverablesTourHideTimer = null;
@@ -5345,7 +5425,19 @@
           siteDeliverablesTourDelayTimer = window.setTimeout(function () {
             siteDeliverablesTourDelayTimer = null;
             showSiteDeliverablesTour();
-          }, 8000);
+          }, 4000);
+        }
+
+        function positionSiteDeliverablesTour() {
+          if (!siteDeliverablesTour || !quickAddonsCard) return;
+          var cardRect = quickAddonsCard.getBoundingClientRect();
+          if (!cardRect || !cardRect.height) return;
+          var desiredTop = Math.round(cardRect.top + 50);
+          var minTop = 92;
+          var maxTop = Math.max(minTop, window.innerHeight - 260);
+          if (desiredTop < minTop) desiredTop = minTop;
+          if (desiredTop > maxTop) desiredTop = maxTop;
+          siteDeliverablesTour.style.top = desiredTop + 'px';
         }
 
         function clearHeroPreviewTimers() {
@@ -5367,6 +5459,9 @@
         function setHeroPreviewState(nextState) {
           heroPreviewState = nextState;
           setHeroFlowScrollLock(nextState === 'scanning' || nextState === 'ready');
+          if (heroReadyContinueBtn && nextState !== 'ready') {
+            heroReadyContinueBtn.classList.remove('is-fading-out');
+          }
           if (heroPreviewFlow) {
             heroPreviewFlow.setAttribute('data-state', nextState);
           }
@@ -5646,6 +5741,9 @@
           if (!toggleNode.disabled) {
             toggleNode.textContent = isOpen ? 'Hide' : 'Show more';
           }
+          if (siteDeliverablesTour && !siteDeliverablesTour.hidden) {
+            window.requestAnimationFrame(positionSiteDeliverablesTour);
+          }
         }
 
         function setSidebarCollapsed(isCollapsed) {
@@ -5683,6 +5781,9 @@
             hideSiteDeliverablesTour(false);
           } else {
             showSiteMigrationTour();
+            if (siteDeliverablesTour && !siteDeliverablesTour.hidden) {
+              window.requestAnimationFrame(positionSiteDeliverablesTour);
+            }
           }
         }
 
@@ -5887,6 +5988,7 @@
             quickCheckoutBtn.classList.toggle('is-disabled', disableCheckout);
             quickCheckoutBtn.setAttribute('aria-disabled', disableCheckout ? 'true' : 'false');
           }
+          updateCheckoutAttentionState();
           writeQuickQuoteState();
         }
 
@@ -6060,6 +6162,7 @@
           hideSiteMigrationTour(false);
           hideSiteMaintenanceTour(false);
           hideSiteDeliverablesTour(false);
+          updateCheckoutAttentionState();
           startHeroScanFlow(normalizedUrl, domain);
         });
 
@@ -6283,6 +6386,7 @@
         if (heroReadyContinueBtn) {
           heroReadyContinueBtn.addEventListener('click', function (event) {
             event.preventDefault();
+            heroReadyContinueBtn.classList.add('is-fading-out');
             if (quickMaintenanceOff && quickMaintenanceOn) {
               quickMaintenanceOff.checked = true;
               quickMaintenanceOn.checked = false;
@@ -6314,6 +6418,7 @@
             quickCheckoutBtn.classList.add('is-loading');
             quickCheckoutBtn.textContent = 'Redirecting...';
             quickCheckoutBtn.setAttribute('aria-disabled', 'true');
+            updateCheckoutAttentionState();
 
             try {
               var checkoutPayload = buildCheckoutPayload();
@@ -6328,6 +6433,7 @@
               quickCheckoutBtn.classList.remove('is-loading');
               quickCheckoutBtn.textContent = originalText;
               quickCheckoutBtn.removeAttribute('aria-disabled');
+              updateCheckoutAttentionState();
             }
           });
         }
@@ -6515,6 +6621,20 @@
           wasMobileSidebarViewport = isMobileViewport;
           setSidebarCollapsed(isMobileViewport);
         });
+        window.addEventListener('resize', function () {
+          if (!siteDeliverablesTour || siteDeliverablesTour.hidden) return;
+          positionSiteDeliverablesTour();
+        }, { passive: true });
+        window.addEventListener('scroll', function () {
+          if (!siteDeliverablesTour || siteDeliverablesTour.hidden) return;
+          positionSiteDeliverablesTour();
+        }, { passive: true });
+        if (quickSummaryStack) {
+          quickSummaryStack.addEventListener('scroll', function () {
+            if (!siteDeliverablesTour || siteDeliverablesTour.hidden) return;
+            positionSiteDeliverablesTour();
+          }, { passive: true });
+        }
         var restoredQuickQuoteState = readQuickQuoteState();
         applyQuickQuoteState(restoredQuickQuoteState);
         syncMaintenanceUI(Boolean(restoredQuickQuoteState && restoredQuickQuoteState.maintenanceMode === 'on'));
