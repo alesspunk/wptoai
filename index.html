@@ -226,8 +226,8 @@
       .corner-menu-bars::before,
       .corner-menu-bars::after {
         display: block;
-        width: 26px;
-        height: 2.4px;
+        width: 22px;
+        height: 2.3px;
         border-radius: 999px;
         background: currentColor;
         transition: transform 0.28s ease, opacity 0.2s ease;
@@ -242,10 +242,10 @@
         left: 0;
       }
       .corner-menu-bars::before {
-        top: -8px;
+        top: -6px;
       }
       .corner-menu-bars::after {
-        top: 8px;
+        top: 6px;
       }
       .corner-menu-overlay {
         position: fixed;
@@ -310,15 +310,16 @@
         background: #1dfed6;
         color: var(--brand-deep-ink);
         border-color: #1dfed6;
+        border-radius: 12px;
       }
       body.corner-menu-open .corner-menu-bars {
         background: transparent;
       }
       body.corner-menu-open .corner-menu-bars::before {
-        transform: translateY(7px) rotate(45deg);
+        transform: translateY(6px) rotate(45deg);
       }
       body.corner-menu-open .corner-menu-bars::after {
-        transform: translateY(-7px) rotate(-45deg);
+        transform: translateY(-6px) rotate(-45deg);
       }
       body.corner-menu-open .corner-menu-panel a {
         transform: translateX(0);
@@ -3748,7 +3749,27 @@
           align-items: stretch;
         }
         .hero-preview-stepper {
-          justify-content: flex-start;
+          width: 100%;
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 6px;
+          justify-content: stretch;
+        }
+        .hero-preview-stepper-item {
+          min-width: 0;
+          width: 100%;
+          justify-content: center;
+          gap: 5px;
+          min-height: 30px;
+          padding: 4px 6px;
+          font-size: var(--text-2xs);
+          letter-spacing: 0;
+          white-space: nowrap;
+        }
+        .hero-preview-stepper-dot {
+          width: 16px;
+          height: 16px;
+          font-size: 9px;
         }
         .quick-quote {
           width: min(860px, 100%);
@@ -3817,6 +3838,11 @@
           pointer-events: none;
         }
         body.mobile-sidebar-open .hero-top-pill {
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+        }
+        body.mobile-sidebar-open .hero-fold-logo {
           opacity: 0;
           visibility: hidden;
           pointer-events: none;
