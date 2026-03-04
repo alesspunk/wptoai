@@ -92,8 +92,8 @@ function normalizeInt(value, fallback) {
 }
 
 function normalizePages(value) {
-  const pages = normalizeInt(value, 1);
-  return Math.min(Math.max(pages, 1), 25);
+  const pages = normalizeInt(value, 0);
+  return Math.min(Math.max(pages, 0), 25);
 }
 
 function normalizePrompts(value) {
@@ -152,9 +152,9 @@ function buildQuote(payload) {
     ? payload.selectedAddons.filter((id) => Object.prototype.hasOwnProperty.call(ADDON_PRICES, id))
     : [];
 
-  const rule = getQuoteRule(pages);
-  const homepageTotal = rule.first;
-  const innerCount = Math.max(0, pages - 1);
+  const rule = getQuoteRule(Math.max(pages, 1));
+  const homepageTotal = pages > 0 ? rule.first : 0;
+  const innerCount = pages > 0 ? Math.max(0, pages - 1) : 0;
   const innerTotal = innerCount * rule.next;
   const oneTimeTotal = homepageTotal + innerTotal;
 
@@ -177,7 +177,7 @@ function buildQuote(payload) {
     pages,
     prompts: maintenanceEnabled ? prompts : 0,
     engineers,
-    ruleLabel: rule.label,
+    ruleLabel: pages > 0 ? rule.label : "not_selected",
     oneTimeTotal,
     maintenanceEnabled,
     maintenanceTotal,
@@ -266,6 +266,11 @@ app.post("/api/create-checkout-session", async (req, res) => {
     if (!quote.websiteUrl) {
       return res.status(400).json({
         error: "Paste your WordPress URL here and we’ll migrate your site."
+      });
+    }
+    if (quote.pages < 1) {
+      return res.status(400).json({
+        error: "Add at least 1 page to continue checkout."
       });
     }
 
