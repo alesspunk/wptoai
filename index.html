@@ -1086,6 +1086,7 @@
         justify-content: space-between;
         gap: 12px 16px;
         flex-wrap: wrap;
+        padding-right: 52px;
       }
       .hero-ready-meta {
         display: grid;
@@ -3853,6 +3854,7 @@
         .hero-ready-head {
           flex-direction: column;
           align-items: stretch;
+          padding-right: 0;
         }
         .hero-preview-stepper {
           width: 100%;
@@ -5985,48 +5987,66 @@
           var runToken = heroPreviewRunToken;
           heroLastNormalizedUrl = normalizedUrl;
           heroLastDomain = domain;
+          var isMobilePreviewStart = window.matchMedia('(max-width: 820px)').matches;
 
-          if (heroScanDomainChip) heroScanDomainChip.textContent = domain;
-          if (heroReadyDomainChip) heroReadyDomainChip.textContent = domain;
-          setHeroPreviewJourneyStep('preview', true);
+          function beginScanFlow() {
+            if (runToken !== heroPreviewRunToken) return;
 
-          setHeroPreviewState('scanning');
-          setHeroScanStepState(0);
+            if (heroScanDomainChip) heroScanDomainChip.textContent = domain;
+            if (heroReadyDomainChip) heroReadyDomainChip.textContent = domain;
+            setHeroPreviewJourneyStep('preview', true);
 
-          var baseDurations = [1950, 2220, 2360, 2140];
-          if (prefersReducedMotion) {
-            baseDurations = [700, 760, 720, 660];
-          }
-          var elapsed = 0;
-          for (var index = 1; index < heroScanSteps.length; index += 1) {
-            var jitter = prefersReducedMotion ? 0 : Math.round((Math.random() - 0.5) * 220);
-            elapsed += Math.max(420, baseDurations[index - 1] + jitter);
-            (function (stepIndex) {
-              var stepTimer = window.setTimeout(function () {
-                if (runToken !== heroPreviewRunToken || heroPreviewState !== 'scanning') return;
-                setHeroScanStepState(stepIndex);
-              }, elapsed);
-              heroPreviewTimerIds.push(stepTimer);
-            })(index);
-          }
+            setHeroPreviewState('scanning');
+            setHeroScanStepState(0);
 
-          elapsed += Math.max(420, baseDurations[baseDurations.length - 1]);
-          var completeTimer = window.setTimeout(async function () {
-            if (runToken !== heroPreviewRunToken || heroPreviewState !== 'scanning') return;
-            setHeroScanStepState(heroScanSteps.length);
-            try {
-              var preview = await requestPreviewMock(normalizedUrl, domain, runToken);
-              if (!preview || runToken !== heroPreviewRunToken || heroPreviewState !== 'scanning') return;
-              if (heroReadyImage) {
-                heroReadyImage.src = preview.screenshotUrl;
-              }
-              setHeroPreviewState('ready');
-              setHeroPreviewJourneyStep('preview');
-            } catch (_error) {
-              setHeroPreviewState('idle');
+            var baseDurations = [1950, 2220, 2360, 2140];
+            if (prefersReducedMotion) {
+              baseDurations = [700, 760, 720, 660];
             }
-          }, elapsed);
-          heroPreviewTimerIds.push(completeTimer);
+            var elapsed = 0;
+            for (var index = 1; index < heroScanSteps.length; index += 1) {
+              var jitter = prefersReducedMotion ? 0 : Math.round((Math.random() - 0.5) * 220);
+              elapsed += Math.max(420, baseDurations[index - 1] + jitter);
+              (function (stepIndex) {
+                var stepTimer = window.setTimeout(function () {
+                  if (runToken !== heroPreviewRunToken || heroPreviewState !== 'scanning') return;
+                  setHeroScanStepState(stepIndex);
+                }, elapsed);
+                heroPreviewTimerIds.push(stepTimer);
+              })(index);
+            }
+
+            elapsed += Math.max(420, baseDurations[baseDurations.length - 1]);
+            var completeTimer = window.setTimeout(async function () {
+              if (runToken !== heroPreviewRunToken || heroPreviewState !== 'scanning') return;
+              setHeroScanStepState(heroScanSteps.length);
+              try {
+                var preview = await requestPreviewMock(normalizedUrl, domain, runToken);
+                if (!preview || runToken !== heroPreviewRunToken || heroPreviewState !== 'scanning') return;
+                if (heroReadyImage) {
+                  heroReadyImage.src = preview.screenshotUrl;
+                }
+                setHeroPreviewState('ready');
+                setHeroPreviewJourneyStep('preview');
+              } catch (_error) {
+                setHeroPreviewState('idle');
+              }
+            }, elapsed);
+            heroPreviewTimerIds.push(completeTimer);
+          }
+
+          if (isMobilePreviewStart) {
+            forcePageToTopForPreview();
+            var kickoffTimer = window.setTimeout(function () {
+              if (runToken !== heroPreviewRunToken) return;
+              forcePageToTopForPreview();
+              beginScanFlow();
+            }, 320);
+            heroPreviewTimerIds.push(kickoffTimer);
+            return;
+          }
+
+          beginScanFlow();
         }
 
         function resetHeroPreviewToIdle(keepInputFocus) {
