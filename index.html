@@ -2728,6 +2728,15 @@
         text-transform: none;
         text-shadow: 0 4px 22px rgba(6, 15, 37, 0.34);
       }
+      .proof-open-subtitle {
+        margin: 4px 0 0;
+        font-size: var(--text-fluid-h3);
+        line-height: var(--leading-snug);
+        letter-spacing: var(--tracking-tight);
+        color: #eff5ff;
+        font-weight: 800;
+        text-shadow: 0 2px 12px rgba(9, 20, 48, 0.34);
+      }
       .proof-open-origin {
         margin: 0 auto;
         max-width: 780px;
@@ -3550,10 +3559,7 @@
           max-width: 520px;
         }
         .proof-open-sep {
-          display: inline-flex;
-          justify-self: center;
-          transform: rotate(90deg);
-          margin: -4px 0;
+          display: none;
         }
       }
 
@@ -4167,14 +4173,14 @@
               {
                 "@type": "HowToStep",
                 "position": 3,
-                "name": "We migrate cleanly",
-                "text": "We migrate your site while keeping the same design and brand."
+                "name": "We migrate your site",
+                "text": "Your design stays the same, but your site runs on an AI-maintained system."
               },
               {
                 "@type": "HowToStep",
                 "position": 4,
-                "name": "You update by chat",
-                "text": "You request updates by chat, like working with an engineer."
+                "name": "Request updates by chat",
+                "text": "Ask for changes anytime. The AI generates the update and shows you a preview before publishing."
               }
             ]
           },
@@ -4527,14 +4533,14 @@
                       <input class="addon-checkbox quick-addon-check" type="checkbox" data-included="true" data-addon-price="0" checked disabled>
                     </label>
                   </article>
-                  <article class="quick-addon-item is-included">
+                  <article id="quick-chatbot-addon-item" class="quick-addon-item is-included" hidden>
                     <span class="quick-addon-icon-wrap" aria-hidden="true">🤖</span>
                     <div class="quick-addon-copy">
                       <h4 class="quick-addon-title">AI-ready Chatbot</h4>
-                      <p class="quick-addon-price">Included in price</p>
+                      <p class="quick-addon-price">Included with AI engineer</p>
                     </div>
                     <label class="quick-addon-check-wrap" aria-label="AI-ready Chatbot included">
-                      <input class="addon-checkbox quick-addon-check" type="checkbox" data-included="true" data-addon-price="0" checked disabled>
+                      <input id="quick-chatbot-addon-checkbox" class="addon-checkbox quick-addon-check" type="checkbox" data-chatbot-deliverable="true" data-addon-price="0">
                     </label>
                   </article>
                 </div>
@@ -4705,14 +4711,14 @@
             <article class="card">
               <span class="step">Step 3</span>
               <img class="how-icon" src="images/how-migrate-cleanly.svg" alt="" aria-hidden="true" loading="lazy">
-              <h3>We migrate cleanly</h3>
-              <p>Same design and same brand style.</p>
+              <h3>We migrate your site</h3>
+              <p>Your design stays the same, but your site runs on an AI-maintained system.</p>
             </article>
             <article class="card">
               <span class="step">Step 4</span>
               <img class="how-icon" src="images/how-update-chat.svg" alt="" aria-hidden="true" loading="lazy">
-              <h3>You update by chat</h3>
-              <p>Request changes like with an engineer.</p>
+              <h3>Request updates by chat</h3>
+              <p>Ask for changes anytime. The AI generates the update and shows you a preview before publishing.</p>
             </article>
           </div>
           <div class="how-actions">
@@ -4724,8 +4730,7 @@
 
       <section id="benefits" class="proof-strip" aria-label="Trust signals">
         <div class="container proof-open-wrap">
-          <h2 class="proof-open-heading">Why leaving WordPress?</h2>
-          <p class="proof-open-origin">We built this product after years of plugin conflicts, patch stress, and waiting in engineer queues for simple edits. Teams switch to keep the same design, move faster, and request changes by chat with clear, structured handoff.</p>
+          <h2 class="proof-open-heading">Why leave WordPress?</h2>
           <div class="proof-open-flow" aria-label="Story flow">
             <span class="proof-open-step before">No plugins</span>
             <span class="proof-open-sep" aria-hidden="true">→</span>
@@ -4733,6 +4738,8 @@
             <span class="proof-open-sep" aria-hidden="true">→</span>
             <span class="proof-open-step now">Just chat</span>
           </div>
+          <h3 class="proof-open-subtitle">We built a different approach.</h3>
+          <p class="proof-open-origin">Keep the same design and brand — but remove the maintenance burden entirely. Just request updates by chat.</p>
           <div class="proof-open-actions">
             <a class="btn btn-primary" href="https://calendly.com/bulkdesign/demo-services" target="_blank" rel="noopener noreferrer">Get a Demo</a>
             <a class="btn btn-outline" href="#deliverables">See Deliverables</a>
@@ -5245,6 +5252,8 @@
         var changesTooltip = document.querySelector('#changes-tooltip');
         var changesTooltipBody = document.querySelector('#changes-tooltip-body');
         var addonCheckboxes = Array.prototype.slice.call(document.querySelectorAll('.addon-checkbox'));
+        var quickChatbotAddonItem = document.querySelector('#quick-chatbot-addon-item');
+        var quickChatbotAddonCheckbox = document.querySelector('#quick-chatbot-addon-checkbox');
         var websiteInput = document.querySelector('input[name="WEBSITE_URL"]');
         var sizeSelect = document.querySelector('#site-size');
         var getStarted = document.querySelector('#get-started');
@@ -6102,7 +6111,8 @@
           var engineers = quickEngineersInput ? normalizeEngineers(quickEngineersInput.value) : 0;
           var prompts = quickChangesInput ? normalizeChanges(quickChangesInput.value) : 15;
           var optionalAddonsSelected = addonCheckboxes.some(function (checkbox) {
-            return checkbox.checked && !checkbox.hasAttribute('data-included');
+            var addonId = checkbox.getAttribute('data-addon-id');
+            return checkbox.checked && Boolean(addonId);
           });
 
           var shouldOpenSite = quickQuoteCardUsage.site || pages > 1;
@@ -6176,6 +6186,23 @@
           }
 
           return enabled;
+        }
+
+        function syncChatbotDeliverableVisibility(hasWebsiteInput, maintenanceEnabled, engineers) {
+          if (!quickChatbotAddonItem || !quickChatbotAddonCheckbox) return;
+
+          var shouldShow = Boolean(hasWebsiteInput && maintenanceEnabled && engineers >= 1);
+          var wasHidden = quickChatbotAddonItem.hidden;
+
+          quickChatbotAddonItem.hidden = !shouldShow;
+          if (!shouldShow) {
+            quickChatbotAddonCheckbox.checked = false;
+            return;
+          }
+
+          if (wasHidden) {
+            quickChatbotAddonCheckbox.checked = true;
+          }
         }
 
         function getQuoteRule(pages) {
@@ -6359,6 +6386,7 @@
           var aiEngineerUnitPrice = 100;
           var aiEngineerBase = engineers * aiEngineerUnitPrice;
           var maintenanceEnabled = quickMaintenanceOn ? quickMaintenanceOn.checked : true;
+          syncChatbotDeliverableVisibility(hasWebsiteInput, maintenanceEnabled, engineers);
           var includedChanges = 15;
           var overageChanges = Math.max(0, changes - includedChanges);
           var overagePrice = overageChanges * 5;
@@ -7005,11 +7033,28 @@
           });
         }
         addonCheckboxes.forEach(function (checkbox) {
+          if (quickChatbotAddonCheckbox && checkbox === quickChatbotAddonCheckbox) return;
           checkbox.addEventListener('change', function () {
             markQuickQuoteCardUsage('deliverables');
             syncQuickSummary();
           });
         });
+        if (quickChatbotAddonCheckbox) {
+          quickChatbotAddonCheckbox.addEventListener('change', function () {
+            markQuickQuoteCardUsage('deliverables');
+            if (quickChatbotAddonCheckbox.checked) {
+              if (quickMaintenanceOn && quickMaintenanceOff) {
+                quickMaintenanceOn.checked = true;
+                quickMaintenanceOff.checked = false;
+              }
+              if (quickEngineersInput && normalizeEngineers(quickEngineersInput.value) < 1) {
+                quickEngineersInput.value = "1";
+              }
+              syncMaintenanceUI(true);
+            }
+            syncQuickSummary();
+          });
+        }
         if (quickDeliverablesToggle && quickDeliverablesBody) {
           setCardOpen(quickDeliverablesBody, quickDeliverablesToggle, false);
           quickDeliverablesToggle.addEventListener('click', function () {
