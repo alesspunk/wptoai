@@ -1450,6 +1450,49 @@
         margin-top: auto;
         flex-shrink: 0;
       }
+      .quick-rail-email-block {
+        margin: 0 0 12px;
+      }
+      .quick-rail-email-label {
+        display: block;
+        margin: 0 0 4px;
+        color: #2d426f;
+        font-size: var(--text-sm);
+        font-weight: 700;
+      }
+      .quick-rail-email-helper {
+        margin: 6px 0 0;
+        color: #5f6f95;
+        font-size: var(--text-xs);
+        font-weight: 500;
+      }
+      .quick-rail-email-input {
+        width: 100%;
+        min-height: 44px;
+        border-radius: 12px;
+        border: 1px solid #bfd0f3;
+        background: #ffffff;
+        color: #243053;
+        font-size: var(--text-base);
+        font-weight: 600;
+        padding: 10px 12px;
+        outline: none;
+        transition: border-color 0.16s ease, box-shadow 0.16s ease;
+      }
+      .quick-rail-email-input:focus-visible {
+        border-color: #5f81d8;
+        box-shadow: 0 0 0 3px rgba(53, 88, 198, 0.14);
+      }
+      .quick-rail-email-input.is-invalid {
+        border-color: #d44d72;
+        box-shadow: 0 0 0 3px rgba(212, 77, 114, 0.12);
+      }
+      .quick-rail-email-error {
+        margin: 6px 0 0;
+        color: #c33c62;
+        font-size: var(--text-xs);
+        font-weight: 700;
+      }
       .quick-rail-monthly-row {
         display: flex;
         align-items: baseline;
@@ -4632,10 +4675,12 @@
               </section>
             </div>
             <div class="quick-rail-head">
-              <button class="quick-rail-assist-btn" type="button" aria-disabled="true">
-                <span class="quick-rail-assist-icon" aria-hidden="true">✦</span>
-                <span>Help finding the right plan?</span>
-              </button>
+              <div class="quick-rail-email-block">
+                <label class="quick-rail-email-label" for="quick-checkout-email">Where should we send your AI site preview?</label>
+                <input id="quick-checkout-email" class="quick-rail-email-input" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com" required>
+                <p class="quick-rail-email-helper">We'll also send your migration summary.</p>
+                <p id="quick-checkout-email-error" class="quick-rail-email-error" hidden>Add a valid email to continue checkout.</p>
+              </div>
               <p class="quick-rail-one-time-row">
                 <span class="quick-rail-one-time-label">One time payment total</span>
                 <span id="quick-one-time-total" class="quick-rail-one-time-value">$0</span>
@@ -5252,6 +5297,8 @@
         var heroPreviewStepperItems = Array.prototype.slice.call(document.querySelectorAll('.hero-preview-stepper-item'));
         var quickSubmitBtn = document.querySelector('.quick-quote-btn');
         var quickCheckoutBtn = document.querySelector('.quick-rail-btn');
+        var quickCheckoutEmailInput = document.querySelector('#quick-checkout-email');
+        var quickCheckoutEmailError = document.querySelector('#quick-checkout-email-error');
         var quickPagesInput = document.querySelector('#quick-quote-pages');
         var quickMinusBtn = document.querySelector('#quick-quote-minus');
         var quickPlusBtn = document.querySelector('#quick-quote-plus');
@@ -5335,6 +5382,8 @@
         };
         var pendingSidebarPages = 0;
         var quickQuoteStateKey = 'wptoai.quickQuoteState.v1';
+        var quickCheckoutEmailStateKey = 'wptoai.checkoutEmail.v1';
+        var quickQuoteDraftStateKey = 'wptoai.quoteDraft.v1';
         var heroPreviewStateKey = 'wptoai.heroPreviewState.v1';
         var heroPreviewJourneyStateKey = 'wptoai.heroPreviewJourneyState.v1';
         var stripeReturnInQuery = (function () {
@@ -5357,13 +5406,68 @@
         var heroLastDomain = '';
         var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         var allowPrivatePreviewHosts = Boolean(window.WPTOAI_ALLOW_PRIVATE_URLS);
-        if (!quickForm || !quickInput || !quickPagesInput || !getStarted) return;
+        if (!quickForm || !quickInput || !quickPagesInput || !getStarted || !quickCheckoutEmailInput) return;
 
         var changesTooltipCopy = {
           primary: "Replace or add photos, update H1 copy, swap in a new logo, tweak colors, edit sections, fix spacing, and other small content updates.",
           short: "Swap photos, update H1 text, replace logos, adjust colors, and handle small section or spacing edits.",
           detailed: "Use this for routine site updates like adding or replacing images, editing H1 and other copy, changing logo files, tweaking brand colors, updating sections, fixing spacing, and similar small content changes."
         };
+        var checkoutEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        function normalizeCheckoutEmail(value) {
+          return String(value || '').trim().toLowerCase();
+        }
+
+        function isValidCheckoutEmail(value) {
+          var email = normalizeCheckoutEmail(value);
+          return Boolean(email && checkoutEmailRegex.test(email));
+        }
+
+        function setCheckoutEmailError(visible, message) {
+          if (!quickCheckoutEmailError) return;
+          if (!visible) {
+            quickCheckoutEmailError.hidden = true;
+            quickCheckoutEmailError.textContent = 'Add a valid email to continue checkout.';
+            if (quickCheckoutEmailInput) quickCheckoutEmailInput.classList.remove('is-invalid');
+            return;
+          }
+          quickCheckoutEmailError.hidden = false;
+          quickCheckoutEmailError.textContent = message || 'Add a valid email to continue checkout.';
+          if (quickCheckoutEmailInput) quickCheckoutEmailInput.classList.add('is-invalid');
+        }
+
+        function writeCheckoutEmailState(email) {
+          try {
+            var normalized = normalizeCheckoutEmail(email);
+            if (!normalized) {
+              window.sessionStorage.removeItem(quickCheckoutEmailStateKey);
+              return;
+            }
+            window.sessionStorage.setItem(quickCheckoutEmailStateKey, normalized);
+          } catch (_error) {
+          }
+        }
+
+        function readCheckoutEmailState() {
+          try {
+            var value = window.sessionStorage.getItem(quickCheckoutEmailStateKey);
+            return normalizeCheckoutEmail(value);
+          } catch (_error) {
+            return '';
+          }
+        }
+
+        function writeQuoteDraftState(payload) {
+          try {
+            if (!payload || !payload.quoteId) {
+              window.sessionStorage.removeItem(quickQuoteDraftStateKey);
+              return;
+            }
+            window.sessionStorage.setItem(quickQuoteDraftStateKey, JSON.stringify(payload));
+          } catch (_error) {
+          }
+        }
 
         function setChangesTooltipOpen(open) {
           if (!changesTooltip || !changesTooltipTrigger) return;
@@ -6448,6 +6552,12 @@
 
           var resolvedUrl = extractUrl(getEffectiveQuickInputRawValue());
           var hasWebsiteInput = Boolean(resolvedUrl);
+          var checkoutEmail = normalizeCheckoutEmail(quickCheckoutEmailInput ? quickCheckoutEmailInput.value : '');
+          var hasValidCheckoutEmail = isValidCheckoutEmail(checkoutEmail);
+          writeCheckoutEmailState(checkoutEmail);
+          if (hasValidCheckoutEmail) {
+            setCheckoutEmailError(false);
+          }
           if (hasWebsiteInput && !getQuickInputRawValue()) {
             quickInput.value = sanitizeQuickInputValue(resolvedUrl);
             updateQuickUrlAssistState();
@@ -6525,9 +6635,12 @@
             setSidebarUrlRowVisible(false);
           }
           if (quickCheckoutBtn) {
-            var disableCheckout = !hasWebsiteInput || pages < 1 || total <= 0;
+            var disableCheckout = !hasWebsiteInput || pages < 1 || total <= 0 || !hasValidCheckoutEmail;
             quickCheckoutBtn.classList.toggle('is-disabled', disableCheckout);
             quickCheckoutBtn.setAttribute('aria-disabled', disableCheckout ? 'true' : 'false');
+          }
+          if (!hasWebsiteInput || !hasValidCheckoutEmail) {
+            writeQuoteDraftState(null);
           }
           updateCheckoutAttentionState();
           writeQuickQuoteState();
@@ -6564,6 +6677,7 @@
           var prompts = quickChangesInput ? normalizeChanges(quickChangesInput.value) : 15;
           var engineers = quickEngineersInput ? normalizeEngineers(quickEngineersInput.value) : 0;
           var maintenanceEnabled = quickMaintenanceOn ? quickMaintenanceOn.checked : false;
+          var email = normalizeCheckoutEmail(quickCheckoutEmailInput ? quickCheckoutEmailInput.value : '');
           var selectedAddons = addonCheckboxes.reduce(function (acc, checkbox) {
             if (!checkbox.checked) return acc;
             var addonId = checkbox.getAttribute('data-addon-id');
@@ -6577,11 +6691,55 @@
             maintenanceEnabled: maintenanceEnabled,
             engineers: engineers,
             prompts: prompts,
-            selectedAddons: selectedAddons
+            selectedAddons: selectedAddons,
+            email: email
           };
         }
 
-        async function createCheckoutSessionWithRetry(checkoutPayload) {
+        async function createQuoteDraftWithRetry(quotePayload) {
+          var attempts = 2;
+          var lastError = null;
+          for (var attempt = 1; attempt <= attempts; attempt += 1) {
+            try {
+              var response = await fetch('/api/quotes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(quotePayload)
+              });
+
+              var rawText = await response.text();
+              var responseData = {};
+              if (rawText) {
+                try {
+                  responseData = JSON.parse(rawText);
+                } catch (_error) {
+                  responseData = {};
+                }
+              }
+
+              if (!response.ok || !responseData.quote || !responseData.quote.id) {
+                var fallbackMessage = rawText ? rawText.slice(0, 180) : '';
+                var failureMessage = responseData && responseData.error
+                  ? responseData.error
+                  : (fallbackMessage || 'Unable to create quote draft.');
+                throw new Error(failureMessage);
+              }
+
+              return responseData.quote;
+            } catch (error) {
+              lastError = error;
+              if (attempt < attempts) {
+                await new Promise(function (resolve) {
+                  window.setTimeout(resolve, 350);
+                });
+              }
+            }
+          }
+
+          throw lastError || new Error('Unable to create quote draft.');
+        }
+
+        async function createCheckoutSessionWithRetry(quoteId, email) {
           var attempts = 2;
           var lastError = null;
           for (var attempt = 1; attempt <= attempts; attempt += 1) {
@@ -6589,7 +6747,10 @@
               var response = await fetch('/api/create-checkout-session', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(checkoutPayload)
+                body: JSON.stringify({
+                  quoteId: quoteId,
+                  email: email
+                })
               });
 
               var rawText = await response.text();
@@ -6894,6 +7055,34 @@
             }
           });
         }
+        if (quickCheckoutEmailInput) {
+          quickCheckoutEmailInput.addEventListener('input', function () {
+            var normalized = normalizeCheckoutEmail(quickCheckoutEmailInput.value);
+            if (!normalized) {
+              setCheckoutEmailError(false);
+              writeCheckoutEmailState('');
+              syncQuickSummary();
+              return;
+            }
+            writeCheckoutEmailState(normalized);
+            if (isValidCheckoutEmail(normalized)) {
+              setCheckoutEmailError(false);
+            }
+            syncQuickSummary();
+          });
+          quickCheckoutEmailInput.addEventListener('blur', function () {
+            var normalized = normalizeCheckoutEmail(quickCheckoutEmailInput.value);
+            if (!normalized) {
+              setCheckoutEmailError(false);
+              return;
+            }
+            if (!isValidCheckoutEmail(normalized)) {
+              setCheckoutEmailError(true, 'Add a valid email to continue checkout.');
+              return;
+            }
+            setCheckoutEmailError(false);
+          });
+        }
         quickInput.addEventListener('input', function () {
           var sanitizedValue = sanitizeQuickInputValue(quickInput.value);
           if (quickInput.value !== sanitizedValue) {
@@ -6956,6 +7145,15 @@
             if (!validateQuickInputUrl()) {
               return;
             }
+            var checkoutEmail = normalizeCheckoutEmail(quickCheckoutEmailInput ? quickCheckoutEmailInput.value : '');
+            if (!isValidCheckoutEmail(checkoutEmail)) {
+              setCheckoutEmailError(true, 'Add a valid email to continue checkout.');
+              if (quickCheckoutEmailInput) quickCheckoutEmailInput.focus();
+              syncQuickSummary();
+              return;
+            }
+            setCheckoutEmailError(false);
+            writeCheckoutEmailState(checkoutEmail);
 
             syncQuickLeadFields();
             syncQuickSummary();
@@ -6968,7 +7166,14 @@
 
             try {
               var checkoutPayload = buildCheckoutPayload();
-              var checkoutUrl = await createCheckoutSessionWithRetry(checkoutPayload);
+              checkoutPayload.email = checkoutEmail;
+              var quoteDraft = await createQuoteDraftWithRetry(checkoutPayload);
+              writeQuoteDraftState({
+                quoteId: quoteDraft.id,
+                email: checkoutEmail,
+                updatedAt: new Date().toISOString()
+              });
+              var checkoutUrl = await createCheckoutSessionWithRetry(quoteDraft.id, checkoutEmail);
               window.location.href = checkoutUrl;
             } catch (error) {
               var checkoutMessage = (error && error.message) ? error.message : 'Unable to start Stripe checkout.';
@@ -6979,6 +7184,7 @@
               quickCheckoutBtn.classList.remove('is-loading');
               quickCheckoutBtn.textContent = originalText;
               quickCheckoutBtn.removeAttribute('aria-disabled');
+              syncQuickSummary();
               updateCheckoutAttentionState();
             }
           });
@@ -7207,6 +7413,11 @@
         }
         var restoredQuickQuoteState = readQuickQuoteState();
         applyQuickQuoteState(restoredQuickQuoteState);
+        var restoredCheckoutEmail = readCheckoutEmailState();
+        if (quickCheckoutEmailInput && restoredCheckoutEmail) {
+          quickCheckoutEmailInput.value = restoredCheckoutEmail;
+          setCheckoutEmailError(false);
+        }
         syncMaintenanceUI(Boolean(restoredQuickQuoteState && restoredQuickQuoteState.maintenanceMode === 'on'));
         setHeroPreviewJourneyStep('preview', true);
         updateQuickUrlAssistState();

@@ -4,6 +4,11 @@ const Stripe = require("stripe");
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 
+const quoteRoutes = require("./src/routes/quoteRoutes");
+const { createCheckoutRoutes } = require("./src/routes/checkoutRoutes");
+const quoteService = require("./src/services/quoteService");
+const { formatMoneyFromCents } = require("./src/services/quotePricingService");
+
 const app = express();
 const port = parseInt(process.env.PORT || "3000", 10);
 const isVercel = Boolean(process.env.VERCEL);
@@ -28,13 +33,6 @@ const mailer = smtpConfigured
     })
   : null;
 const processedWebhookEvents = new Set();
-
-const ADDON_PRICES = {
-  figma_design_system: { name: "Figma Design System", amount: 100 },
-  notion_docs: { name: "Notion Docs", amount: 100 },
-  storybook_docs: { name: "Storybook Documentation", amount: 100 },
-  vercel_deploy: { name: "Vercel Deploy", amount: 100 }
-};
 
 app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async (req, res) => {
   if (!stripe) {
@@ -86,114 +84,15 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
-function normalizeInt(value, fallback) {
-  const parsed = parseInt(value, 10);
-  return Number.isNaN(parsed) ? fallback : parsed;
-}
-
-function normalizePages(value) {
-  const pages = normalizeInt(value, 0);
-  return Math.min(Math.max(pages, 0), 25);
-}
-
-function normalizePrompts(value) {
-  const prompts = normalizeInt(value, 15);
-  return Math.min(Math.max(prompts, 0), 120);
-}
-
-function normalizeEngineers(value) {
-  const engineers = normalizeInt(value, 0);
-  return Math.min(Math.max(engineers, 0), 6);
-}
-
-function extractUrl(value) {
-  if (!value || typeof value !== "string") return "";
-  const raw = value.trim();
-  if (!raw) return "";
-  const match = raw.match(/https?:\/\/[^\s,]+|www\.[^\s,]+|[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s,]*)?/i);
-  const candidate = match ? match[0] : raw;
-  const normalized = /^https?:\/\//i.test(candidate) ? candidate : `https://${candidate}`;
-
-  try {
-    const parsed = new URL(normalized);
-    const hostname = String(parsed.hostname || "").toLowerCase();
-    if (!hostname || !hostname.includes(".")) return "";
-    if (hostname.startsWith(".") || hostname.endsWith(".")) return "";
-    const labels = hostname.split(".");
-    const tld = labels[labels.length - 1];
-    if (!/^[a-z]{2,63}$/i.test(tld)) return "";
-    return parsed.href;
-  } catch (_error) {
-    return "";
-  }
-}
-
-function getQuoteRule(pages) {
-  if (pages <= 3) return { label: "1-3 pages", first: 50, next: 40 };
-  if (pages <= 6) return { label: "3-6 pages", first: 50, next: 40 };
-  return { label: "6+ pages", first: 40, next: 30 };
-}
-
-function formatMoneyFromCents(cents) {
-  const normalizedCents = Number.isFinite(cents) ? cents : 0;
-  return (normalizedCents / 100).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD"
-  });
-}
-
-function buildQuote(payload) {
-  const pages = normalizePages(payload.pages);
-  const prompts = normalizePrompts(payload.prompts);
-  const maintenanceEnabled = Boolean(payload.maintenanceEnabled);
-  const engineers = maintenanceEnabled ? normalizeEngineers(payload.engineers) : 0;
-  const websiteUrl = extractUrl(payload.websiteUrl || "");
-  const selectedAddons = Array.isArray(payload.selectedAddons)
-    ? payload.selectedAddons.filter((id) => Object.prototype.hasOwnProperty.call(ADDON_PRICES, id))
-    : [];
-
-  const rule = getQuoteRule(Math.max(pages, 1));
-  const homepageTotal = pages > 0 ? rule.first : 0;
-  const innerCount = pages > 0 ? Math.max(0, pages - 1) : 0;
-  const innerTotal = innerCount * rule.next;
-  const oneTimeTotal = homepageTotal + innerTotal;
-
-  const includedPrompts = 15;
-  const overagePrompts = Math.max(0, prompts - includedPrompts);
-  const maintenanceBase = engineers * 100;
-  const maintenanceOverage = overagePrompts * 5;
-  const maintenanceTotal = maintenanceEnabled ? maintenanceBase + maintenanceOverage : 0;
-
-  const addonItems = selectedAddons.map((id) => ({
-    id,
-    name: ADDON_PRICES[id].name,
-    amount: ADDON_PRICES[id].amount
-  }));
-  const addonsTotal = addonItems.reduce((acc, item) => acc + item.amount, 0);
-  const monthlyTotal = maintenanceTotal + addonsTotal;
-
-  return {
-    websiteUrl,
-    pages,
-    prompts: maintenanceEnabled ? prompts : 0,
-    engineers,
-    ruleLabel: pages > 0 ? rule.label : "not_selected",
-    oneTimeTotal,
-    maintenanceEnabled,
-    maintenanceTotal,
-    addonsTotal,
-    monthlyTotal,
-    addonItems,
-    total: oneTimeTotal + monthlyTotal
-  };
-}
+app.use("/api/quotes", quoteRoutes);
+app.use("/api", createCheckoutRoutes({ stripe }));
 
 async function sendOrderEmail(session) {
   if (!mailer) {
     console.warn("SMTP is not configured; skipping order email notification.");
     return;
   }
-  if (!session || !session.id) return;
+  if (!session || !session.id || !stripe) return;
 
   const metadata = session.metadata || {};
   const customerDetails = session.customer_details || {};
@@ -224,6 +123,7 @@ async function sendOrderEmail(session) {
     "",
     `Session ID: ${session.id}`,
     `Created: ${createdDate}`,
+    `Quote ID: ${metadata.quoteId || "Not provided"}`,
     `Website URL: ${websiteUrl}`,
     `Customer email: ${customerDetails.email || session.customer_email || "Not provided"}`,
     `Customer name: ${customerDetails.name || "Not provided"}`,
@@ -252,115 +152,17 @@ async function sendOrderEmail(session) {
 }
 
 async function handleCheckoutSessionCompleted(session) {
+  const metadata = (session && session.metadata) || {};
+  const quoteId = metadata.quoteId;
+
+  if (quoteId) {
+    quoteService.markPaidByQuoteId(quoteId, session.id);
+  } else if (session && session.id) {
+    quoteService.markPaidByStripeSessionId(session.id);
+  }
+
   await sendOrderEmail(session);
 }
-
-app.post("/api/create-checkout-session", async (req, res) => {
-  if (!stripe) {
-    return res.status(500).json({
-      error: "Stripe is not configured. Add STRIPE_SECRET_KEY to your environment."
-    });
-  }
-
-  try {
-    const quote = buildQuote(req.body || {});
-    if (!quote.websiteUrl) {
-      return res.status(400).json({
-        error: "Paste your WordPress URL here and we’ll migrate your site."
-      });
-    }
-    if (quote.pages < 1) {
-      return res.status(400).json({
-        error: "Add at least 1 page to continue checkout."
-      });
-    }
-
-    const baseUrl =
-      process.env.BASE_URL ||
-      `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`;
-    const successUrl = `${baseUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${baseUrl}/?checkout=cancel`;
-
-    const hasRecurring = quote.monthlyTotal > 0;
-    const mode = hasRecurring ? "subscription" : "payment";
-    const lineItems = [];
-
-    if (quote.oneTimeTotal > 0) {
-      lineItems.push({
-        price_data: {
-          currency: "usd",
-          unit_amount: quote.oneTimeTotal * 100,
-          product_data: {
-            name: "WPtoAI Migration — One-time"
-          }
-        },
-        quantity: 1
-      });
-    }
-
-    if (quote.maintenanceEnabled && quote.maintenanceTotal > 0) {
-      lineItems.push({
-        price_data: {
-          currency: "usd",
-          recurring: { interval: "month" },
-          unit_amount: quote.maintenanceTotal * 100,
-          product_data: {
-            name: "Site Maintenance — Monthly"
-          }
-        },
-        quantity: 1
-      });
-    }
-
-    if (quote.addonsTotal > 0) {
-      lineItems.push({
-        price_data: {
-          currency: "usd",
-          recurring: { interval: "month" },
-          unit_amount: quote.addonsTotal * 100,
-          product_data: {
-            name: "Developer Tools — Monthly"
-          }
-        },
-        quantity: 1
-      });
-    }
-
-    const metadata = {
-      website_url: quote.websiteUrl.slice(0, 500),
-      pages: String(quote.pages),
-      pricing_tier: quote.ruleLabel,
-      one_time_usd: String(quote.oneTimeTotal),
-      maintenance_usd: String(quote.maintenanceTotal),
-      addons_usd: String(quote.addonsTotal),
-      monthly_usd: String(quote.monthlyTotal),
-      engineers: String(quote.engineers),
-      prompts: String(quote.prompts),
-      addons: quote.addonItems.length ? quote.addonItems.map((addon) => addon.id).join(",") : "none"
-    };
-
-    const params = {
-      mode,
-      line_items: lineItems,
-      allow_promotion_codes: true,
-      success_url: successUrl,
-      cancel_url: cancelUrl,
-      metadata
-    };
-
-    if (mode === "subscription") {
-      params.subscription_data = { metadata };
-    }
-
-    const session = await stripe.checkout.sessions.create(params);
-    return res.json({ url: session.url });
-  } catch (error) {
-    console.error("Stripe checkout error:", error);
-    return res.status(500).json({
-      error: "Stripe checkout could not start. Please try again."
-    });
-  }
-});
 
 if (!isVercel) {
   app.listen(port, () => {
