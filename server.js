@@ -1,13 +1,16 @@
 const path = require("path");
 const express = require("express");
 const Stripe = require("stripe");
-const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 const quoteRoutes = require("./src/routes/quoteRoutes");
 const { createCheckoutRoutes } = require("./src/routes/checkoutRoutes");
 const quoteService = require("./src/services/quoteService");
 const { formatMoneyFromCents } = require("./src/services/quotePricingService");
+const {
+  sendOrderSummary,
+  getOrderNotificationRecipient
+} = require("./src/services/email.service");
 
 const app = express();
 const port = parseInt(process.env.PORT || "3000", 10);
@@ -15,23 +18,6 @@ const isVercel = Boolean(process.env.VERCEL);
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "";
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
-const orderNotificationTo = process.env.ORDER_NOTIFICATION_TO || "alesspunk@gmail.com";
-const smtpPort = parseInt(process.env.SMTP_PORT || "587", 10);
-const smtpSecure =
-  String(process.env.SMTP_SECURE || "").toLowerCase() === "true" || smtpPort === 465;
-const smtpConfigured = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
-const mailFrom = process.env.SMTP_FROM || "WP to AI <no-reply@wptoai.com>";
-const mailer = smtpConfigured
-  ? nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: smtpPort,
-      secure: smtpSecure,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      }
-    })
-  : null;
 const processedWebhookEvents = new Set();
 
 app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async (req, res) => {
@@ -87,70 +73,6 @@ app.get("/health", (_req, res) => {
 app.use("/api/quotes", quoteRoutes);
 app.use("/api", createCheckoutRoutes({ stripe }));
 
-async function sendOrderEmail(session) {
-  if (!mailer) {
-    console.warn("SMTP is not configured; skipping order email notification.");
-    return;
-  }
-  if (!session || !session.id || !stripe) return;
-
-  const metadata = session.metadata || {};
-  const customerDetails = session.customer_details || {};
-  const websiteUrl = metadata.website_url || "Not provided";
-  const createdDate = session.created
-    ? new Date(session.created * 1000).toISOString()
-    : new Date().toISOString();
-
-  let lineItemsText = "";
-  try {
-    const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 20 });
-    if (lineItems && Array.isArray(lineItems.data) && lineItems.data.length) {
-      const lines = lineItems.data.map((item) => {
-        const name = item.description || "Item";
-        const quantity = item.quantity || 1;
-        const amount = formatMoneyFromCents(item.amount_total || 0);
-        return `- ${name} x${quantity}: ${amount}`;
-      });
-      lineItemsText = `\nLine items:\n${lines.join("\n")}`;
-    }
-  } catch (error) {
-    console.error("Could not load line items for order email:", error.message);
-  }
-
-  const subject = `New WP to AI order: ${websiteUrl}`;
-  const text = [
-    "A new Stripe checkout was completed for WP to AI.",
-    "",
-    `Session ID: ${session.id}`,
-    `Created: ${createdDate}`,
-    `Quote ID: ${metadata.quoteId || "Not provided"}`,
-    `Website URL: ${websiteUrl}`,
-    `Customer email: ${customerDetails.email || session.customer_email || "Not provided"}`,
-    `Customer name: ${customerDetails.name || "Not provided"}`,
-    `Payment status: ${session.payment_status || "unknown"}`,
-    `Checkout mode: ${session.mode || "unknown"}`,
-    `One-time total (USD): ${metadata.one_time_usd || "0"}`,
-    `Monthly total (USD): ${metadata.monthly_usd || "0"}`,
-    `Order amount: ${formatMoneyFromCents(session.amount_total || 0)}`,
-    `Pages: ${metadata.pages || "n/a"}`,
-    `Pricing tier: ${metadata.pricing_tier || "n/a"}`,
-    `AI engineers: ${metadata.engineers || "0"}`,
-    `Prompts: ${metadata.prompts || "0"}`,
-    `Deliverables (paid): ${metadata.addons || "none"}`,
-    lineItemsText
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  await mailer.sendMail({
-    from: mailFrom,
-    to: orderNotificationTo,
-    subject,
-    text
-  });
-  console.log(`Order notification email sent to ${orderNotificationTo} for ${session.id}`);
-}
-
 async function handleCheckoutSessionCompleted(session) {
   const metadata = (session && session.metadata) || {};
   const quoteId = metadata.quoteId;
@@ -161,7 +83,46 @@ async function handleCheckoutSessionCompleted(session) {
     quoteService.markPaidByStripeSessionId(session.id);
   }
 
-  await sendOrderEmail(session);
+  const customerEmail =
+    (session && session.customer_email) ||
+    (session && session.customer_details && session.customer_details.email) ||
+    "";
+  const siteUrl = metadata.siteUrl || metadata.website_url || "Not provided";
+  const plan = metadata.plan || metadata.pricing_tier || "Not provided";
+  const total = formatMoneyFromCents((session && session.amount_total) || 0);
+  const adminEmail = getOrderNotificationRecipient();
+
+  if (customerEmail) {
+    try {
+      await sendOrderSummary({
+        email: customerEmail,
+        siteUrl,
+        plan,
+        total,
+        subject: "Your WP to AI migration summary",
+        recipientType: "customer"
+      });
+      console.log("EMAIL_SENT_CUSTOMER", customerEmail, quoteId || "");
+    } catch (error) {
+      console.error("EMAIL_ERROR", "customer", error && error.message ? error.message : error);
+    }
+  }
+
+  if (adminEmail) {
+    try {
+      await sendOrderSummary({
+        email: adminEmail,
+        siteUrl,
+        plan,
+        total,
+        subject: "New WPtoAI order",
+        recipientType: "admin"
+      });
+      console.log("EMAIL_SENT_ADMIN", adminEmail, quoteId || "");
+    } catch (error) {
+      console.error("EMAIL_ERROR", "admin", error && error.message ? error.message : error);
+    }
+  }
 }
 
 if (!isVercel) {
