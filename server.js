@@ -70,6 +70,31 @@ app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
+app.post("/api/debug-email", async (_req, res) => {
+  const adminEmail = getOrderNotificationRecipient();
+  if (!adminEmail) {
+    return res.status(400).json({
+      error: "ORDER_NOTIFICATION_TO is not configured."
+    });
+  }
+
+  try {
+    await sendOrderSummary({
+      email: adminEmail,
+      siteUrl: "https://wptoai.com",
+      plan: "debug",
+      total: "$0.00",
+      subject: "WPtoAI SMTP debug",
+      recipientType: "admin"
+    });
+    return res.json({ ok: true, sentTo: adminEmail });
+  } catch (error) {
+    return res.status(500).json({
+      error: error && error.message ? error.message : "Unknown email error"
+    });
+  }
+});
+
 app.use("/api/quotes", quoteRoutes);
 app.use("/api", createCheckoutRoutes({ stripe }));
 
@@ -104,7 +129,7 @@ async function handleCheckoutSessionCompleted(session) {
       });
       console.log("EMAIL_SENT_CUSTOMER", customerEmail, quoteId || "");
     } catch (error) {
-      console.error("EMAIL_ERROR", "customer", error && error.message ? error.message : error);
+      console.error("EMAIL_SEND_CUSTOMER_ERROR", error && error.message ? error.message : error);
     }
   }
 
@@ -120,7 +145,7 @@ async function handleCheckoutSessionCompleted(session) {
       });
       console.log("EMAIL_SENT_ADMIN", adminEmail, quoteId || "");
     } catch (error) {
-      console.error("EMAIL_ERROR", "admin", error && error.message ? error.message : error);
+      console.error("EMAIL_SEND_ADMIN_ERROR", error && error.message ? error.message : error);
     }
   }
 }

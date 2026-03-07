@@ -55,6 +55,8 @@ function buildMetadataFromQuote(quote) {
   const quoteBreakdown = quote.quoteBreakdown || {};
   return {
     quoteId: String(quote.id),
+    siteUrl: String(quote.siteUrl || "").slice(0, 500),
+    plan: String((quote.plan && quote.plan.pricingTier) || "not_selected"),
     website_url: String(quote.siteUrl || "").slice(0, 500),
     pages: String((quote.plan && quote.plan.pages) || 0),
     pricing_tier: String((quote.plan && quote.plan.pricingTier) || "not_selected"),

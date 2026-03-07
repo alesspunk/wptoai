@@ -1,16 +1,14 @@
 const nodemailer = require("nodemailer");
 
-const smtpPort = parseInt(process.env.SMTP_PORT || "587", 10);
-const smtpSecure =
-  String(process.env.SMTP_SECURE || "").toLowerCase() === "true" || smtpPort === 465;
-const smtpHost = process.env.SMTP_HOST || "";
-const smtpUser = process.env.SMTP_USER || "";
-const smtpPass = process.env.SMTP_PASS || "";
+const smtpHost = process.env.SMTP_HOST;
+const smtpPort = Number(process.env.SMTP_PORT);
+const smtpSecure = process.env.SMTP_SECURE === "true";
+const smtpUser = process.env.SMTP_USER;
+const smtpPass = process.env.SMTP_PASS;
 const mailFrom = process.env.SMTP_FROM || "WP to AI <no-reply@wptoai.com>";
 const orderNotificationTo = process.env.ORDER_NOTIFICATION_TO || "alesspunk@gmail.com";
 
 let transporter = null;
-let verifyPromise = null;
 
 function hasSmtpConfig() {
   return Boolean(smtpHost && smtpUser && smtpPass);
@@ -19,15 +17,20 @@ function hasSmtpConfig() {
 function getTransporter() {
   if (!hasSmtpConfig()) return null;
   if (!transporter) {
-    transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpSecure,
-      auth: {
-        user: smtpUser,
-        pass: smtpPass
-      }
-    });
+    try {
+      transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT),
+        secure: process.env.SMTP_SECURE === "true",
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS
+        }
+      });
+    } catch (error) {
+      console.error("SMTP_INIT_ERROR", error && error.message ? error.message : error);
+      transporter = null;
+    }
   }
   return transporter;
 }
@@ -35,22 +38,18 @@ function getTransporter() {
 async function verifyTransporterConnection() {
   const instance = getTransporter();
   if (!instance) {
-    console.error("EMAIL_ERROR", "SMTP is not configured.");
+    console.error("SMTP_INIT_ERROR", "SMTP is not configured.");
     return false;
   }
 
-  if (!verifyPromise) {
-    verifyPromise = instance
-      .verify()
-      .then(() => true)
-      .catch((error) => {
-        verifyPromise = null;
-        console.error("EMAIL_ERROR", error && error.message ? error.message : error);
-        return false;
-      });
+  try {
+    await instance.verify();
+    return true;
+  } catch (error) {
+    // Do not block subsequent send attempts if verify fails.
+    console.error("SMTP_VERIFY_ERROR", error && error.message ? error.message : error);
+    return false;
   }
-
-  return verifyPromise;
 }
 
 function normalizeRecipient(value) {
@@ -86,21 +85,27 @@ async function sendOrderSummary({ email, siteUrl, plan, total, subject, recipien
     throw new Error("Missing email recipient.");
   }
 
-  const isReady = await verifyTransporterConnection();
-  if (!isReady) {
-    throw new Error("SMTP transporter is not ready.");
+  const instance = getTransporter();
+  if (!instance) {
+    throw new Error("SMTP transporter is not configured.");
   }
 
-  const instance = getTransporter();
+  // Validation is best-effort; do not block send if this fails.
+  await verifyTransporterConnection();
+
   const resolvedSubject = subject || "Your WP to AI migration summary";
   const text = buildSummaryText({ siteUrl, plan, total, recipientType });
 
-  await instance.sendMail({
-    from: mailFrom,
-    to,
-    subject: resolvedSubject,
-    text
-  });
+  try {
+    await instance.sendMail({
+      from: mailFrom,
+      to,
+      subject: resolvedSubject,
+      text
+    });
+  } catch (error) {
+    throw new Error(error && error.message ? error.message : "Failed to send email.");
+  }
 }
 
 function getOrderNotificationRecipient() {
