@@ -1045,6 +1045,10 @@
       .hero-ready-actions > :last-child {
         margin-left: auto;
       }
+      .hero-ready-actions > :only-child {
+        margin-left: 0;
+        margin-right: auto;
+      }
       .hero-ready-actions .btn.is-fading-out {
         animation: hero-ready-continue-fade 0.24s ease forwards;
         pointer-events: none;
@@ -4448,7 +4452,6 @@
                 </figure>
                 <div class="hero-ready-actions">
                   <button id="hero-change-url-ready" class="btn btn-outline" type="button">Change URL</button>
-                  <a id="hero-ready-continue" class="btn btn-primary" href="#top">Continue to Site Setup</a>
                 </div>
               </div>
             </div>
@@ -6027,7 +6030,11 @@
                   heroReadyImage.src = preview.screenshotUrl;
                 }
                 setHeroPreviewState('ready');
-                setHeroPreviewJourneyStep('preview');
+                enterMergedPreviewSetupStep({
+                  resetMaintenance: true,
+                  openSiteCardOnMobile: mobileSidebarMedia.matches,
+                  enableTours: true
+                });
               } catch (_error) {
                 setHeroPreviewState('idle');
               }
@@ -6074,6 +6081,41 @@
             setSidebarCollapsed(true);
           }
           forcePageToTopForPreview();
+        }
+
+        function enterMergedPreviewSetupStep(options) {
+          var settings = options && typeof options === 'object' ? options : {};
+          var resetMaintenance = Boolean(settings.resetMaintenance);
+          var openSiteCardOnMobile = Boolean(settings.openSiteCardOnMobile);
+          var enableTours = settings.enableTours !== false;
+
+          if (resetMaintenance && quickMaintenanceOff && quickMaintenanceOn) {
+            quickMaintenanceOff.checked = true;
+            quickMaintenanceOn.checked = false;
+          }
+          if (resetMaintenance && quickEngineersInput) {
+            quickEngineersInput.value = "0";
+          }
+
+          syncMaintenanceUI(Boolean(resetMaintenance));
+          syncQuickSummary();
+
+          if (enableTours) {
+            siteMigrationTourPrimed = true;
+            siteMaintenanceTourEnabled = true;
+            siteDeliverablesTourEnabled = true;
+          }
+
+          setHeroPreviewJourneyStep('configure');
+          setSidebarCollapsed(false);
+
+          if (openSiteCardOnMobile && quickSiteBody && quickSiteToggle) {
+            setCardOpen(quickSiteBody, quickSiteToggle, true);
+          }
+
+          if (enableTours) {
+            window.setTimeout(showSiteMigrationTour, 120);
+          }
         }
 
         function writeHeroPreviewState() {
@@ -6143,6 +6185,11 @@
             }
             setHeroScanStepState(heroScanSteps.length);
             setHeroPreviewState('ready');
+            enterMergedPreviewSetupStep({
+              resetMaintenance: false,
+              openSiteCardOnMobile: mobileSidebarMedia.matches,
+              enableTours: false
+            });
             return true;
           }
 
@@ -6898,35 +6945,7 @@
           });
         }
         if (heroReadyContinueBtn) {
-          heroReadyContinueBtn.addEventListener('click', function (event) {
-            event.preventDefault();
-            var isMobileContinue = mobileSidebarMedia.matches;
-            if (isMobileContinue) {
-              event.stopPropagation();
-              suppressNextMobileSidebarDismiss = true;
-              window.setTimeout(function () {
-                suppressNextMobileSidebarDismiss = false;
-              }, 0);
-              heroReadyContinueBtn.classList.remove('is-fading-out');
-            } else {
-              heroReadyContinueBtn.classList.add('is-fading-out');
-            }
-            if (quickMaintenanceOff && quickMaintenanceOn) {
-              quickMaintenanceOff.checked = true;
-              quickMaintenanceOn.checked = false;
-            }
-            if (quickEngineersInput) quickEngineersInput.value = "0";
-            syncMaintenanceUI(false);
-            syncQuickSummary();
-            siteMigrationTourPrimed = true;
-            siteMaintenanceTourEnabled = true;
-            siteDeliverablesTourEnabled = true;
-            setSidebarCollapsed(false);
-            if (isMobileContinue && quickSiteBody && quickSiteToggle) {
-              setCardOpen(quickSiteBody, quickSiteToggle, true);
-            }
-            window.setTimeout(showSiteMigrationTour, 120);
-          });
+          heroReadyContinueBtn.hidden = true;
         }
         if (quickCheckoutBtn) {
           quickCheckoutBtn.addEventListener('click', async function (event) {
@@ -7192,7 +7211,6 @@
         setHeroPreviewJourneyStep('preview', true);
         updateQuickUrlAssistState();
         var restoredHeroPreviewState = restoreHeroPreviewState();
-        var restoredHeroJourneyState = readHeroPreviewJourneyState();
         if (!restoredHeroPreviewState) {
           setHeroPreviewState('idle');
           setSummaryPillDomain(getDomainFromUrl(extractUrl(getQuickInputRawValue())));
@@ -7218,9 +7236,7 @@
         }
         var shouldRestoreConfiguredStep = Boolean(
           restoredHeroPreviewState &&
-          heroPreviewState === 'ready' &&
-          restoredHeroJourneyState &&
-          restoredHeroJourneyState.step === 'configure'
+          heroPreviewState === 'ready'
         );
         siteMaintenanceTourEnabled = shouldRestoreConfiguredStep;
         siteDeliverablesTourEnabled = shouldRestoreConfiguredStep;
