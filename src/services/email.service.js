@@ -104,7 +104,7 @@ async function sendOrderSummary({ email, siteUrl, plan, total, subject, recipien
       text
     });
   } catch (error) {
-    throw new Error(error && error.message ? error.message : "Failed to send email.");
+    throw error;
   }
 }
 

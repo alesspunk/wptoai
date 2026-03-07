@@ -103,26 +103,52 @@ app.post("/api/debug-email", async (_req, res) => {
 app.use("/api/quotes", quoteRoutes);
 app.use("/api", createCheckoutRoutes({ stripe }));
 
+function extractCustomerEmailFromSession(session) {
+  if (!session || typeof session !== "object") return "";
+  const candidates = [
+    session.customer_details && session.customer_details.email,
+    session.customer_email,
+    session.customer && session.customer.email
+  ];
+  for (const value of candidates) {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (normalized) return normalized;
+  }
+  return "";
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
 async function handleCheckoutSessionCompleted(session) {
   const metadata = (session && session.metadata) || {};
   const quoteId = metadata.quoteId;
 
-  if (quoteId) {
-    quoteService.markPaidByQuoteId(quoteId, session.id);
-  } else if (session && session.id) {
-    quoteService.markPaidByStripeSessionId(session.id);
+  try {
+    if (quoteId) {
+      quoteService.markPaidByQuoteId(quoteId, session.id);
+    } else if (session && session.id) {
+      quoteService.markPaidByStripeSessionId(session.id);
+    }
+  } catch (error) {
+    console.error("Stripe quote status update error:", error && error.message ? error.message : error);
   }
 
-  const customerEmail =
-    (session && session.customer_email) ||
-    (session && session.customer_details && session.customer_details.email) ||
-    "";
+  const customerEmail = extractCustomerEmailFromSession(session);
+  console.log("CUSTOMER_EMAIL_EXTRACTED:", customerEmail);
+
   const siteUrl = metadata.siteUrl || metadata.website_url || "Not provided";
   const plan = metadata.plan || metadata.pricing_tier || "Not provided";
   const total = formatMoneyFromCents((session && session.amount_total) || 0);
   const adminEmail = getOrderNotificationRecipient();
 
-  if (customerEmail) {
+  if (!customerEmail) {
+    console.warn("CUSTOMER_EMAIL_MISSING");
+  } else if (!isValidEmail(customerEmail)) {
+    console.error("EMAIL_SEND_CUSTOMER_ERROR", `Invalid customer email: ${customerEmail}`);
+  } else {
+    console.log("EMAIL_SEND_CUSTOMER_START", customerEmail, quoteId || "");
     try {
       await sendOrderSummary({
         email: customerEmail,
@@ -132,13 +158,16 @@ async function handleCheckoutSessionCompleted(session) {
         subject: "Your WP to AI migration summary",
         recipientType: "customer"
       });
-      console.log("EMAIL_SENT_CUSTOMER", customerEmail, quoteId || "");
+      console.log("EMAIL_SEND_CUSTOMER_OK", customerEmail, quoteId || "");
     } catch (error) {
       console.error("EMAIL_SEND_CUSTOMER_ERROR", error && error.message ? error.message : error);
     }
   }
 
-  if (adminEmail) {
+  if (!adminEmail) {
+    console.error("EMAIL_SEND_ADMIN_ERROR", "ORDER_NOTIFICATION_TO is not configured.");
+  } else {
+    console.log("EMAIL_SEND_ADMIN_START", adminEmail, quoteId || "");
     try {
       await sendOrderSummary({
         email: adminEmail,
@@ -148,7 +177,7 @@ async function handleCheckoutSessionCompleted(session) {
         subject: "New WPtoAI order",
         recipientType: "admin"
       });
-      console.log("EMAIL_SENT_ADMIN", adminEmail, quoteId || "");
+      console.log("EMAIL_SEND_ADMIN_OK", adminEmail, quoteId || "");
     } catch (error) {
       console.error("EMAIL_SEND_ADMIN_ERROR", error && error.message ? error.message : error);
     }
