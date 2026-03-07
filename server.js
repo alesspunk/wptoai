@@ -71,6 +71,11 @@ app.get("/health", (_req, res) => {
 });
 
 app.post("/api/debug-email", async (_req, res) => {
+  console.log("SMTP_HOST", process.env.SMTP_HOST || "");
+  console.log("SMTP_PORT", Number(process.env.SMTP_PORT));
+  console.log("SMTP_SECURE", process.env.SMTP_SECURE === "true");
+  console.log("SMTP_USER", process.env.SMTP_USER || "");
+
   const adminEmail = getOrderNotificationRecipient();
   if (!adminEmail) {
     return res.status(400).json({
