@@ -1,7 +1,5 @@
 const fs = require("fs");
-const fsPromises = require("fs/promises");
 const net = require("net");
-const path = require("path");
 const chromium = require("@sparticuz/chromium");
 const puppeteer = require("puppeteer-core");
 const { extractUrl } = require("./quotePricingService");
@@ -151,47 +149,13 @@ async function collectInternalLinks(browser, rootUrl, initialLinks) {
   return discovered;
 }
 
-async function saveScanImages(page, timestamp) {
-  const scansDir = path.join(process.cwd(), "public", "scans");
-  await fsPromises.mkdir(scansDir, { recursive: true });
-
-  const fullFilename = `scan-${timestamp}-full.png`;
-  const previewFilename = `scan-${timestamp}.png`;
-  const fullPath = path.join(scansDir, fullFilename);
-  const previewPath = path.join(scansDir, previewFilename);
-
-  const fullBuffer = await page.screenshot({
+async function buildScanPreviewDataUrl(page) {
+  const screenshotBuffer = await page.screenshot({
     fullPage: true,
     type: "png"
   });
-  try {
-    await fsPromises.writeFile(fullPath, fullBuffer);
-  } catch (error) {
-    console.error("SITE_SCAN_SCREENSHOT_SAVE_ERROR", fullPath, error && error.message ? error.message : error);
-    throw error;
-  }
-
-  const viewport = page.viewport() || VIEWPORT;
-  const previewBuffer = await page.screenshot({
-    type: "png",
-    clip: {
-      x: 0,
-      y: 0,
-      width: Math.floor(viewport.width || VIEWPORT.width),
-      height: Math.floor(viewport.height || VIEWPORT.height)
-    }
-  });
-  try {
-    await fsPromises.writeFile(previewPath, previewBuffer);
-  } catch (error) {
-    console.error("SITE_SCAN_SCREENSHOT_SAVE_ERROR", previewPath, error && error.message ? error.message : error);
-    throw error;
-  }
-
-  return {
-    fullImageUrl: `/scans/${fullFilename}`,
-    previewImageUrl: `/scans/${previewFilename}`
-  };
+  const screenshotBase64 = screenshotBuffer.toString("base64");
+  return `data:image/png;base64,${screenshotBase64}`;
 }
 
 async function scanSite(inputUrl) {
@@ -223,8 +187,7 @@ async function scanSite(inputUrl) {
 
     const metadata = await extractPageMetadata(page);
     console.log("SITE_SCAN_METADATA_OK");
-    const timestamp = Date.now();
-    const images = await saveScanImages(page, timestamp);
+    const previewImageUrl = await buildScanPreviewDataUrl(page);
     console.log("SITE_SCAN_SCREENSHOT_OK");
 
     const discoveredLinks = await collectInternalLinks(browser, rootUrl, metadata.hrefs);
@@ -234,7 +197,7 @@ async function scanSite(inputUrl) {
       siteUrl: normalizedUrl,
       siteTitle: metadata.title || rootUrl.hostname,
       siteDescription: metadata.description || "",
-      previewImageUrl: images.previewImageUrl,
+      previewImageUrl,
       detectedPages,
       scanStatus: "completed"
     };
