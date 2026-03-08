@@ -1083,6 +1083,17 @@
         background: #f7fbff;
         min-height: 250px;
         overflow: hidden;
+        position: relative;
+      }
+      .hero-ready-card::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 84px;
+        background: linear-gradient(180deg, rgba(247, 251, 255, 0) 0%, rgba(247, 251, 255, 0.88) 62%, #f7fbff 100%);
+        pointer-events: none;
       }
       .hero-ready-head {
         display: flex;
@@ -1168,7 +1179,37 @@
         height: 100%;
         min-height: 250px;
         object-fit: cover;
+        object-position: top center;
         display: block;
+      }
+      .hero-ready-info {
+        margin: 10px 0 0;
+        display: grid;
+        gap: 4px;
+      }
+      .hero-ready-info-title {
+        margin: 0;
+        color: #243f77;
+        font-size: var(--text-lg);
+        font-weight: 800;
+      }
+      .hero-ready-info-subtitle {
+        margin: 0;
+        color: #5c6f99;
+        font-size: var(--text-sm);
+        font-weight: 600;
+      }
+      .hero-ready-site-title {
+        margin: 8px 0 0;
+        color: #27427c;
+        font-size: var(--text-base);
+        font-weight: 700;
+      }
+      .hero-ready-site-description {
+        margin: 0;
+        color: #5f6f95;
+        font-size: var(--text-sm);
+        font-weight: 500;
       }
       @keyframes hero-inline-enter {
         from {
@@ -1925,7 +1966,7 @@
         opacity: 0.95;
       }
       .quick-sidebar-fab-domain {
-        display: none !important;
+        display: block;
         max-width: min(240px, 36vw);
         white-space: nowrap;
         overflow: hidden;
@@ -4034,8 +4075,12 @@
           display: none;
         }
         .quick-sidebar-fab-copy {
-          display: inline-flex;
-          align-items: center;
+          display: grid;
+          gap: 1px;
+        }
+        .quick-sidebar-fab-domain {
+          max-width: 96px;
+          font-size: var(--text-2xs);
         }
         .quick-sidebar-fab-total {
           font-size: var(--text-2xl);
@@ -4493,6 +4538,12 @@
                 <figure class="hero-ready-card">
                   <img id="hero-ready-image" src="" alt="Preview screenshot of your WordPress to AI migration">
                 </figure>
+                <div class="hero-ready-info">
+                  <p class="hero-ready-info-title">WP to AI preview snapshot</p>
+                  <p class="hero-ready-info-subtitle">Same design. Structured for chat-based changes.</p>
+                  <p id="hero-ready-site-title" class="hero-ready-site-title"></p>
+                  <p id="hero-ready-site-description" class="hero-ready-site-description"></p>
+                </div>
                 <div class="hero-ready-actions">
                   <button id="hero-change-url-ready" class="btn btn-outline" type="button">Change URL</button>
                 </div>
@@ -5286,6 +5337,8 @@
         var heroScanDomainChip = document.querySelector('#hero-scan-domain-chip');
         var heroReadyDomainChip = document.querySelector('#hero-ready-domain-chip');
         var heroReadyImage = document.querySelector('#hero-ready-image');
+        var heroReadySiteTitle = document.querySelector('#hero-ready-site-title');
+        var heroReadySiteDescription = document.querySelector('#hero-ready-site-description');
         var heroScanSteps = Array.prototype.slice.call(document.querySelectorAll('.hero-scan-step'));
         var heroScanLive = document.querySelector('#hero-scan-live');
         var heroChangeUrlScanBtn = document.querySelector('#hero-change-url-scan');
@@ -5404,6 +5457,8 @@
         var heroPreviewJourneyStep = 'preview';
         var heroLastNormalizedUrl = '';
         var heroLastDomain = '';
+        var heroLastScanResult = null;
+        var quickPagesUserEdited = false;
         var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         var allowPrivatePreviewHosts = Boolean(window.WPTOAI_ALLOW_PRIVATE_URLS);
         if (!quickForm || !quickInput || !quickPagesInput || !getStarted || !quickCheckoutEmailInput) return;
@@ -5467,6 +5522,10 @@
             window.sessionStorage.setItem(quickQuoteDraftStateKey, JSON.stringify(payload));
           } catch (_error) {
           }
+        }
+
+        function markQuickPagesUserEdited() {
+          quickPagesUserEdited = true;
         }
 
         function setChangesTooltipOpen(open) {
@@ -5747,9 +5806,17 @@
 
         function setSummaryPillDomain(domain) {
           if (!quickSidebarFabDomain) return;
-          quickSidebarFabDomain.hidden = true;
-          quickSidebarFabDomain.textContent = '';
-          if (quickSidebarFab) quickSidebarFab.removeAttribute('data-domain');
+          var normalizedDomain = String(domain || '').trim().toLowerCase().replace(/^www\./i, '');
+          var hasDomain = Boolean(normalizedDomain);
+          quickSidebarFabDomain.hidden = !hasDomain;
+          quickSidebarFabDomain.textContent = hasDomain ? normalizedDomain : '';
+          if (quickSidebarFab) {
+            if (hasDomain) {
+              quickSidebarFab.setAttribute('data-domain', normalizedDomain);
+            } else {
+              quickSidebarFab.removeAttribute('data-domain');
+            }
+          }
         }
 
         function areAllToursDismissed() {
@@ -6071,20 +6138,68 @@
           return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
         }
 
-        function requestPreviewMock(normalizedUrl, domain, runToken) {
-          return new Promise(function (resolve) {
-            var delay = 600 + Math.round(Math.random() * 600);
-            heroPreviewRequestTimer = window.setTimeout(function () {
-              if (runToken !== heroPreviewRunToken) {
-                resolve(null);
-                return;
-              }
-              resolve({
-                screenshotUrl: buildPreviewPlaceholder(domain),
-                normalizedUrl: normalizedUrl
-              });
-            }, delay);
+        function applyHeroScanResult(scanResult, domain) {
+          var result = scanResult && typeof scanResult === 'object' ? scanResult : {};
+          var title = (result.siteTitle || '').trim();
+          var description = (result.siteDescription || '').trim();
+          var siteUrlLabel = (result.siteUrl || '').trim();
+
+          if (heroReadyImage) {
+            heroReadyImage.src = result.previewImageUrl || buildPreviewPlaceholder(domain);
+          }
+          if (heroReadyDomainChip) {
+            heroReadyDomainChip.textContent = siteUrlLabel || domain;
+          }
+          if (heroReadySiteTitle) {
+            heroReadySiteTitle.textContent = title || domain;
+          }
+          if (heroReadySiteDescription) {
+            heroReadySiteDescription.textContent = description || 'No description available yet.';
+          }
+        }
+
+        function applyDetectedPagesFromScanIfUntouched(detectedPages) {
+          if (quickPagesUserEdited) return;
+          var normalized = normalizePages(detectedPages);
+          if (normalized < 1) normalized = 1;
+          quickPagesInput.value = String(normalized);
+          if (quickSidebarPagesInput) {
+            quickSidebarPagesInput.value = String(normalized);
+          }
+          syncQuickSummary();
+        }
+
+        async function requestSiteScan(normalizedUrl, domain, runToken) {
+          var response = await fetch('/api/site-scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              siteUrl: normalizedUrl
+            })
           });
+
+          var responseData = {};
+          try {
+            responseData = await response.json();
+          } catch (_error) {
+            responseData = {};
+          }
+
+          if (runToken !== heroPreviewRunToken) {
+            return null;
+          }
+          if (!response.ok || responseData.scanStatus !== 'completed') {
+            throw new Error('Scan failed');
+          }
+
+          return {
+            siteUrl: responseData.siteUrl || normalizedUrl,
+            siteTitle: responseData.siteTitle || domain,
+            siteDescription: responseData.siteDescription || '',
+            previewImageUrl: responseData.previewImageUrl || buildPreviewPlaceholder(domain),
+            detectedPages: normalizePages(responseData.detectedPages),
+            scanStatus: responseData.scanStatus
+          };
         }
 
         function startHeroScanFlow(normalizedUrl, domain) {
@@ -6094,6 +6209,7 @@
           var runToken = heroPreviewRunToken;
           heroLastNormalizedUrl = normalizedUrl;
           heroLastDomain = domain;
+          heroLastScanResult = null;
           var isMobilePreviewStart = window.matchMedia('(max-width: 820px)').matches;
 
           function beginScanFlow() {
@@ -6128,11 +6244,11 @@
               if (runToken !== heroPreviewRunToken || heroPreviewState !== 'scanning') return;
               setHeroScanStepState(heroScanSteps.length);
               try {
-                var preview = await requestPreviewMock(normalizedUrl, domain, runToken);
+                var preview = await requestSiteScan(normalizedUrl, domain, runToken);
                 if (!preview || runToken !== heroPreviewRunToken || heroPreviewState !== 'scanning') return;
-                if (heroReadyImage) {
-                  heroReadyImage.src = preview.screenshotUrl;
-                }
+                heroLastScanResult = preview;
+                applyHeroScanResult(preview, domain);
+                applyDetectedPagesFromScanIfUntouched(preview.detectedPages);
                 setHeroPreviewState('ready');
                 enterMergedPreviewSetupStep({
                   resetMaintenance: true,
@@ -6140,7 +6256,9 @@
                   enableTours: true
                 });
               } catch (_error) {
+                heroLastScanResult = null;
                 setHeroPreviewState('idle');
+                showQuickInputError('We could not scan this site right now. Please try again.');
               }
             }, elapsed);
             heroPreviewTimerIds.push(completeTimer);
@@ -6163,6 +6281,8 @@
         function resetHeroPreviewToIdle(keepInputFocus) {
           clearHeroPreviewTimers();
           heroPreviewRunToken += 1;
+          heroLastScanResult = null;
+          quickPagesUserEdited = false;
           setHeroPreviewJourneyStep('preview', true);
           setHeroPreviewState('idle');
           siteMigrationTourPrimed = false;
@@ -6232,7 +6352,17 @@
               state: heroPreviewState,
               rawInput: sanitizeQuickInputValue(quickInput.value),
               normalizedUrl: heroLastNormalizedUrl || '',
-              domain: heroLastDomain || ''
+              domain: heroLastDomain || '',
+              scanResult: heroLastScanResult && typeof heroLastScanResult === 'object'
+                ? {
+                    siteUrl: heroLastScanResult.siteUrl || '',
+                    siteTitle: heroLastScanResult.siteTitle || '',
+                    siteDescription: heroLastScanResult.siteDescription || '',
+                    previewImageUrl: heroLastScanResult.previewImageUrl || '',
+                    detectedPages: normalizePages(heroLastScanResult.detectedPages || 0),
+                    scanStatus: heroLastScanResult.scanStatus || ''
+                  }
+                : null
             };
             window.sessionStorage.setItem(heroPreviewStateKey, JSON.stringify(state));
           } catch (_error) {
@@ -6279,14 +6409,16 @@
 
           heroLastNormalizedUrl = normalizedUrl;
           heroLastDomain = domain;
+          var restoredScanResult = state.scanResult && typeof state.scanResult === 'object'
+            ? state.scanResult
+            : null;
+          heroLastScanResult = restoredScanResult;
           if (heroScanDomainChip) heroScanDomainChip.textContent = domain;
           if (heroReadyDomainChip) heroReadyDomainChip.textContent = domain;
           setSummaryPillDomain(domain);
 
           if (state.state === 'ready') {
-            if (heroReadyImage) {
-              heroReadyImage.src = buildPreviewPlaceholder(domain);
-            }
+            applyHeroScanResult(restoredScanResult || { previewImageUrl: buildPreviewPlaceholder(domain) }, domain);
             setHeroScanStepState(heroScanSteps.length);
             setHeroPreviewState('ready');
             enterMergedPreviewSetupStep({
@@ -6552,6 +6684,7 @@
 
           var resolvedUrl = extractUrl(getEffectiveQuickInputRawValue());
           var hasWebsiteInput = Boolean(resolvedUrl);
+          setSummaryPillDomain(getDomainFromUrl(resolvedUrl));
           var checkoutEmail = normalizeCheckoutEmail(quickCheckoutEmailInput ? quickCheckoutEmailInput.value : '');
           var hasValidCheckoutEmail = isValidCheckoutEmail(checkoutEmail);
           writeCheckoutEmailState(checkoutEmail);
@@ -6565,6 +6698,7 @@
           var pages = normalizePages(quickPagesInput.value);
           if (!hasWebsiteInput) {
             pages = 0;
+            quickPagesUserEdited = false;
             if (quickMaintenanceOff && quickMaintenanceOn) {
               quickMaintenanceOff.checked = true;
               quickMaintenanceOn.checked = false;
@@ -6871,6 +7005,7 @@
 
         if (quickMinusBtn) {
           quickMinusBtn.addEventListener('click', function () {
+            markQuickPagesUserEdited();
             var current = normalizePages(quickPagesInput.value);
             quickPagesInput.value = String(Math.max(0, current - 1));
             syncQuickSummary();
@@ -6879,6 +7014,7 @@
 
         if (quickPlusBtn) {
           quickPlusBtn.addEventListener('click', function () {
+            markQuickPagesUserEdited();
             var current = normalizePages(quickPagesInput.value);
             quickPagesInput.value = String(Math.min(25, current + 1));
             syncQuickSummary();
@@ -6887,6 +7023,7 @@
 
         if (quickSidebarPagesMinusBtn && quickSidebarPagesInput) {
           quickSidebarPagesMinusBtn.addEventListener('click', function () {
+            markQuickPagesUserEdited();
             markQuickQuoteCardUsage('site');
             var current = normalizePages(quickSidebarPagesInput.value);
             var nextPages = Math.max(0, current - 1);
@@ -6903,6 +7040,7 @@
 
         if (quickSidebarPagesPlusBtn && quickSidebarPagesInput) {
           quickSidebarPagesPlusBtn.addEventListener('click', function () {
+            markQuickPagesUserEdited();
             markQuickQuoteCardUsage('site');
             var current = normalizePages(quickSidebarPagesInput.value);
             var nextPages = Math.min(25, current + 1);
@@ -6953,8 +7091,14 @@
           });
         }
 
-        quickPagesInput.addEventListener('change', syncQuickSummary);
-        quickPagesInput.addEventListener('input', syncQuickSummary);
+        quickPagesInput.addEventListener('change', function () {
+          markQuickPagesUserEdited();
+          syncQuickSummary();
+        });
+        quickPagesInput.addEventListener('input', function () {
+          markQuickPagesUserEdited();
+          syncQuickSummary();
+        });
         if (quickSiteToggle && quickSiteBody) {
           var shouldCollapseSiteOnMobile = window.matchMedia('(max-width: 820px)').matches;
           setCardOpen(quickSiteBody, quickSiteToggle, !shouldCollapseSiteOnMobile);
@@ -7236,6 +7380,7 @@
         });
         if (quickSidebarPagesInput) {
           quickSidebarPagesInput.addEventListener('change', function () {
+            markQuickPagesUserEdited();
             markQuickQuoteCardUsage('site');
             var nextPages = normalizePages(quickSidebarPagesInput.value);
             var previousPages = normalizePages(quickPagesInput.value);
@@ -7248,6 +7393,7 @@
             maybeTriggerSiteMaintenanceTour(nextPages, previousPages);
           });
           quickSidebarPagesInput.addEventListener('input', function () {
+            markQuickPagesUserEdited();
             markQuickQuoteCardUsage('site');
             var nextPages = normalizePages(quickSidebarPagesInput.value);
             var previousPages = normalizePages(quickPagesInput.value);

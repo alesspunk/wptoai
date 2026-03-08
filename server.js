@@ -5,6 +5,7 @@ require("dotenv").config();
 
 const quoteRoutes = require("./src/routes/quoteRoutes");
 const { createCheckoutRoutes } = require("./src/routes/checkoutRoutes");
+const siteScanRoutes = require("./src/routes/siteScan.route");
 const quoteService = require("./src/services/quoteService");
 const { formatMoneyFromCents } = require("./src/services/quotePricingService");
 const {
@@ -62,6 +63,7 @@ app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname)));
+app.use("/scans", express.static(path.join(__dirname, "public", "scans")));
 app.get("/", (_req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
@@ -94,6 +96,7 @@ app.post("/api/debug-email", async (_req, res) => {
 
 app.use("/api/quotes", quoteRoutes);
 app.use("/api", createCheckoutRoutes({ stripe }));
+app.use("/api", siteScanRoutes);
 
 function extractCustomerEmailFromSession(session) {
   if (!session || typeof session !== "object") return "";
