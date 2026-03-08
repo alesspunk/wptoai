@@ -6170,6 +6170,7 @@
         }
 
         async function requestSiteScan(normalizedUrl, domain, runToken) {
+          console.log('SITE_SCAN_FETCH_START', normalizedUrl);
           var response = await fetch('/api/site-scan', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -6225,6 +6226,7 @@
 
             setHeroPreviewState('scanning');
             setHeroScanStepState(0);
+            var scanPromise = requestSiteScan(normalizedUrl, domain, runToken);
 
             var baseDurations = [1950, 2220, 2360, 2140];
             if (prefersReducedMotion) {
@@ -6248,7 +6250,7 @@
               if (runToken !== heroPreviewRunToken || heroPreviewState !== 'scanning') return;
               setHeroScanStepState(heroScanSteps.length);
               try {
-                var preview = await requestSiteScan(normalizedUrl, domain, runToken);
+                var preview = await scanPromise;
                 if (!preview || runToken !== heroPreviewRunToken || heroPreviewState !== 'scanning') return;
                 heroLastScanResult = preview;
                 applyHeroScanResult(preview, domain);
@@ -6967,6 +6969,7 @@
 
         quickForm.addEventListener('submit', function (event) {
           event.preventDefault();
+          console.log('PREVIEW_BUTTON_CLICKED');
           forcePageToTopForPreview();
           pendingSidebarPages = 0;
           var text = quickInput.value.trim();
