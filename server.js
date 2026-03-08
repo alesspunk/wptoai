@@ -8,7 +8,7 @@ const { createCheckoutRoutes } = require("./src/routes/checkoutRoutes");
 const quoteService = require("./src/services/quoteService");
 const { formatMoneyFromCents } = require("./src/services/quotePricingService");
 const {
-  sendOrderSummary,
+  sendEmail,
   getOrderNotificationRecipient
 } = require("./src/services/email.service");
 
@@ -71,11 +71,6 @@ app.get("/health", (_req, res) => {
 });
 
 app.post("/api/debug-email", async (_req, res) => {
-  console.log("SMTP_HOST", process.env.SMTP_HOST || "");
-  console.log("SMTP_PORT", Number(process.env.SMTP_PORT));
-  console.log("SMTP_SECURE", process.env.SMTP_SECURE === "true");
-  console.log("SMTP_USER", process.env.SMTP_USER || "");
-
   const adminEmail = getOrderNotificationRecipient();
   if (!adminEmail) {
     return res.status(400).json({
@@ -84,14 +79,11 @@ app.post("/api/debug-email", async (_req, res) => {
   }
 
   try {
-    await sendOrderSummary({
-      email: adminEmail,
-      siteUrl: "https://wptoai.com",
-      plan: "debug",
-      total: "$0.00",
-      subject: "WPtoAI SMTP debug",
-      recipientType: "admin"
-    });
+    await sendEmail(
+      adminEmail,
+      "WPtoAI email debug",
+      "<p>This is a test email from WPtoAI.</p>"
+    );
     return res.json({ ok: true, sentTo: adminEmail });
   } catch (error) {
     return res.status(500).json({
@@ -142,6 +134,20 @@ async function handleCheckoutSessionCompleted(session) {
   const plan = metadata.plan || metadata.pricing_tier || "Not provided";
   const total = formatMoneyFromCents((session && session.amount_total) || 0);
   const adminEmail = getOrderNotificationRecipient();
+  const customerHtml = `
+    <p>Hi,</p>
+    <p>Your WPtoAI migration checkout is complete.</p>
+    <p><strong>Site URL:</strong> ${siteUrl}</p>
+    <p><strong>Plan:</strong> ${plan}</p>
+    <p><strong>Total:</strong> ${total}</p>
+  `;
+  const adminHtml = `
+    <p>A new WPtoAI order was completed.</p>
+    <p><strong>Site URL:</strong> ${siteUrl}</p>
+    <p><strong>Plan:</strong> ${plan}</p>
+    <p><strong>Total:</strong> ${total}</p>
+    <p><strong>Quote ID:</strong> ${quoteId || "n/a"}</p>
+  `;
 
   if (!customerEmail) {
     console.warn("CUSTOMER_EMAIL_MISSING");
@@ -150,16 +156,10 @@ async function handleCheckoutSessionCompleted(session) {
   } else {
     console.log("EMAIL_SEND_CUSTOMER_START", customerEmail, quoteId || "");
     try {
-      await sendOrderSummary({
-        email: customerEmail,
-        siteUrl,
-        plan,
-        total,
-        subject: "Your WP to AI migration summary",
-        recipientType: "customer"
-      });
+      await sendEmail(customerEmail, "Your WP to AI migration summary", customerHtml);
       console.log("EMAIL_SEND_CUSTOMER_OK", customerEmail, quoteId || "");
     } catch (error) {
+      console.error("EMAIL_SEND_FAILED", error && error.message ? error.message : error);
       console.error("EMAIL_SEND_CUSTOMER_ERROR", error && error.message ? error.message : error);
     }
   }
@@ -169,16 +169,10 @@ async function handleCheckoutSessionCompleted(session) {
   } else {
     console.log("EMAIL_SEND_ADMIN_START", adminEmail, quoteId || "");
     try {
-      await sendOrderSummary({
-        email: adminEmail,
-        siteUrl,
-        plan,
-        total,
-        subject: "New WPtoAI order",
-        recipientType: "admin"
-      });
+      await sendEmail(adminEmail, "New WPtoAI order", adminHtml);
       console.log("EMAIL_SEND_ADMIN_OK", adminEmail, quoteId || "");
     } catch (error) {
+      console.error("EMAIL_SEND_FAILED", error && error.message ? error.message : error);
       console.error("EMAIL_SEND_ADMIN_ERROR", error && error.message ? error.message : error);
     }
   }
