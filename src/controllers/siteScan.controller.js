@@ -7,9 +7,15 @@ async function siteScanController(req, res) {
     const result = await scanSite(siteUrl);
     return res.json(result);
   } catch (error) {
-    console.error("SITE_SCAN_ERROR", error && error.message ? error.message : error);
-    return res.json({
-      scanStatus: "failed"
+    const message = error && error.message ? error.message : "Unknown site scan error";
+    const stack = error && error.stack ? error.stack : "";
+    console.error("SITE_SCAN_ERROR", message);
+    if (stack) {
+      console.error("SITE_SCAN_ERROR_STACK", stack);
+    }
+    return res.status(500).json({
+      scanStatus: "failed",
+      error: message
     });
   }
 }

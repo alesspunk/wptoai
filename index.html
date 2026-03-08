@@ -6177,19 +6177,23 @@
               siteUrl: normalizedUrl
             })
           });
+          console.log('SITE_SCAN_FETCH_STATUS', response.status, response.ok);
+          console.log('SITE_SCAN_FETCH_RESPONSE', response);
 
           var responseData = {};
           try {
             responseData = await response.json();
+            console.log('SITE_SCAN_FETCH_JSON', responseData);
           } catch (_error) {
             responseData = {};
+            console.error('SITE_SCAN_FETCH_JSON_ERROR', _error && _error.message ? _error.message : _error);
           }
 
           if (runToken !== heroPreviewRunToken) {
             return null;
           }
           if (!response.ok || responseData.scanStatus !== 'completed') {
-            throw new Error('Scan failed');
+            throw new Error(responseData && responseData.error ? responseData.error : 'Scan failed');
           }
 
           return {
@@ -6256,6 +6260,7 @@
                   enableTours: true
                 });
               } catch (_error) {
+                console.error('SITE_SCAN_FLOW_ERROR', _error && _error.message ? _error.message : _error);
                 heroLastScanResult = null;
                 setHeroPreviewState('idle');
                 showQuickInputError('We could not scan this site right now. Please try again.');

@@ -92,16 +92,17 @@ async function extractPageMetadata(page) {
 }
 
 async function launchBrowser() {
-  const useServerlessChromium = process.platform === "linux";
+  const isVercelRuntime = Boolean(process.env.VERCEL);
+  const useServerlessChromium = isVercelRuntime || process.platform === "linux";
   const executablePath = useServerlessChromium
-    ? process.env.PUPPETEER_EXECUTABLE_PATH || (await chromium.executablePath())
+    ? await chromium.executablePath()
     : resolveLocalExecutablePath();
 
   return puppeteer.launch({
     args: useServerlessChromium ? chromium.args : ["--no-sandbox", "--disable-setuid-sandbox"],
     defaultViewport: VIEWPORT,
     executablePath: executablePath || undefined,
-    headless: useServerlessChromium ? chromium.headless : true,
+    headless: useServerlessChromium ? true : true,
     ignoreHTTPSErrors: true
   });
 }
@@ -140,7 +141,8 @@ async function collectInternalLinks(browser, rootUrl, initialLinks) {
           queue.push(normalized);
         }
       });
-    } catch (_error) {
+    } catch (error) {
+      console.error("SITE_SCAN_CRAWL_ERROR", nextUrl, error && error.message ? error.message : error);
     } finally {
       await page.close();
     }
@@ -162,7 +164,12 @@ async function saveScanImages(page, timestamp) {
     fullPage: true,
     type: "png"
   });
-  await fsPromises.writeFile(fullPath, fullBuffer);
+  try {
+    await fsPromises.writeFile(fullPath, fullBuffer);
+  } catch (error) {
+    console.error("SITE_SCAN_SCREENSHOT_SAVE_ERROR", fullPath, error && error.message ? error.message : error);
+    throw error;
+  }
 
   const viewport = page.viewport() || VIEWPORT;
   const previewBuffer = await page.screenshot({
@@ -174,7 +181,12 @@ async function saveScanImages(page, timestamp) {
       height: Math.floor(viewport.height || VIEWPORT.height)
     }
   });
-  await fsPromises.writeFile(previewPath, previewBuffer);
+  try {
+    await fsPromises.writeFile(previewPath, previewBuffer);
+  } catch (error) {
+    console.error("SITE_SCAN_SCREENSHOT_SAVE_ERROR", previewPath, error && error.message ? error.message : error);
+    throw error;
+  }
 
   return {
     fullImageUrl: `/scans/${fullFilename}`,
@@ -183,7 +195,9 @@ async function saveScanImages(page, timestamp) {
 }
 
 async function scanSite(inputUrl) {
+  console.log("SITE_SCAN_START");
   const normalizedUrl = extractUrl(inputUrl || "");
+  console.log("SITE_SCAN_URL", normalizedUrl || String(inputUrl || ""));
   if (!normalizedUrl) {
     throw new Error("Invalid siteUrl.");
   }
@@ -198,21 +212,25 @@ async function scanSite(inputUrl) {
 
   try {
     browser = await launchBrowser();
+    console.log("SITE_SCAN_BROWSER_OK");
     const page = await browser.newPage();
     await page.setViewport(VIEWPORT);
     await page.goto(normalizedUrl, {
       waitUntil: "networkidle2",
       timeout: 45000
     });
+    console.log("SITE_SCAN_PAGE_OK");
 
     const metadata = await extractPageMetadata(page);
+    console.log("SITE_SCAN_METADATA_OK");
     const timestamp = Date.now();
     const images = await saveScanImages(page, timestamp);
+    console.log("SITE_SCAN_SCREENSHOT_OK");
 
     const discoveredLinks = await collectInternalLinks(browser, rootUrl, metadata.hrefs);
     const detectedPages = Math.max(1, discoveredLinks.size);
 
-    return {
+    const result = {
       siteUrl: normalizedUrl,
       siteTitle: metadata.title || rootUrl.hostname,
       siteDescription: metadata.description || "",
@@ -220,6 +238,16 @@ async function scanSite(inputUrl) {
       detectedPages,
       scanStatus: "completed"
     };
+    console.log("SITE_SCAN_DONE", JSON.stringify({
+      siteUrl: result.siteUrl,
+      detectedPages: result.detectedPages,
+      previewImageUrl: result.previewImageUrl
+    }));
+    return result;
+  } catch (error) {
+    console.error("SITE_SCAN_ERROR", error && error.message ? error.message : error);
+    console.error("SITE_SCAN_ERROR_STACK", error && error.stack ? error.stack : "");
+    throw error;
   } finally {
     if (browser) {
       await browser.close();
