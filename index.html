@@ -842,17 +842,17 @@
       }
       .hero-ready-close {
         position: absolute;
-        top: 10px;
-        right: 10px;
-        width: 34px;
-        height: 34px;
+        top: -14px;
+        right: -14px;
+        min-height: 34px;
+        padding: 0 12px;
         border-radius: 999px;
         border: 1px solid #cbd9f6;
         background: #ffffff;
         color: #2b467d;
-        font-size: 20px;
+        font-size: var(--text-sm);
         line-height: 1;
-        font-weight: 700;
+        font-weight: 800;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -890,6 +890,18 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+      }
+      .hero-url-chip {
+        border-color: #c6d7f8;
+        background: #eef4ff;
+        color: #2a487f;
+      }
+      .hero-pages-chip {
+        border-color: #8ed9c9;
+        background: linear-gradient(180deg, #f3fffb 0%, #e6f9f3 100%);
+        color: #166253;
+        font-weight: 800;
+        box-shadow: 0 7px 14px rgba(30, 144, 120, 0.16);
       }
       .hero-scan-stage {
         margin-top: 12px;
@@ -1087,9 +1099,7 @@
         min-height: 250px;
         max-height: 597px;
         height: min(597px, 72vh);
-        overflow-y: auto;
-        overflow-x: hidden;
-        -webkit-overflow-scrolling: touch;
+        overflow: hidden;
         position: relative;
       }
       .hero-ready-card::after {
@@ -3872,11 +3882,11 @@
           border-radius: 16px;
         }
         .hero-ready-close {
-          top: 8px;
-          right: 8px;
-          width: 30px;
-          height: 30px;
-          font-size: 18px;
+          top: -10px;
+          right: -10px;
+          min-height: 30px;
+          padding: 0 10px;
+          font-size: var(--text-2xs);
         }
         .hero-preview-flow[data-state="scanning"],
         .hero-preview-flow[data-state="ready"] {
@@ -3944,8 +3954,7 @@
           min-height: 200px;
           max-height: 597px;
           height: min(597px, 56vh);
-          overflow-y: auto;
-          overflow-x: hidden;
+          overflow: hidden;
         }
         body.hero-flow-locked #hero-ready-image {
           min-height: 0;
@@ -4460,7 +4469,7 @@
                     <div class="quote-qty" role="group" aria-label="Pages quantity">
                       <span class="quote-qty-label">How many pages?</span>
                       <button id="quick-quote-minus" class="quote-qty-btn" type="button" aria-label="Decrease pages">−</button>
-                      <input id="quick-quote-pages" class="quote-pages-input" type="number" min="0" max="25" step="1" value="0" aria-label="Pages to convert">
+                      <input id="quick-quote-pages" class="quote-pages-input" type="number" min="0" max="50" step="1" value="0" aria-label="Pages to convert">
                       <button id="quick-quote-plus" class="quote-qty-btn" type="button" aria-label="Increase pages">+</button>
                     </div>
                     <button class="btn btn-primary quick-quote-btn" type="submit">Preview My Site</button>
@@ -4526,14 +4535,11 @@
               </div>
 
               <div id="hero-ready-content" class="hero-state hero-state-ready" hidden>
-                <button id="hero-ready-close" class="hero-ready-close" type="button" aria-label="Close preview">×</button>
+                <button id="hero-ready-close" class="hero-ready-close" type="button" aria-label="Close preview">Close</button>
                 <div class="hero-ready-head">
                   <div class="hero-ready-meta">
-                    <p class="hero-scan-kicker">Preview ready</p>
-                    <div class="hero-ready-chip-row">
-                      <p id="hero-ready-domain-chip" class="hero-domain-chip">wptoai.com</p>
-                      <p id="hero-ready-pages-chip" class="hero-domain-chip" hidden>0 pages detected</p>
-                    </div>
+                    <p class="hero-scan-kicker">Migration Preview Ready</p>
+                    <p id="hero-ready-info-title" class="hero-ready-info-title">WP to AI preview snapshot</p>
                   </div>
                   <ol id="hero-preview-stepper" class="hero-preview-stepper" aria-label="Preview progress">
                     <li class="hero-preview-stepper-item" data-step="preview" data-state="active">
@@ -4554,11 +4560,11 @@
                   <img id="hero-ready-image" src="" alt="Preview screenshot of your WordPress to AI migration">
                 </figure>
                 <div class="hero-ready-info">
-                  <p id="hero-ready-info-title" class="hero-ready-info-title">WP to AI preview snapshot</p>
+                    <div class="hero-ready-chip-row">
+                    <p id="hero-ready-domain-chip" class="hero-domain-chip hero-url-chip">wptoai.com</p>
+                    <p id="hero-ready-pages-chip" class="hero-domain-chip hero-pages-chip" hidden>0 pages detected</p>
+                  </div>
                   <p class="hero-ready-info-subtitle">Same design. Structured for chat-based changes.</p>
-                </div>
-                <div class="hero-ready-actions">
-                  <button id="hero-change-url-ready" class="btn btn-outline" type="button">Change URL</button>
                 </div>
               </div>
             </div>
@@ -4595,10 +4601,10 @@
                     <span class="quick-summary-name">Pages <span class="quick-summary-rate">/ quantity</span></span>
                     <div class="quick-change-qty" role="group" aria-label="Site pages quantity">
                       <button id="quick-sidebar-pages-minus" class="quick-change-btn" type="button" aria-label="Decrease site pages">−</button>
-                      <input id="quick-sidebar-pages-input" class="quick-change-input" type="number" min="0" max="25" step="1" value="0" aria-label="Site pages quantity">
+                      <input id="quick-sidebar-pages-input" class="quick-change-input" type="number" min="0" max="50" step="1" value="0" aria-label="Site pages quantity">
                       <button id="quick-sidebar-pages-plus" class="quick-change-btn" type="button" aria-label="Increase site pages">+</button>
                     </div>
-                    <span id="quick-pages-max-hint" class="quick-summary-rate" hidden>(max 25)</span>
+                    <span id="quick-pages-max-hint" class="quick-summary-rate" hidden>(max 50)</span>
                   </div>
                   <div id="quick-sidebar-url-row" class="quick-sidebar-url-row" hidden>
                     <label class="quick-sidebar-url-label" for="quick-sidebar-url-input">Add your WordPress URL</label>
@@ -4757,13 +4763,13 @@
                 <span class="quick-rail-total-label">Total</span>
                 <span id="quick-total" class="quick-summary-total">$0</span>
               </p>
-              <a class="quick-rail-btn is-disabled" href="#get-started" aria-disabled="true">Checkout Now</a>
+              <a class="quick-rail-btn is-disabled" href="#get-started" aria-disabled="true">Continue to Checkout</a>
             </div>
           </aside>
         </div>
         <div class="hero-bottom-note-wrap">
           <a class="hero-bottom-note" href="#how" aria-label="See how it works">
-            Made for WordPress owners.
+            See how it works.
             <span class="hero-bottom-link-arrow" aria-hidden="true">↓</span>
           </a>
         </div>
@@ -5356,7 +5362,6 @@
         var heroScanLive = document.querySelector('#hero-scan-live');
         var heroChangeUrlScanBtn = document.querySelector('#hero-change-url-scan');
         var heroCancelScanBtn = document.querySelector('#hero-cancel-scan');
-        var heroChangeUrlReadyBtn = document.querySelector('#hero-change-url-ready');
         var heroReadyCloseBtn = document.querySelector('#hero-ready-close');
         var heroReadyContinueBtn = document.querySelector('#hero-ready-continue');
         var heroBottomNoteLink = document.querySelector('.hero-bottom-note');
@@ -6586,7 +6591,7 @@
         function normalizePages(value) {
           var pages = parseInt(value, 10);
           if (isNaN(pages) || pages < 0) pages = 0;
-          if (pages > 25) pages = 25;
+          if (pages > 50) pages = 50;
           return pages;
         }
 
@@ -6739,7 +6744,7 @@
           }
           quickPagesInput.value = String(pages);
           if (quickSidebarPagesInput) quickSidebarPagesInput.value = String(pages);
-          if (quickPagesMaxHint) quickPagesMaxHint.hidden = pages <= 24;
+          if (quickPagesMaxHint) quickPagesMaxHint.hidden = pages <= 49;
           var changes = quickChangesInput ? normalizeChanges(quickChangesInput.value) : 15;
           if (quickChangesInput) quickChangesInput.value = String(changes);
           var engineers = quickEngineersInput ? normalizeEngineers(quickEngineersInput.value) : 0;
@@ -7034,16 +7039,16 @@
           quickMinusBtn.addEventListener('click', function () {
             markQuickPagesUserEdited();
             var current = normalizePages(quickPagesInput.value);
-            quickPagesInput.value = String(Math.max(0, current - 1));
-            syncQuickSummary();
-          });
-        }
+          quickPagesInput.value = String(Math.max(0, current - 1));
+          syncQuickSummary();
+        });
+      }
 
         if (quickPlusBtn) {
           quickPlusBtn.addEventListener('click', function () {
             markQuickPagesUserEdited();
             var current = normalizePages(quickPagesInput.value);
-            quickPagesInput.value = String(Math.min(25, current + 1));
+            quickPagesInput.value = String(Math.min(50, current + 1));
             syncQuickSummary();
           });
         }
@@ -7070,7 +7075,7 @@
             markQuickPagesUserEdited();
             markQuickQuoteCardUsage('site');
             var current = normalizePages(quickSidebarPagesInput.value);
-            var nextPages = Math.min(25, current + 1);
+            var nextPages = Math.min(50, current + 1);
             var previousPages = normalizePages(quickPagesInput.value);
             quickPagesInput.value = String(nextPages);
             if (!maybeRevealSidebarUrlPromptForPages(nextPages)) {
@@ -7291,11 +7296,6 @@
         }
         if (heroCancelScanBtn) {
           heroCancelScanBtn.addEventListener('click', function () {
-            resetHeroPreviewToIdle(true);
-          });
-        }
-        if (heroChangeUrlReadyBtn) {
-          heroChangeUrlReadyBtn.addEventListener('click', function () {
             resetHeroPreviewToIdle(true);
           });
         }

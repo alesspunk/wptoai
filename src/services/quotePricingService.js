@@ -12,7 +12,7 @@ function normalizeInt(value, fallback) {
 
 function normalizePages(value) {
   const pages = normalizeInt(value, 0);
-  return Math.min(Math.max(pages, 0), 25);
+  return Math.min(Math.max(pages, 0), 50);
 }
 
 function normalizePrompts(value) {
