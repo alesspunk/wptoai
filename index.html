@@ -1039,6 +1039,9 @@
         gap: 10px;
         width: 100%;
       }
+      .hero-ready-actions {
+        justify-content: flex-end;
+      }
       .hero-ready-actions > :first-child {
         margin-right: auto;
       }
@@ -1046,8 +1049,8 @@
         margin-left: auto;
       }
       .hero-ready-actions > :only-child {
-        margin-left: 0;
-        margin-right: auto;
+        margin-left: auto;
+        margin-right: 0;
       }
       .hero-ready-actions .btn.is-fading-out {
         animation: hero-ready-continue-fade 0.24s ease forwards;
@@ -1082,7 +1085,11 @@
         border-radius: 16px;
         background: #f7fbff;
         min-height: 250px;
-        overflow: hidden;
+        max-height: 597px;
+        height: min(597px, 72vh);
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
         position: relative;
       }
       .hero-ready-card::after {
@@ -1106,6 +1113,12 @@
       .hero-ready-meta {
         display: grid;
         gap: 8px;
+      }
+      .hero-ready-chip-row {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
       }
       .hero-ready-meta .hero-domain-chip {
         margin-top: 0;
@@ -1176,9 +1189,9 @@
       }
       #hero-ready-image {
         width: 100%;
-        height: 100%;
-        min-height: 250px;
-        object-fit: cover;
+        height: auto;
+        min-height: 0;
+        object-fit: contain;
         object-position: top center;
         display: block;
       }
@@ -1198,18 +1211,6 @@
         color: #5c6f99;
         font-size: var(--text-sm);
         font-weight: 600;
-      }
-      .hero-ready-site-title {
-        margin: 8px 0 0;
-        color: #27427c;
-        font-size: var(--text-base);
-        font-weight: 700;
-      }
-      .hero-ready-site-description {
-        margin: 0;
-        color: #5f6f95;
-        font-size: var(--text-sm);
-        font-weight: 500;
       }
       @keyframes hero-inline-enter {
         from {
@@ -3930,14 +3931,25 @@
         .hero-scan-step-text {
           font-size: var(--text-sm);
         }
-        .hero-ready-card,
-        #hero-ready-image {
+        .hero-ready-card {
           min-height: 200px;
+          max-height: 597px;
+          height: min(597px, 56vh);
         }
-        body.hero-flow-locked .hero-ready-card,
+        #hero-ready-image {
+          min-height: 0;
+          height: auto;
+        }
+        body.hero-flow-locked .hero-ready-card {
+          min-height: 200px;
+          max-height: 597px;
+          height: min(597px, 56vh);
+          overflow-y: auto;
+          overflow-x: hidden;
+        }
         body.hero-flow-locked #hero-ready-image {
-          min-height: 150px;
-          max-height: 32vh;
+          min-height: 0;
+          height: auto;
         }
         .hero-ready-head {
           flex-direction: column;
@@ -4518,7 +4530,10 @@
                 <div class="hero-ready-head">
                   <div class="hero-ready-meta">
                     <p class="hero-scan-kicker">Preview ready</p>
-                    <p id="hero-ready-domain-chip" class="hero-domain-chip">wptoai.com</p>
+                    <div class="hero-ready-chip-row">
+                      <p id="hero-ready-domain-chip" class="hero-domain-chip">wptoai.com</p>
+                      <p id="hero-ready-pages-chip" class="hero-domain-chip" hidden>0 pages detected</p>
+                    </div>
                   </div>
                   <ol id="hero-preview-stepper" class="hero-preview-stepper" aria-label="Preview progress">
                     <li class="hero-preview-stepper-item" data-step="preview" data-state="active">
@@ -4539,10 +4554,8 @@
                   <img id="hero-ready-image" src="" alt="Preview screenshot of your WordPress to AI migration">
                 </figure>
                 <div class="hero-ready-info">
-                  <p class="hero-ready-info-title">WP to AI preview snapshot</p>
+                  <p id="hero-ready-info-title" class="hero-ready-info-title">WP to AI preview snapshot</p>
                   <p class="hero-ready-info-subtitle">Same design. Structured for chat-based changes.</p>
-                  <p id="hero-ready-site-title" class="hero-ready-site-title"></p>
-                  <p id="hero-ready-site-description" class="hero-ready-site-description"></p>
                 </div>
                 <div class="hero-ready-actions">
                   <button id="hero-change-url-ready" class="btn btn-outline" type="button">Change URL</button>
@@ -5336,9 +5349,9 @@
         var heroReadyContent = document.querySelector('#hero-ready-content');
         var heroScanDomainChip = document.querySelector('#hero-scan-domain-chip');
         var heroReadyDomainChip = document.querySelector('#hero-ready-domain-chip');
+        var heroReadyPagesChip = document.querySelector('#hero-ready-pages-chip');
         var heroReadyImage = document.querySelector('#hero-ready-image');
-        var heroReadySiteTitle = document.querySelector('#hero-ready-site-title');
-        var heroReadySiteDescription = document.querySelector('#hero-ready-site-description');
+        var heroReadyInfoTitle = document.querySelector('#hero-ready-info-title');
         var heroScanSteps = Array.prototype.slice.call(document.querySelectorAll('.hero-scan-step'));
         var heroScanLive = document.querySelector('#hero-scan-live');
         var heroChangeUrlScanBtn = document.querySelector('#hero-change-url-scan');
@@ -6141,8 +6154,8 @@
         function applyHeroScanResult(scanResult, domain) {
           var result = scanResult && typeof scanResult === 'object' ? scanResult : {};
           var title = (result.siteTitle || '').trim();
-          var description = (result.siteDescription || '').trim();
           var siteUrlLabel = (result.siteUrl || '').trim();
+          var detectedPages = normalizePages(result.detectedPages);
 
           if (heroReadyImage) {
             heroReadyImage.src = result.previewImageUrl || buildPreviewPlaceholder(domain);
@@ -6150,11 +6163,17 @@
           if (heroReadyDomainChip) {
             heroReadyDomainChip.textContent = siteUrlLabel || domain;
           }
-          if (heroReadySiteTitle) {
-            heroReadySiteTitle.textContent = title || domain;
+          if (heroReadyPagesChip) {
+            if (detectedPages > 0) {
+              heroReadyPagesChip.hidden = false;
+              heroReadyPagesChip.textContent = detectedPages + (detectedPages === 1 ? ' page detected' : ' pages detected');
+            } else {
+              heroReadyPagesChip.hidden = true;
+              heroReadyPagesChip.textContent = '';
+            }
           }
-          if (heroReadySiteDescription) {
-            heroReadySiteDescription.textContent = description || 'No description available yet.';
+          if (heroReadyInfoTitle) {
+            heroReadyInfoTitle.textContent = title || domain;
           }
         }
 
