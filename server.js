@@ -211,15 +211,12 @@ async function handleCheckoutSessionCompleted(session) {
   const plan = metadata.plan || metadata.pricing_tier || "Not provided";
   const total = formatMoneyFromCents((session && session.amount_total) || 0);
   const adminEmail = getOrderNotificationRecipient();
-  const customerSummaryHtml = `
+  const customerHtml = `
     <p>Hi,</p>
     <p>Your WPtoAI migration checkout is complete.</p>
     <p><strong>Site URL:</strong> ${wordpressUrl}</p>
     <p><strong>Plan:</strong> ${plan}</p>
     <p><strong>Total:</strong> ${total}</p>
-  `;
-  const onboardingHtml = `
-    <p>Hi,</p>
     <p>We received your request to convert:</p>
     <p><strong>${wordpressUrl}</strong></p>
     <p>Your project is now being prepared.</p>
@@ -245,8 +242,7 @@ async function handleCheckoutSessionCompleted(session) {
   } else {
     console.log("EMAIL_SEND_CUSTOMER_START", normalizedCustomerEmail, quoteId || "");
     try {
-      await sendEmail(normalizedCustomerEmail, "Your WP to AI migration summary", customerSummaryHtml);
-      await sendEmail(normalizedCustomerEmail, "Your WordPress migration has started", onboardingHtml);
+      await sendEmail(normalizedCustomerEmail, "Your WP to AI migration summary", customerHtml);
       console.log("EMAIL_SEND_CUSTOMER_OK", normalizedCustomerEmail, quoteId || "");
     } catch (error) {
       console.error("EMAIL_SEND_FAILED", error && error.message ? error.message : error);
