@@ -4469,7 +4469,7 @@
                     <div class="quote-qty" role="group" aria-label="Pages quantity">
                       <span class="quote-qty-label">How many pages?</span>
                       <button id="quick-quote-minus" class="quote-qty-btn" type="button" aria-label="Decrease pages">−</button>
-                      <input id="quick-quote-pages" class="quote-pages-input" type="number" min="0" max="50" step="1" value="0" aria-label="Pages to convert">
+                      <input id="quick-quote-pages" class="quote-pages-input" type="number" min="0" max="100" step="1" value="0" aria-label="Pages to convert">
                       <button id="quick-quote-plus" class="quote-qty-btn" type="button" aria-label="Increase pages">+</button>
                     </div>
                     <button class="btn btn-primary quick-quote-btn" type="submit">Preview My Site</button>
@@ -4601,10 +4601,10 @@
                     <span class="quick-summary-name">Pages <span class="quick-summary-rate">/ quantity</span></span>
                     <div class="quick-change-qty" role="group" aria-label="Site pages quantity">
                       <button id="quick-sidebar-pages-minus" class="quick-change-btn" type="button" aria-label="Decrease site pages">−</button>
-                      <input id="quick-sidebar-pages-input" class="quick-change-input" type="number" min="0" max="50" step="1" value="0" aria-label="Site pages quantity">
+                      <input id="quick-sidebar-pages-input" class="quick-change-input" type="number" min="0" max="100" step="1" value="0" aria-label="Site pages quantity">
                       <button id="quick-sidebar-pages-plus" class="quick-change-btn" type="button" aria-label="Increase site pages">+</button>
                     </div>
-                    <span id="quick-pages-max-hint" class="quick-summary-rate" hidden>(max 50)</span>
+                    <span id="quick-pages-max-hint" class="quick-summary-rate" hidden>(max 100)</span>
                   </div>
                   <div id="quick-sidebar-url-row" class="quick-sidebar-url-row" hidden>
                     <label class="quick-sidebar-url-label" for="quick-sidebar-url-input">Add your WordPress URL</label>
@@ -6573,8 +6573,10 @@
 
         function getQuoteRule(pages) {
           if (pages <= 3) return { label: "1-3 pages", first: 50, next: 40 };
-          if (pages <= 6) return { label: "3-6 pages", first: 50, next: 40 };
-          return { label: "6+ pages", first: 40, next: 30 };
+          if (pages <= 6) return { label: "4-6 pages", first: 45, next: 35 };
+          if (pages <= 20) return { label: "7-20 pages", first: 40, next: 30 };
+          if (pages <= 50) return { label: "21-50 pages", first: 35, next: 25 };
+          return { label: "51-100 pages", first: 30, next: 20 };
         }
 
         function formatMoney(value) {
@@ -6591,7 +6593,7 @@
         function normalizePages(value) {
           var pages = parseInt(value, 10);
           if (isNaN(pages) || pages < 0) pages = 0;
-          if (pages > 50) pages = 50;
+          if (pages > 100) pages = 100;
           return pages;
         }
 
@@ -6744,7 +6746,7 @@
           }
           quickPagesInput.value = String(pages);
           if (quickSidebarPagesInput) quickSidebarPagesInput.value = String(pages);
-          if (quickPagesMaxHint) quickPagesMaxHint.hidden = pages <= 49;
+          if (quickPagesMaxHint) quickPagesMaxHint.hidden = pages <= 99;
           var changes = quickChangesInput ? normalizeChanges(quickChangesInput.value) : 15;
           if (quickChangesInput) quickChangesInput.value = String(changes);
           var engineers = quickEngineersInput ? normalizeEngineers(quickEngineersInput.value) : 0;

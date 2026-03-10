@@ -12,7 +12,7 @@ function normalizeInt(value, fallback) {
 
 function normalizePages(value) {
   const pages = normalizeInt(value, 0);
-  return Math.min(Math.max(pages, 0), 50);
+  return Math.min(Math.max(pages, 0), 100);
 }
 
 function normalizePrompts(value) {
@@ -49,8 +49,10 @@ function extractUrl(value) {
 
 function getQuoteRule(pages) {
   if (pages <= 3) return { label: "1-3 pages", first: 50, next: 40 };
-  if (pages <= 6) return { label: "3-6 pages", first: 50, next: 40 };
-  return { label: "6+ pages", first: 40, next: 30 };
+  if (pages <= 6) return { label: "4-6 pages", first: 45, next: 35 };
+  if (pages <= 20) return { label: "7-20 pages", first: 40, next: 30 };
+  if (pages <= 50) return { label: "21-50 pages", first: 35, next: 25 };
+  return { label: "51-100 pages", first: 30, next: 20 };
 }
 
 function formatMoneyFromCents(cents) {
