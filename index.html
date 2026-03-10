@@ -6111,6 +6111,33 @@
           }
         }
 
+        function writeHeroPreviewWindowCache(state) {
+          try {
+            if (!state || typeof state !== 'object') {
+              if (window.name && window.name.indexOf('wptoai.previewState=') === 0) {
+                window.name = '';
+              }
+              return;
+            }
+            window.name = 'wptoai.previewState=' + JSON.stringify(state);
+          } catch (_error) {
+          }
+        }
+
+        function readHeroPreviewWindowCache() {
+          try {
+            var raw = window.name || '';
+            if (!raw || raw.indexOf('wptoai.previewState=') !== 0) return null;
+            var serialized = raw.slice('wptoai.previewState='.length);
+            if (!serialized) return null;
+            var parsed = JSON.parse(serialized);
+            if (!parsed || typeof parsed !== 'object') return null;
+            return parsed;
+          } catch (_error) {
+            return null;
+          }
+        }
+
         function setHeroScanStepState(activeIndex) {
           if (!heroScanSteps.length) return;
           var activeStepText = '';
@@ -6377,6 +6404,7 @@
           try {
             if (heroPreviewState !== 'scanning' && heroPreviewState !== 'ready') {
               window.sessionStorage.removeItem(heroPreviewStateKey);
+              writeHeroPreviewWindowCache(null);
               return;
             }
             var state = {
@@ -6395,18 +6423,43 @@
                   }
                 : null
             };
+            writeHeroPreviewWindowCache(state);
             window.sessionStorage.setItem(heroPreviewStateKey, JSON.stringify(state));
           } catch (_error) {
+            try {
+              var fallbackState = {
+                state: heroPreviewState,
+                rawInput: sanitizeQuickInputValue(quickInput.value),
+                normalizedUrl: heroLastNormalizedUrl || '',
+                domain: heroLastDomain || '',
+                scanResult: heroLastScanResult && typeof heroLastScanResult === 'object'
+                  ? {
+                      siteUrl: heroLastScanResult.siteUrl || '',
+                      siteTitle: heroLastScanResult.siteTitle || '',
+                      siteDescription: heroLastScanResult.siteDescription || '',
+                      previewImageUrl: heroLastScanResult.previewImageUrl || '',
+                      detectedPages: normalizePages(heroLastScanResult.detectedPages || 0),
+                      scanStatus: heroLastScanResult.scanStatus || ''
+                    }
+                  : null
+              };
+              writeHeroPreviewWindowCache(fallbackState);
+            } catch (_fallbackError) {
+            }
           }
         }
 
         function readHeroPreviewState() {
           try {
             var raw = window.sessionStorage.getItem(heroPreviewStateKey);
-            if (!raw) return null;
-            var parsed = JSON.parse(raw);
-            if (!parsed || typeof parsed !== 'object') return null;
-            return parsed;
+            if (raw) {
+              var parsed = JSON.parse(raw);
+              if (parsed && typeof parsed === 'object') return parsed;
+            }
+          } catch (_error) {
+          }
+          try {
+            return readHeroPreviewWindowCache();
           } catch (_error) {
             return null;
           }
@@ -6461,6 +6514,17 @@
           }
 
           if (state.state === 'scanning') {
+            if (stripeReturnInQuery && restoredScanResult) {
+              applyHeroScanResult(restoredScanResult, domain);
+              setHeroScanStepState(heroScanSteps.length);
+              setHeroPreviewState('ready');
+              enterMergedPreviewSetupStep({
+                resetMaintenance: false,
+                openSiteCardOnMobile: mobileSidebarMedia.matches,
+                enableTours: false
+              });
+              return true;
+            }
             startHeroScanFlow(normalizedUrl, domain);
             return true;
           }
@@ -7050,7 +7114,7 @@
           quickPlusBtn.addEventListener('click', function () {
             markQuickPagesUserEdited();
             var current = normalizePages(quickPagesInput.value);
-            quickPagesInput.value = String(Math.min(50, current + 1));
+            quickPagesInput.value = String(Math.min(100, current + 1));
             syncQuickSummary();
           });
         }
@@ -7077,7 +7141,7 @@
             markQuickPagesUserEdited();
             markQuickQuoteCardUsage('site');
             var current = normalizePages(quickSidebarPagesInput.value);
-            var nextPages = Math.min(50, current + 1);
+            var nextPages = Math.min(100, current + 1);
             var previousPages = normalizePages(quickPagesInput.value);
             quickPagesInput.value = String(nextPages);
             if (!maybeRevealSidebarUrlPromptForPages(nextPages)) {
