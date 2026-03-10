@@ -53,11 +53,17 @@ function buildLineItemsFromQuote(quote) {
 
 function buildMetadataFromQuote(quote) {
   const quoteBreakdown = quote.quoteBreakdown || {};
+  const siteUrl = String(quote.siteUrl || "").slice(0, 500);
+  const quoteId = String(quote.id);
+  const email = String(quote.email || "").slice(0, 320);
   return {
-    quoteId: String(quote.id),
-    siteUrl: String(quote.siteUrl || "").slice(0, 500),
+    quoteId,
+    quote_id: quoteId,
+    siteUrl,
+    wordpress_url: siteUrl,
+    email,
     plan: String((quote.plan && quote.plan.pricingTier) || "not_selected"),
-    website_url: String(quote.siteUrl || "").slice(0, 500),
+    website_url: siteUrl,
     pages: String((quote.plan && quote.plan.pages) || 0),
     pricing_tier: String((quote.plan && quote.plan.pricingTier) || "not_selected"),
     one_time_usd: String(quote.setupFee || 0),
@@ -87,7 +93,7 @@ async function createCheckoutSessionForQuote({ stripe, quote, email, baseUrl }) 
     mode,
     line_items: lineItems,
     allow_promotion_codes: true,
-    success_url: `${baseUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+    success_url: `${baseUrl}/client-success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${baseUrl}/?checkout=cancel`,
     customer_email: email,
     metadata

@@ -1,8 +1,8 @@
 const quoteService = require("../services/quoteService");
 
-function createQuote(req, res) {
+async function createQuote(req, res) {
   try {
-    const draft = quoteService.createQuoteDraft(req.body || {});
+    const draft = await quoteService.createQuoteDraft(req.body || {});
     return res.status(201).json({
       quote: quoteService.toPublicQuote(draft)
     });
@@ -13,17 +13,23 @@ function createQuote(req, res) {
   }
 }
 
-function getQuote(req, res) {
-  const quote = quoteService.getQuoteById(req.params.id);
-  if (!quote) {
-    return res.status(404).json({
-      error: "Quote not found."
+async function getQuote(req, res) {
+  try {
+    const quote = await quoteService.getQuoteById(req.params.id);
+    if (!quote) {
+      return res.status(404).json({
+        error: "Quote not found."
+      });
+    }
+
+    return res.json({
+      quote: quoteService.toPublicQuote(quote)
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: error && error.message ? error.message : "Could not fetch quote."
     });
   }
-
-  return res.json({
-    quote: quoteService.toPublicQuote(quote)
-  });
 }
 
 module.exports = {

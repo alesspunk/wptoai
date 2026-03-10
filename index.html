@@ -5542,6 +5542,19 @@
           }
         }
 
+        function readQuoteDraftState() {
+          try {
+            var raw = window.sessionStorage.getItem(quickQuoteDraftStateKey);
+            if (!raw) return null;
+            var parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== 'object') return null;
+            if (!parsed.quoteId) return null;
+            return parsed;
+          } catch (_error) {
+            return null;
+          }
+        }
+
         function markQuickPagesUserEdited() {
           quickPagesUserEdited = true;
         }
@@ -6222,12 +6235,17 @@
 
         async function requestSiteScan(normalizedUrl, domain, runToken) {
           console.log('SITE_SCAN_FETCH_START', normalizedUrl);
+          var siteScanPayload = {
+            siteUrl: normalizedUrl
+          };
+          var quoteDraftState = readQuoteDraftState();
+          if (quoteDraftState && quoteDraftState.quoteId) {
+            siteScanPayload.quoteId = String(quoteDraftState.quoteId);
+          }
           var response = await fetch('/api/site-scan', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              siteUrl: normalizedUrl
-            })
+            body: JSON.stringify(siteScanPayload)
           });
           console.log('SITE_SCAN_FETCH_STATUS', response.status, response.ok);
           console.log('SITE_SCAN_FETCH_RESPONSE', response);

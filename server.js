@@ -6,8 +6,17 @@ require("dotenv").config();
 const quoteRoutes = require("./src/routes/quoteRoutes");
 const { createCheckoutRoutes } = require("./src/routes/checkoutRoutes");
 const siteScanRoutes = require("./src/routes/siteScan.route");
+const leadRoutes = require("./src/routes/lead.route");
+const { createClientAccessRoutes } = require("./src/routes/clientAccess.route");
 const quoteService = require("./src/services/quoteService");
 const { formatMoneyFromCents } = require("./src/services/quotePricingService");
+const {
+  createQueuedProject,
+  getProjectByQuoteId,
+  ensureProjectAccessToken
+} = require("./src/services/project.service");
+const userRepository = require("./src/repositories/user.repository");
+const { ensureSchema } = require("./src/repositories/postgres");
 const {
   sendEmail,
   getOrderNotificationRecipient
@@ -20,6 +29,14 @@ const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "";
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || "";
 const processedWebhookEvents = new Set();
+
+ensureSchema()
+  .then(() => {
+    console.log("DATABASE_SCHEMA_READY");
+  })
+  .catch((error) => {
+    console.error("DATABASE_SCHEMA_ERROR", error && error.message ? error.message : error);
+  });
 
 app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async (req, res) => {
   if (!stripe) {
@@ -57,7 +74,7 @@ app.post("/api/stripe-webhook", express.raw({ type: "application/json" }), async
     return res.json({ received: true });
   } catch (error) {
     console.error("Stripe webhook handler error:", error);
-    return res.status(500).send("Webhook handler failed.");
+    return res.json({ received: true, webhookError: true });
   }
 });
 
@@ -97,6 +114,8 @@ app.post("/api/debug-email", async (_req, res) => {
 app.use("/api/quotes", quoteRoutes);
 app.use("/api", createCheckoutRoutes({ stripe }));
 app.use("/api", siteScanRoutes);
+app.use("/api", leadRoutes);
+app.use("/", createClientAccessRoutes({ stripe, appRoot: __dirname }));
 
 function extractCustomerEmailFromSession(session) {
   if (!session || typeof session !== "object") return "";
@@ -118,49 +137,117 @@ function isValidEmail(value) {
 
 async function handleCheckoutSessionCompleted(session) {
   const metadata = (session && session.metadata) || {};
-  const quoteId = metadata.quoteId;
+  let quoteId = metadata.quote_id || metadata.quoteId || "";
+  const wordpressUrl = metadata.wordpress_url || metadata.siteUrl || metadata.website_url || "Not provided";
+  const fallbackMetadataEmail = quoteService.normalizeEmail(metadata.email || "");
 
   try {
     if (quoteId) {
-      quoteService.markPaidByQuoteId(quoteId, session.id);
+      await quoteService.markPaidByQuoteId(quoteId, session.id);
     } else if (session && session.id) {
-      quoteService.markPaidByStripeSessionId(session.id);
+      const updatedBySession = await quoteService.markPaidByStripeSessionId(session.id);
+      if (updatedBySession && updatedBySession.id) {
+        quoteId = String(updatedBySession.id);
+      }
     }
   } catch (error) {
     console.error("Stripe quote status update error:", error && error.message ? error.message : error);
   }
 
-  const customerEmail = extractCustomerEmailFromSession(session);
+  const extractedCustomerEmail = extractCustomerEmailFromSession(session);
+  const customerEmail = extractedCustomerEmail || fallbackMetadataEmail;
   console.log("CUSTOMER_EMAIL_EXTRACTED:", customerEmail);
+  const normalizedCustomerEmail = quoteService.normalizeEmail(customerEmail || "");
 
-  const siteUrl = metadata.siteUrl || metadata.website_url || "Not provided";
+  let user = null;
+  if (normalizedCustomerEmail && isValidEmail(normalizedCustomerEmail)) {
+    try {
+      user = await userRepository.findUserByEmail(normalizedCustomerEmail);
+      if (!user) {
+        user = await userRepository.createUser(normalizedCustomerEmail);
+      }
+    } catch (error) {
+      console.error("USER_CREATE_OR_FIND_ERROR", error && error.message ? error.message : error);
+    }
+  }
+
+  if (quoteId) {
+    try {
+      await quoteService.markLeadPaidByQuoteId(quoteId);
+    } catch (error) {
+      console.error("LEAD_STATUS_UPDATE_ERROR", error && error.message ? error.message : error);
+    }
+  }
+
+  let project = null;
+  if (quoteId || wordpressUrl !== "Not provided") {
+    try {
+      if (quoteId) {
+        project = await getProjectByQuoteId(quoteId);
+      }
+
+      if (!project) {
+        project = await createQueuedProject({
+          quoteId: quoteId || null,
+          userId: user && user.id ? user.id : null,
+          customerEmail: normalizedCustomerEmail || null,
+          wordpressUrl: wordpressUrl
+        });
+        console.log("PROJECT_CREATED_QUEUED", quoteId || "n/a");
+      }
+
+      project = await ensureProjectAccessToken(project);
+    } catch (error) {
+      console.error("PROJECT_CREATE_ERROR", error && error.message ? error.message : error);
+    }
+  }
+
+  const baseUrl = String(process.env.BASE_URL || "https://wptoai.com").replace(/\/+$/, "");
+  const projectAccessLink =
+    baseUrl && project && project.id && project.accessToken
+      ? `${baseUrl}/client-area?project=${encodeURIComponent(project.id)}&token=${encodeURIComponent(project.accessToken)}`
+      : "";
+
   const plan = metadata.plan || metadata.pricing_tier || "Not provided";
   const total = formatMoneyFromCents((session && session.amount_total) || 0);
   const adminEmail = getOrderNotificationRecipient();
-  const customerHtml = `
+  const customerSummaryHtml = `
     <p>Hi,</p>
     <p>Your WPtoAI migration checkout is complete.</p>
-    <p><strong>Site URL:</strong> ${siteUrl}</p>
+    <p><strong>Site URL:</strong> ${wordpressUrl}</p>
     <p><strong>Plan:</strong> ${plan}</p>
     <p><strong>Total:</strong> ${total}</p>
   `;
+  const onboardingHtml = `
+    <p>Hi,</p>
+    <p>We received your request to convert:</p>
+    <p><strong>${wordpressUrl}</strong></p>
+    <p>Your project is now being prepared.</p>
+    ${
+      projectAccessLink
+        ? `<p>You can access your client area here:</p><p><a href="${projectAccessLink}">${projectAccessLink}</a></p>`
+        : `<p>You will soon receive a link where you can manage your site and request changes by chat.</p>`
+    }
+    <p>— WPtoAI</p>
+  `;
   const adminHtml = `
     <p>A new WPtoAI order was completed.</p>
-    <p><strong>Site URL:</strong> ${siteUrl}</p>
+    <p><strong>Site URL:</strong> ${wordpressUrl}</p>
     <p><strong>Plan:</strong> ${plan}</p>
     <p><strong>Total:</strong> ${total}</p>
     <p><strong>Quote ID:</strong> ${quoteId || "n/a"}</p>
   `;
 
-  if (!customerEmail) {
+  if (!normalizedCustomerEmail) {
     console.warn("CUSTOMER_EMAIL_MISSING");
-  } else if (!isValidEmail(customerEmail)) {
-    console.error("EMAIL_SEND_CUSTOMER_ERROR", `Invalid customer email: ${customerEmail}`);
+  } else if (!isValidEmail(normalizedCustomerEmail)) {
+    console.error("EMAIL_SEND_CUSTOMER_ERROR", `Invalid customer email: ${normalizedCustomerEmail}`);
   } else {
-    console.log("EMAIL_SEND_CUSTOMER_START", customerEmail, quoteId || "");
+    console.log("EMAIL_SEND_CUSTOMER_START", normalizedCustomerEmail, quoteId || "");
     try {
-      await sendEmail(customerEmail, "Your WP to AI migration summary", customerHtml);
-      console.log("EMAIL_SEND_CUSTOMER_OK", customerEmail, quoteId || "");
+      await sendEmail(normalizedCustomerEmail, "Your WP to AI migration summary", customerSummaryHtml);
+      await sendEmail(normalizedCustomerEmail, "Your WordPress migration has started", onboardingHtml);
+      console.log("EMAIL_SEND_CUSTOMER_OK", normalizedCustomerEmail, quoteId || "");
     } catch (error) {
       console.error("EMAIL_SEND_FAILED", error && error.message ? error.message : error);
       console.error("EMAIL_SEND_CUSTOMER_ERROR", error && error.message ? error.message : error);

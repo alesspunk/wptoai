@@ -24,7 +24,7 @@ function createCheckoutController({ stripe }) {
       });
     }
 
-    const quote = quoteService.getQuoteById(quoteId);
+    const quote = await quoteService.getQuoteById(quoteId);
     if (!quote) {
       return res.status(404).json({
         error: "Quote not found."
@@ -43,7 +43,7 @@ function createCheckoutController({ stripe }) {
         baseUrl
       });
 
-      quoteService.markCheckoutCreated(quote.id, session.id, email);
+      await quoteService.markCheckoutCreated(quote.id, session.id, email);
 
       return res.json({
         url: session.url

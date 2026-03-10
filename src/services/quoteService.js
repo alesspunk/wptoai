@@ -1,6 +1,7 @@
 const { createDraftQuote } = require("../models/quoteModel");
-const quoteRepository = require("../repositories/quoteRepository");
-const { buildQuote } = require("./quotePricingService");
+const quoteRepository = require("../repositories/quote.repository");
+const leadRepository = require("../repositories/lead.repository");
+const { buildQuote, normalizePages } = require("./quotePricingService");
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -27,13 +28,16 @@ function toPublicQuote(quote) {
     email: quote.email,
     scanStatus: quote.scanStatus,
     previewImageUrl: quote.previewImageUrl,
+    detectedPages: quote.detectedPages,
+    siteTitle: quote.siteTitle,
+    siteDescription: quote.siteDescription,
     stripeSessionId: quote.stripeSessionId,
     createdAt: quote.createdAt,
     updatedAt: quote.updatedAt
   };
 }
 
-function createQuoteDraft(payload) {
+async function createQuoteDraft(payload) {
   const quote = buildQuote(payload || {});
   if (!quote.websiteUrl) {
     throw new Error("Paste your WordPress URL here and we’ll migrate your site.");
@@ -70,46 +74,79 @@ function createQuoteDraft(payload) {
     email
   });
 
-  const stored = quoteRepository.create({
-    ...draft,
-    quoteBreakdown: {
-      oneTimeTotal: quote.oneTimeTotal,
-      maintenanceTotal: quote.maintenanceTotal,
-      addonsTotal: quote.addonsTotal,
-      total: quote.total
-    }
+  const stored = await quoteRepository.createQuote(draft);
+  await leadRepository.createLead({
+    email,
+    siteUrl: stored.siteUrl,
+    quoteId: stored.id,
+    leadStatus: "captured"
   });
 
   return stored;
 }
 
-function getQuoteById(quoteId) {
-  return quoteRepository.getById(quoteId);
+async function captureLeadAndCreateQuote(payload) {
+  const email = normalizeEmail(payload && payload.email);
+  if (!validateEmail(email)) {
+    throw new Error("Add a valid email to continue.");
+  }
+
+  const normalizedPayload = {
+    ...(payload || {}),
+    email,
+    pages: Math.max(1, normalizePages((payload && payload.pages) || 1)),
+    maintenanceEnabled: Boolean(payload && payload.maintenanceEnabled),
+    engineers: (payload && payload.engineers) || 0,
+    prompts: (payload && payload.prompts) || 15,
+    selectedAddons: Array.isArray(payload && payload.selectedAddons) ? payload.selectedAddons : []
+  };
+
+  const quote = await createQuoteDraft(normalizedPayload);
+  return { quoteId: quote.id, quote };
 }
 
-function updateQuoteById(quoteId, patch) {
-  return quoteRepository.updateById(quoteId, patch);
+async function getQuoteById(quoteId) {
+  return quoteRepository.findQuoteById(quoteId);
 }
 
-function markCheckoutCreated(quoteId, stripeSessionId, email) {
-  return updateQuoteById(quoteId, {
-    status: "checkout_created",
+async function markCheckoutCreated(quoteId, stripeSessionId, email) {
+  const updated = await quoteRepository.updateQuoteStatus(quoteId, {
+    status: "checkout_started",
     stripeSessionId: stripeSessionId || null,
     email: normalizeEmail(email)
   });
+
+  await leadRepository.updateLeadStatusByQuoteId(quoteId, "checkout_started");
+  return updated;
 }
 
-function markPaidByQuoteId(quoteId, stripeSessionId) {
-  return updateQuoteById(quoteId, {
+async function markPaidByQuoteId(quoteId, stripeSessionId) {
+  return quoteRepository.updateQuoteStatus(quoteId, {
     status: "paid",
     stripeSessionId: stripeSessionId || null
   });
 }
 
-function markPaidByStripeSessionId(stripeSessionId) {
-  const quote = quoteRepository.findByStripeSessionId(stripeSessionId);
+async function markPaidByStripeSessionId(stripeSessionId) {
+  const quote = await quoteRepository.findQuoteByStripeSessionId(stripeSessionId);
   if (!quote) return null;
-  return updateQuoteById(quote.id, { status: "paid" });
+  return quoteRepository.updateQuoteStatus(quote.id, {
+    status: "paid"
+  });
+}
+
+async function markLeadPaidByQuoteId(quoteId) {
+  return leadRepository.updateLeadStatusByQuoteId(quoteId, "paid");
+}
+
+async function updateQuoteScanById(quoteId, scanPatch) {
+  return quoteRepository.updateQuoteScan(quoteId, scanPatch || {});
+}
+
+async function updateLatestQuoteScanBySiteUrl(siteUrl, scanPatch) {
+  const quote = await quoteRepository.findLatestQuoteBySiteUrl(siteUrl);
+  if (!quote) return null;
+  return quoteRepository.updateQuoteScan(quote.id, scanPatch || {});
 }
 
 module.exports = {
@@ -117,8 +154,12 @@ module.exports = {
   validateEmail,
   toPublicQuote,
   createQuoteDraft,
+  captureLeadAndCreateQuote,
   getQuoteById,
   markCheckoutCreated,
   markPaidByQuoteId,
-  markPaidByStripeSessionId
+  markPaidByStripeSessionId,
+  markLeadPaidByQuoteId,
+  updateQuoteScanById,
+  updateLatestQuoteScanBySiteUrl
 };
