@@ -25,6 +25,11 @@ function toProject(row) {
   };
 }
 
+function logQuery(queryName, params) {
+  console.log('SQL_QUERY_NAME', queryName);
+  console.log('SQL_PARAMS', params);
+}
+
 async function createProject(input) {
   await ensureSchema();
 
@@ -42,19 +47,22 @@ async function createProject(input) {
     RETURNING *
   `;
 
-  const result = await query(sql, [
+  const params = [
     input.id || generateId('proj'),
-    input.quoteId || null,
-    input.userId || null,
-    input.customerEmail || null,
-    input.wordpressUrl || null,
+    input.quoteId ?? null,
+    input.userId ?? null,
+    input.customerEmail ?? null,
+    input.wordpressUrl ?? null,
     input.status || 'queued',
-    input.accessToken || null,
-    input.accessTokenExpiresAt || null,
-    input.vercelDeploymentUrl || null,
-    input.createdAt || null,
-    input.updatedAt || null
-  ]);
+    input.accessToken ?? null,
+    input.accessTokenExpiresAt ?? null,
+    input.vercelDeploymentUrl ?? null,
+    input.createdAt ?? null,
+    input.updatedAt ?? null
+  ];
+  logQuery('createProject', params);
+
+  const result = await query(sql, params);
 
   return toProject(result.rows[0]);
 }
@@ -62,6 +70,8 @@ async function createProject(input) {
 async function saveProjectAccessToken(projectId, accessToken, accessTokenExpiresAt) {
   if (!projectId) return null;
   await ensureSchema();
+  const params = [String(projectId), accessToken ?? null, accessTokenExpiresAt ?? null];
+  logQuery('saveProjectAccessToken', params);
 
   const result = await query(
     `UPDATE projects
@@ -70,7 +80,7 @@ async function saveProjectAccessToken(projectId, accessToken, accessTokenExpires
             updated_at = NOW()
       WHERE id = $1
       RETURNING *`,
-    [projectId, accessToken || null, accessTokenExpiresAt || null]
+    params
   );
 
   return toProject(result.rows[0]);
@@ -79,13 +89,15 @@ async function saveProjectAccessToken(projectId, accessToken, accessTokenExpires
 async function findProjectByQuoteId(quoteId) {
   if (!quoteId) return null;
   await ensureSchema();
+  const params = [String(quoteId)];
+  logQuery('findProjectByQuoteId', params);
 
   const result = await query(
     `SELECT * FROM projects
       WHERE quote_id = $1
       ORDER BY created_at DESC
       LIMIT 1`,
-    [quoteId]
+    params
   );
 
   return toProject(result.rows[0]);
@@ -94,10 +106,12 @@ async function findProjectByQuoteId(quoteId) {
 async function findProjectById(projectId) {
   if (!projectId) return null;
   await ensureSchema();
+  const params = [String(projectId)];
+  logQuery('findProjectById', params);
 
   const result = await query(
     'SELECT * FROM projects WHERE id = $1 LIMIT 1',
-    [projectId]
+    params
   );
 
   return toProject(result.rows[0]);

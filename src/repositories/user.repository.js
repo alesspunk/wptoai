@@ -19,13 +19,20 @@ function toUser(row) {
   };
 }
 
+function logQuery(queryName, params) {
+  console.log('SQL_QUERY_NAME', queryName);
+  console.log('SQL_PARAMS', params);
+}
+
 async function findUserByEmail(email) {
   if (!email) return null;
   await ensureSchema();
   const normalized = String(email).trim().toLowerCase();
+  const params = [normalized];
+  logQuery('findUserByEmail', params);
   const result = await query(
     'SELECT * FROM users WHERE email = $1 LIMIT 1',
-    [normalized]
+    params
   );
   return toUser(result.rows[0]);
 }
@@ -33,9 +40,11 @@ async function findUserByEmail(email) {
 async function findUserById(id) {
   if (!id) return null;
   await ensureSchema();
+  const params = [String(id)];
+  logQuery('findUserById', params);
   const result = await query(
     "SELECT * FROM users WHERE id = $1 LIMIT 1",
-    [String(id)]
+    params
   );
   return toUser(result.rows[0]);
 }
@@ -51,11 +60,13 @@ async function createUser(email) {
     DO UPDATE SET updated_at = NOW()
     RETURNING *
   `;
-
-  const result = await query(sql, [
+  const params = [
     generateId('user'),
     normalized
-  ]);
+  ];
+  logQuery('createUser', params);
+
+  const result = await query(sql, params);
 
   return toUser(result.rows[0]);
 }

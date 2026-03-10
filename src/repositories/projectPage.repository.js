@@ -25,14 +25,21 @@ function toProjectPage(row) {
   };
 }
 
+function logQuery(queryName, params) {
+  console.log("SQL_QUERY_NAME", queryName);
+  console.log("SQL_PARAMS", params);
+}
+
 async function findProjectPagesByProjectId(projectId) {
   if (!projectId) return [];
   await ensureSchema();
+  const params = [String(projectId)];
+  logQuery("findProjectPagesByProjectId", params);
   const result = await query(
     `SELECT * FROM project_pages
       WHERE project_id = $1
       ORDER BY order_index ASC, created_at ASC`,
-    [projectId]
+    params
   );
   return result.rows.map(toProjectPage);
 }
@@ -43,9 +50,11 @@ async function seedProjectPagesIfEmpty(projectId, pages) {
   }
   await ensureSchema();
 
+  const countParams = [String(projectId)];
+  logQuery("seedProjectPagesIfEmpty.countProjectPages", countParams);
   const countResult = await query(
     "SELECT COUNT(*)::int AS total FROM project_pages WHERE project_id = $1",
-    [projectId]
+    countParams
   );
   const total = countResult.rows[0] ? Number(countResult.rows[0].total || 0) : 0;
   if (total > 0) {
@@ -55,22 +64,24 @@ async function seedProjectPagesIfEmpty(projectId, pages) {
   const values = [];
   const placeholders = [];
   pages.forEach((page, index) => {
-    const offset = index * 10;
+    const offset = index * 8;
     placeholders.push(
       `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, NOW(), NOW())`
     );
     values.push(
       page.id || generateId("pg"),
-      projectId,
+      String(projectId),
       page.title || "Untitled",
-      page.url || null,
+      page.url ?? null,
       page.type || "page",
-      page.parentId || null,
+      page.parentId ?? null,
       page.status || "queued",
       Number.isFinite(page.orderIndex) ? page.orderIndex : index
     );
   });
 
+  logQuery("seedProjectPagesIfEmpty.insertProjectPages", values);
+  console.log("PROJECT_AREA_QUERY_FIXED", "seedProjectPagesIfEmpty.insertProjectPages");
   await query(
     `INSERT INTO project_pages (
       id, project_id, title, url, type, parent_id, status, order_index, created_at, updated_at
