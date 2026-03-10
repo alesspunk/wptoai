@@ -7,6 +7,7 @@ const quoteRoutes = require("./src/routes/quoteRoutes");
 const { createCheckoutRoutes } = require("./src/routes/checkoutRoutes");
 const siteScanRoutes = require("./src/routes/siteScan.route");
 const leadRoutes = require("./src/routes/lead.route");
+const projectAreaRoutes = require("./src/routes/projectArea.route");
 const { createClientAccessRoutes } = require("./src/routes/clientAccess.route");
 const quoteService = require("./src/services/quoteService");
 const { formatMoneyFromCents } = require("./src/services/quotePricingService");
@@ -115,6 +116,7 @@ app.use("/api/quotes", quoteRoutes);
 app.use("/api", createCheckoutRoutes({ stripe }));
 app.use("/api", siteScanRoutes);
 app.use("/api", leadRoutes);
+app.use("/api", projectAreaRoutes);
 app.use("/", createClientAccessRoutes({ stripe, appRoot: __dirname }));
 
 function extractCustomerEmailFromSession(session) {
@@ -205,7 +207,7 @@ async function handleCheckoutSessionCompleted(session) {
   const baseUrl = String(process.env.BASE_URL || "https://wptoai.com").replace(/\/+$/, "");
   const projectAccessLink =
     baseUrl && project && project.id && project.accessToken
-      ? `${baseUrl}/client-area?project=${encodeURIComponent(project.id)}&token=${encodeURIComponent(project.accessToken)}`
+      ? `${baseUrl}/project-area?project=${encodeURIComponent(project.id)}&token=${encodeURIComponent(project.accessToken)}`
       : "";
 
   const plan = metadata.plan || metadata.pricing_tier || "Not provided";
@@ -222,7 +224,7 @@ async function handleCheckoutSessionCompleted(session) {
     <p>Your project is now being prepared.</p>
     ${
       projectAccessLink
-        ? `<p>You can access your client area here:</p><p><a href="${projectAccessLink}">${projectAccessLink}</a></p>`
+        ? `<p>You can access your Project Area here:</p><p><a href="${projectAccessLink}">${projectAccessLink}</a></p>`
         : `<p>You will soon receive a link where you can manage your site and request changes by chat.</p>`
     }
     <p>— WPtoAI</p>

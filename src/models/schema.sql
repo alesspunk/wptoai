@@ -68,3 +68,21 @@ CREATE INDEX IF NOT EXISTS idx_projects_quote_id ON projects(quote_id);
 CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
 CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
 CREATE INDEX IF NOT EXISTS idx_projects_access_token ON projects(access_token);
+
+CREATE TABLE IF NOT EXISTS project_pages (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  url TEXT,
+  type TEXT NOT NULL CHECK (type IN ('homepage', 'page', 'section')),
+  parent_id TEXT,
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'processing', 'ready', 'failed')),
+  screenshot_url TEXT,
+  order_index INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_pages_project_id ON project_pages(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_pages_parent_id ON project_pages(parent_id);
+CREATE INDEX IF NOT EXISTS idx_project_pages_order_index ON project_pages(order_index);

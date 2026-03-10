@@ -30,6 +30,16 @@ async function findUserByEmail(email) {
   return toUser(result.rows[0]);
 }
 
+async function findUserById(id) {
+  if (!id) return null;
+  await ensureSchema();
+  const result = await query(
+    "SELECT * FROM users WHERE id = $1 LIMIT 1",
+    [String(id)]
+  );
+  return toUser(result.rows[0]);
+}
+
 async function createUser(email) {
   await ensureSchema();
   const normalized = String(email || '').trim().toLowerCase();
@@ -51,6 +61,7 @@ async function createUser(email) {
 }
 
 module.exports = {
+  findUserById,
   findUserByEmail,
   createUser
 };

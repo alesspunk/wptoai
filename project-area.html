@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WPtoAI | Project Area</title>
+    <link rel="icon" type="image/png" href="/images/ai-logo.png" />
+    <link rel="stylesheet" href="/project-area.css" />
+  </head>
+  <body>
+    <div class="project-area-shell">
+      <aside class="project-left-rail" aria-label="Project pages">
+        <div class="project-left-head">
+          <p id="project-domain" class="project-domain">project</p>
+          <p class="project-left-title">Project Area</p>
+        </div>
+
+        <section class="project-progress-card" aria-label="Migration progress">
+          <p class="project-progress-label">Progress of migration</p>
+          <div class="project-progress-track">
+            <span id="project-progress-fill" class="project-progress-fill"></span>
+          </div>
+          <p id="project-progress-copy" class="project-progress-copy">0% complete</p>
+          <div class="project-usage-grid">
+            <p>Detected <strong id="detected-pages">0</strong></p>
+            <p>Purchased <strong id="purchased-pages">0</strong></p>
+            <p>Used <strong id="used-pages">0</strong></p>
+            <p>Remaining <strong id="remaining-pages">0</strong></p>
+          </div>
+        </section>
+
+        <section class="project-tree-card" aria-label="Page tree">
+          <div class="project-tree-head">
+            <p class="project-tree-title">Pages</p>
+            <button id="add-page-btn" class="add-page-btn" type="button" aria-label="Add page">
+              <span aria-hidden="true">+</span>
+            </button>
+          </div>
+          <div id="page-tree" class="page-tree" role="tree"></div>
+          <p id="tree-status" class="tree-status" hidden></p>
+        </section>
+
+        <div class="project-settings">
+          <button id="update-password-btn" class="update-password-btn" type="button">
+            Update password
+          </button>
+          <p id="password-status" class="password-status" hidden></p>
+        </div>
+      </aside>
+
+      <main class="project-main-view" aria-live="polite">
+        <header class="project-main-head">
+          <img src="/images/wptoai-logo-blackandwhite.png" alt="WPtoAI logo" class="project-logo" />
+          <p class="project-main-title">Project Area</p>
+        </header>
+
+        <section class="project-preview-card">
+          <div class="project-preview-head">
+            <div>
+              <h1 id="selected-title" class="selected-title">Select a page</h1>
+              <p class="selected-subtitle">Same design. Structured for chat-based changes.</p>
+            </div>
+            <span id="selected-status-pill" class="selected-status-pill">queued</span>
+          </div>
+
+          <div class="project-preview-meta">
+            <span id="selected-url-pill" class="meta-pill">URL</span>
+            <span id="selected-pages-pill" class="meta-pill is-strong">0 pages detected</span>
+          </div>
+
+          <div id="viewer-content" class="viewer-content"></div>
+        </section>
+      </main>
+    </div>
+
+    <div id="page-context-menu" class="page-context-menu" hidden></div>
+    <script src="/project-area.js"></script>
+  </body>
+</html>

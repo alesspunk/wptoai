@@ -80,7 +80,7 @@ function createClientSuccessController({ stripe }) {
       }
 
       const redirectUrl =
-        `${getBaseUrl(req)}/client-area?project=${encodeURIComponent(project.id)}` +
+        `${getBaseUrl(req)}/project-area?project=${encodeURIComponent(project.id)}` +
         `&token=${encodeURIComponent(project.accessToken)}`;
       return res.redirect(302, redirectUrl);
     } catch (error) {
@@ -91,8 +91,8 @@ function createClientSuccessController({ stripe }) {
   };
 }
 
-function createClientAreaController({ appRoot }) {
-  return async function clientAreaController(req, res) {
+function createProjectAreaPageController({ appRoot }) {
+  return async function projectAreaPageController(req, res) {
     const projectId = String((req.query && req.query.project) || "").trim();
     const accessToken = String((req.query && req.query.token) || "").trim();
 
@@ -112,7 +112,7 @@ function createClientAreaController({ appRoot }) {
           .send("Session expired. Please check your email for your project access link.");
       }
 
-      return res.sendFile(path.join(appRoot, "index.html"));
+      return res.sendFile(path.join(appRoot, "project-area.html"));
     } catch (_error) {
       return res
         .status(401)
@@ -123,5 +123,5 @@ function createClientAreaController({ appRoot }) {
 
 module.exports = {
   createClientSuccessController,
-  createClientAreaController
+  createProjectAreaPageController
 };

@@ -7,9 +7,13 @@
       "config": {
         "includeFiles": [
           "index.html",
+          "project-area.html",
+          "project-area.css",
+          "project-area.js",
           "robots.txt",
           "sitemap.xml",
-          "images/**"
+          "images/**",
+          "src/models/schema.sql"
         ]
       }
     }
