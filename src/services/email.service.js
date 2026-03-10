@@ -11,7 +11,17 @@ async function sendEmail(to, subject, html) {
     html
   });
 
-  console.log("EMAIL_SENT_RESEND", to);
+  if (response && response.error) {
+    const message =
+      (response.error && response.error.message) ||
+      "Resend returned an unknown error";
+    const error = new Error(message);
+    error.resend = response.error;
+    throw error;
+  }
+
+  const emailId = response && response.data ? response.data.id : "";
+  console.log("EMAIL_SENT_RESEND", to, emailId);
 
   return response;
 }
