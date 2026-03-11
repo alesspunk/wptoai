@@ -1071,6 +1071,11 @@
 
   function closePasswordModal() {
     if (refs.passwordModal) refs.passwordModal.hidden = true;
+    if (refs.newPasswordInput) refs.newPasswordInput.value = "";
+    if (refs.confirmPasswordInput) refs.confirmPasswordInput.value = "";
+    if (refs.passwordModalSubmit) refs.passwordModalSubmit.disabled = false;
+    if (refs.passwordModalBack) refs.passwordModalBack.disabled = false;
+    if (refs.passwordModalClose) refs.passwordModalClose.disabled = false;
     showPasswordModalStatus("", false);
   }
 
@@ -1144,6 +1149,8 @@
 
   async function init() {
     clearLegacyQuoteState();
+    closePasswordModal();
+    showPasswordStatus("", false);
     var access = parseAccessFromUrl();
     state.projectId = access.project;
     state.token = access.token;
