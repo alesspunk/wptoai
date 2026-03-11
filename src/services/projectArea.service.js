@@ -1,29 +1,13 @@
 const crypto = require("crypto");
 const { sendEmail } = require("./email.service");
+const { uploadScreenshotToBlob } = require("./blobStorage.service");
 const projectService = require("./project.service");
+const { captureSitePage, normalizeDetectedTitle } = require("./siteScan.service");
 const quoteRepository = require("../repositories/quote.repository");
 const emailUpdateTokenRepository = require("../repositories/emailUpdateToken.repository");
 const projectRepository = require("../repositories/project.repository");
 const projectPageRepository = require("../repositories/projectPage.repository");
 const userRepository = require("../repositories/user.repository");
-
-function mapProjectStatusToProgress(status) {
-  switch (String(status || "").toLowerCase()) {
-    case "ready":
-      return 100;
-    case "deploying":
-      return 85;
-    case "building":
-      return 65;
-    case "scanning":
-      return 40;
-    case "failed":
-      return 5;
-    case "queued":
-    default:
-      return 20;
-  }
-}
 
 function normalizeSiteUrl(value) {
   const raw = String(value || "").trim();
@@ -57,12 +41,11 @@ function makeFallbackPageTitle(index) {
   return `Page ${index + 1}`;
 }
 
-function buildDefaultPages({ project, quote }) {
-  const siteUrl = normalizeSiteUrl(
-    (project && project.wordpressUrl) ||
-    (quote && quote.siteUrl) ||
-    ""
-  );
+function getDetectedPagesData(quote) {
+  return Array.isArray(quote && quote.detectedPagesData) ? quote.detectedPagesData : [];
+}
+
+function buildFallbackDetectedPages(siteUrl, detectedPages) {
   let rootOrigin = "";
   try {
     rootOrigin = siteUrl ? new URL(siteUrl).origin : "";
@@ -70,35 +53,54 @@ function buildDefaultPages({ project, quote }) {
     rootOrigin = "";
   }
 
-  const detectedPages = deriveDetectedPages(quote);
-  const previewImageUrl = String((quote && quote.previewImageUrl) || "");
-  const list = [];
-  list.push({
-    title: "Homepage",
+  const pages = [{
+    title: "Home",
     url: rootOrigin || siteUrl || "",
     type: "homepage",
-    parentId: null,
-    status: "ready",
-    screenshotUrl: previewImageUrl,
     orderIndex: 0
-  });
+  }];
 
   for (let index = 1; index < detectedPages; index += 1) {
-    const readyByDefault = index <= 2 || String(project && project.status) === "ready";
     const slug = `page-${index + 1}`;
-    const pageUrl = rootOrigin ? `${rootOrigin}/${slug}` : "";
-    list.push({
+    pages.push({
       title: makeFallbackPageTitle(index),
-      url: pageUrl,
+      url: rootOrigin ? `${rootOrigin}/${slug}` : "",
       type: "page",
-      parentId: null,
-      status: readyByDefault ? "ready" : "processing",
-      screenshotUrl: previewImageUrl,
       orderIndex: index
     });
   }
 
-  return list;
+  return pages;
+}
+
+function buildInitialProjectPages({ project, quote }) {
+  const siteUrl = normalizeSiteUrl(
+    (project && project.wordpressUrl) ||
+    (quote && quote.siteUrl) ||
+    ""
+  );
+  const detectedPages = deriveDetectedPages(quote);
+  const sourcePages = getDetectedPagesData(quote).length
+    ? getDetectedPagesData(quote)
+    : buildFallbackDetectedPages(siteUrl, detectedPages);
+
+  return sourcePages.map((page, index) => {
+    const normalizedUrl = normalizePageUrl(page && page.url ? page.url : "");
+    const type = index === 0 ? "homepage" : "page";
+    return {
+      title: normalizeDetectedTitle(
+        page && page.title ? page.title : "",
+        normalizedUrl,
+        type === "homepage"
+      ),
+      url: normalizedUrl,
+      type,
+      parentId: null,
+      status: "queued",
+      screenshotUrl: "",
+      orderIndex: Number.isFinite(Number(page && page.orderIndex)) ? Number(page.orderIndex) : index
+    };
+  });
 }
 
 function toApiPage(page) {
@@ -170,36 +172,60 @@ async function resolveProjectUser(project) {
   return userRepository.createUser(email);
 }
 
+function isRealProjectPageType(type) {
+  return type === "homepage" || type === "page";
+}
+
+function isPurchasedProjectPageType(type) {
+  return type === "homepage" || type === "page" || type === "section";
+}
+
 function toSummary({ project, quote, pages }) {
-  const detectedPages = deriveDetectedPages(quote);
-  const purchasedPages = derivePurchasedPages(quote, detectedPages);
-  const usedPages = pages.filter((item) =>
-    item.type === "homepage" || item.type === "page" || item.type === "section"
+  const realPages = pages.filter((item) => isRealProjectPageType(item.type));
+  const processedPageCount = realPages.filter((item) =>
+    item.status === "ready" && String(item.screenshotUrl || "").trim()
   ).length;
+  const totalRealPageCount = realPages.length || deriveDetectedPages(quote);
+  const purchasedPages = derivePurchasedPages(quote, totalRealPageCount);
+  const usedPages = pages.filter((item) => isPurchasedProjectPageType(item.type)).length;
   const remainingPages = Math.max(0, purchasedPages - usedPages);
+  const migrationProgress = totalRealPageCount > 0
+    ? Math.round((processedPageCount / totalRealPageCount) * 100)
+    : 0;
 
   return {
     projectId: project.id,
     status: project.status || "queued",
     wordpressUrl: project.wordpressUrl || "",
     customerEmail: project.customerEmail || "",
-    migrationProgress: mapProjectStatusToProgress(project.status),
-    detectedPages,
+    migrationProgress,
+    detectedPages: totalRealPageCount,
     purchasedPages,
     usedPages,
-    remainingPages
+    remainingPages,
+    processedPageCount,
+    totalRealPageCount,
+    purchasedPageCount: purchasedPages,
+    usedPageCount: usedPages,
+    remainingPageCount: remainingPages
   };
 }
 
-async function getProjectAreaData(project, selectedPageId) {
-  const quote = project && project.quoteId
-    ? await quoteRepository.findQuoteById(project.quoteId)
+async function loadProjectQuote(project) {
+  return project && project.quoteId
+    ? quoteRepository.findQuoteById(project.quoteId)
     : null;
+}
 
-  const seeded = await projectPageRepository.seedProjectPagesIfEmpty(
+async function getOrSeedProjectPages(project, quote) {
+  return projectPageRepository.seedProjectPagesIfEmpty(
     project.id,
-    buildDefaultPages({ project, quote })
+    buildInitialProjectPages({ project, quote })
   );
+}
+
+async function buildProjectAreaData(project, quote, selectedPageId) {
+  const seeded = await getOrSeedProjectPages(project, quote);
   const pages = (seeded || []).map(toApiPage);
   const summary = toSummary({ project, quote, pages });
   const selectedPage = pages.find((item) => item.id === selectedPageId) || pages[0] || null;
@@ -212,6 +238,13 @@ async function getProjectAreaData(project, selectedPageId) {
     selectedPage: selectedPage ? { ...selectedPage } : null,
     pages
   };
+}
+
+async function getProjectAreaData(project, selectedPageId) {
+  const quote = project && project.quoteId
+    ? await quoteRepository.findQuoteById(project.quoteId)
+    : null;
+  return buildProjectAreaData(project, quote, selectedPageId);
 }
 
 async function renameProjectAreaPage(project, pageId, title, url) {
@@ -315,6 +348,127 @@ async function saveProjectAreaPageOrder(project, updates) {
   await projectPageRepository.updateProjectPageOrder(project.id, normalizedUpdates);
   const savedPages = await projectPageRepository.findProjectPagesByProjectId(project.id);
   return savedPages.map(toApiPage);
+}
+
+function shouldAutoTitlePage(page) {
+  const currentTitle = normalizePageTitle(page && page.title ? page.title : "");
+  if (!currentTitle) return true;
+  if (currentTitle === "Untitled Page") return true;
+  if (/^Page \d+$/i.test(currentTitle)) return true;
+  if (/^New page \d+$/i.test(currentTitle)) return true;
+  return false;
+}
+
+async function createProjectAreaPage(project, parentId) {
+  if (!project || !project.id) {
+    throw new Error("Project not found.");
+  }
+
+  const quote = await loadProjectQuote(project);
+  const pages = await getOrSeedProjectPages(project, quote);
+  const purchasedPages = derivePurchasedPages(quote, pages.filter((item) => isRealProjectPageType(item.type)).length);
+  const usedPages = pages.filter((item) => isPurchasedProjectPageType(item.type)).length;
+  if (usedPages >= purchasedPages) {
+    throw new Error("No remaining purchased pages. Delete a page to free one slot.");
+  }
+
+  const normalizedParentId = parentId ? String(parentId).trim() : null;
+  if (normalizedParentId) {
+    const parentPage = pages.find((item) => item.id === normalizedParentId);
+    if (!parentPage || parentPage.type !== "section") {
+      throw new Error("Pages can only be added inside sections.");
+    }
+  }
+
+  const siblingCount = pages.filter((item) => (item.parentId || null) === normalizedParentId).length;
+  const created = await projectPageRepository.createProjectPage(project.id, {
+    title: "Untitled Page",
+    url: null,
+    type: "page",
+    parentId: normalizedParentId,
+    status: "queued",
+    screenshotUrl: null,
+    orderIndex: siblingCount
+  });
+
+  const nextPages = pages.concat(created);
+  const summary = toSummary({ project, quote, pages: nextPages.map(toApiPage) });
+
+  return {
+    page: toApiPage(created),
+    summary
+  };
+}
+
+async function processProjectAreaPage(project, pageId, requestedUrl) {
+  if (!project || !project.id) {
+    throw new Error("Project not found.");
+  }
+
+  const quote = await loadProjectQuote(project);
+  await getOrSeedProjectPages(project, quote);
+
+  let page = null;
+  const normalizedRequestedUrl = normalizePageUrl(requestedUrl || "");
+  const explicitPageId = String(pageId || "").trim();
+
+  if (explicitPageId) {
+    page = await projectPageRepository.findProjectPageById(project.id, explicitPageId);
+    if (!page) {
+      throw new Error("Project page not found.");
+    }
+    if (!isRealProjectPageType(page.type)) {
+      throw new Error("Only homepage and inner pages can be scanned.");
+    }
+    const finalUrl = normalizedRequestedUrl || normalizePageUrl(page.url || "");
+    if (!finalUrl) {
+      throw new Error("Enter a valid page URL to scan.");
+    }
+    page = await projectPageRepository.updateProjectPageScanResult(project.id, page.id, {
+      url: finalUrl,
+      status: "processing"
+    });
+  } else {
+    page = await projectPageRepository.claimNextQueuedProjectPage(project.id);
+    if (!page) {
+      const existingPages = await projectPageRepository.findProjectPagesByProjectId(project.id);
+      return {
+        page: null,
+        summary: toSummary({ project, quote, pages: existingPages.map(toApiPage) }),
+        hasPending: false
+      };
+    }
+  }
+
+  try {
+    const captured = await captureSitePage(page.url);
+    const screenshotUrl = await uploadScreenshotToBlob(
+      project.id,
+      page.id,
+      captured.screenshotBuffer,
+      captured.contentType
+    );
+    const nextTitle = shouldAutoTitlePage(page)
+      ? normalizeDetectedTitle(captured.title, captured.url, page.type === "homepage")
+      : page.title;
+
+    const updated = await projectPageRepository.updateProjectPageScanResult(project.id, page.id, {
+      title: nextTitle,
+      url: captured.url,
+      status: "ready",
+      screenshotUrl
+    });
+    const existingPages = await projectPageRepository.findProjectPagesByProjectId(project.id);
+    const nextQueued = await projectPageRepository.getNextQueuedProjectPage(project.id);
+    return {
+      page: toApiPage(updated),
+      summary: toSummary({ project, quote, pages: existingPages.map(toApiPage) }),
+      hasPending: Boolean(nextQueued)
+    };
+  } catch (error) {
+    await projectPageRepository.updateProjectPageStatus(project.id, page.id, "failed");
+    throw error;
+  }
 }
 
 async function updateProjectAreaPassword(project, password) {
@@ -537,6 +691,8 @@ async function verifyProjectAreaEmailUpdate(token) {
 
 module.exports = {
   getProjectAreaData,
+  createProjectAreaPage,
+  processProjectAreaPage,
   renameProjectAreaPage,
   saveProjectAreaPageOrder,
   updateProjectAreaPassword,

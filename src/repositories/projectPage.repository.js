@@ -78,9 +78,9 @@ async function seedProjectPagesIfEmpty(projectId, pages) {
   const values = [];
   const placeholders = [];
   pages.forEach((page, index) => {
-    const offset = index * 8;
+    const offset = index * 9;
     placeholders.push(
-      `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, NOW(), NOW())`
+      `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, NOW(), NOW())`
     );
     values.push(
       page.id || generateId("pg"),
@@ -90,6 +90,7 @@ async function seedProjectPagesIfEmpty(projectId, pages) {
       page.type || "page",
       page.parentId ?? null,
       page.status || "queued",
+      page.screenshotUrl ?? null,
       Number.isFinite(page.orderIndex) ? page.orderIndex : index
     );
   });
@@ -98,7 +99,7 @@ async function seedProjectPagesIfEmpty(projectId, pages) {
   console.log("PROJECT_AREA_QUERY_FIXED", "seedProjectPagesIfEmpty.insertProjectPages");
   await query(
     `INSERT INTO project_pages (
-      id, project_id, title, url, type, parent_id, status, order_index, created_at, updated_at
+      id, project_id, title, url, type, parent_id, status, screenshot_url, order_index, created_at, updated_at
     ) VALUES ${placeholders.join(", ")}`,
     values
   );
@@ -120,6 +121,138 @@ async function updateProjectPageTitle(projectId, pageId, title, url) {
     `UPDATE project_pages
       SET title = $3,
           url = COALESCE($4, url),
+          updated_at = NOW()
+      WHERE project_id = $1 AND id = $2
+      RETURNING *`,
+    params
+  );
+  return toProjectPage(result.rows[0]);
+}
+
+async function createProjectPage(projectId, input) {
+  if (!projectId) return null;
+  await ensureSchema();
+  const params = [
+    input && input.id ? String(input.id) : generateId("pg"),
+    String(projectId),
+    input && input.title ? String(input.title).trim() : "Untitled Page",
+    input && input.url ? String(input.url).trim() : null,
+    input && input.type ? String(input.type).trim() : "page",
+    input && input.parentId ? String(input.parentId).trim() : null,
+    input && input.status ? String(input.status).trim() : "queued",
+    input && input.screenshotUrl ? String(input.screenshotUrl).trim() : null,
+    Number.isFinite(Number(input && input.orderIndex)) ? Number(input.orderIndex) : 0
+  ];
+  logQuery("createProjectPage", params);
+  const result = await query(
+    `INSERT INTO project_pages (
+      id, project_id, title, url, type, parent_id, status, screenshot_url, order_index, created_at, updated_at
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+    )
+    RETURNING *`,
+    params
+  );
+  return toProjectPage(result.rows[0]);
+}
+
+async function updateProjectPageStatus(projectId, pageId, status) {
+  if (!projectId || !pageId || !status) return null;
+  await ensureSchema();
+  const params = [String(projectId), String(pageId), String(status)];
+  logQuery("updateProjectPageStatus", params);
+  const result = await query(
+    `UPDATE project_pages
+      SET status = $3,
+          updated_at = NOW()
+      WHERE project_id = $1 AND id = $2
+      RETURNING *`,
+    params
+  );
+  return toProjectPage(result.rows[0]);
+}
+
+async function updateProjectPageScanResult(projectId, pageId, patch) {
+  if (!projectId || !pageId) return null;
+  await ensureSchema();
+  const params = [
+    String(projectId),
+    String(pageId),
+    patch && patch.title ? String(patch.title).trim() : null,
+    patch && patch.url ? String(patch.url).trim() : null,
+    patch && patch.status ? String(patch.status).trim() : null,
+    patch && patch.screenshotUrl ? String(patch.screenshotUrl).trim() : null
+  ];
+  logQuery("updateProjectPageScanResult", params);
+  const result = await query(
+    `UPDATE project_pages
+      SET title = COALESCE($3, title),
+          url = COALESCE($4, url),
+          status = COALESCE($5, status),
+          screenshot_url = COALESCE($6, screenshot_url),
+          updated_at = NOW()
+      WHERE project_id = $1 AND id = $2
+      RETURNING *`,
+    params
+  );
+  return toProjectPage(result.rows[0]);
+}
+
+async function getNextQueuedProjectPage(projectId) {
+  if (!projectId) return null;
+  await ensureSchema();
+  const params = [String(projectId)];
+  logQuery("getNextQueuedProjectPage", params);
+  const result = await query(
+    `SELECT * FROM project_pages
+      WHERE project_id = $1
+        AND type IN ('homepage', 'page')
+        AND COALESCE(url, '') <> ''
+        AND status IN ('queued', 'processing')
+        AND NOT (status = 'ready' AND COALESCE(screenshot_url, '') <> '')
+      ORDER BY CASE WHEN type = 'homepage' THEN 0 ELSE 1 END, order_index ASC, created_at ASC
+      LIMIT 1`,
+    params
+  );
+  return toProjectPage(result.rows[0]);
+}
+
+async function claimNextQueuedProjectPage(projectId) {
+  if (!projectId) return null;
+  await ensureSchema();
+  const params = [String(projectId)];
+  logQuery("claimNextQueuedProjectPage", params);
+  const result = await query(
+    `WITH next_page AS (
+      SELECT id
+      FROM project_pages
+      WHERE project_id = $1
+        AND type IN ('homepage', 'page')
+        AND COALESCE(url, '') <> ''
+        AND status IN ('queued', 'processing')
+        AND NOT (status = 'ready' AND COALESCE(screenshot_url, '') <> '')
+      ORDER BY CASE WHEN type = 'homepage' THEN 0 ELSE 1 END, order_index ASC, created_at ASC
+      LIMIT 1
+    )
+    UPDATE project_pages
+      SET status = 'processing',
+          updated_at = NOW()
+    WHERE project_id = $1
+      AND id IN (SELECT id FROM next_page)
+    RETURNING *`,
+    params
+  );
+  return toProjectPage(result.rows[0]);
+}
+
+async function clearProjectPageScreenshot(projectId, pageId) {
+  if (!projectId || !pageId) return null;
+  await ensureSchema();
+  const params = [String(projectId), String(pageId)];
+  logQuery("clearProjectPageScreenshot", params);
+  const result = await query(
+    `UPDATE project_pages
+      SET screenshot_url = NULL,
           updated_at = NOW()
       WHERE project_id = $1 AND id = $2
       RETURNING *`,
@@ -188,6 +321,12 @@ async function updateProjectPageOrder(projectId, updates) {
 }
 
 module.exports = {
+  createProjectPage,
+  updateProjectPageStatus,
+  updateProjectPageScanResult,
+  getNextQueuedProjectPage,
+  claimNextQueuedProjectPage,
+  clearProjectPageScreenshot,
   findProjectPageById,
   findProjectPagesByProjectId,
   seedProjectPagesIfEmpty,

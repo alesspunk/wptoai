@@ -22,6 +22,7 @@ async function siteScanController(req, res) {
         scanStatus: "completed",
         previewImageUrl: result.previewImageUrl,
         detectedPages: result.detectedPages,
+        detectedPagesData: Array.isArray(result.detectedPagesData) ? result.detectedPagesData : [],
         siteTitle: result.siteTitle,
         siteDescription: result.siteDescription
       };

@@ -71,6 +71,35 @@ function normalizeInternalLink(rawHref, rootUrl) {
   }
 }
 
+function humanizeSlugSegment(value) {
+  const cleaned = String(value || "")
+    .replace(/\.[a-z0-9]+$/i, "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return "";
+  return cleaned.replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function buildReadableTitleFromUrl(pageUrl, isHomepage) {
+  if (isHomepage) return "Home";
+  try {
+    const parsed = new URL(pageUrl);
+    const segments = parsed.pathname.split("/").filter(Boolean);
+    if (!segments.length) return "Home";
+    const label = humanizeSlugSegment(segments[segments.length - 1]);
+    return label || "Untitled Page";
+  } catch (_error) {
+    return "Untitled Page";
+  }
+}
+
+function normalizeDetectedTitle(title, pageUrl, isHomepage) {
+  const normalized = String(title || "").replace(/\s+/g, " ").trim();
+  if (normalized) return normalized;
+  return buildReadableTitleFromUrl(pageUrl, isHomepage);
+}
+
 async function extractPageMetadata(page) {
   return page.evaluate(() => {
     const title = (document.querySelector("title") && document.querySelector("title").innerText) || "";
@@ -105,15 +134,27 @@ async function launchBrowser() {
   });
 }
 
-async function collectInternalLinks(browser, rootUrl, initialLinks) {
-  const discovered = new Set();
-  discovered.add(`${rootUrl.origin}${rootUrl.pathname === "/" ? "/" : rootUrl.pathname.replace(/\/$/, "")}`);
+async function discoverSitePages(browser, rootUrl, homepageMetadata) {
+  const homepageUrl = `${rootUrl.origin}${rootUrl.pathname === "/" ? "/" : rootUrl.pathname.replace(/\/$/, "")}`;
+  const discovered = new Map();
+  discovered.set(homepageUrl, {
+    url: homepageUrl,
+    title: normalizeDetectedTitle(homepageMetadata && homepageMetadata.title, homepageUrl, true)
+  });
 
   const queue = [];
+  const crawledUrls = new Set();
+
+  const initialLinks = Array.isArray(homepageMetadata && homepageMetadata.hrefs)
+    ? homepageMetadata.hrefs
+    : [];
   initialLinks.forEach((href) => {
     const normalized = normalizeInternalLink(href, rootUrl);
     if (!normalized || discovered.has(normalized)) return;
-    discovered.add(normalized);
+    discovered.set(normalized, {
+      url: normalized,
+      title: buildReadableTitleFromUrl(normalized, false)
+    });
     queue.push(normalized);
   });
 
@@ -121,7 +162,8 @@ async function collectInternalLinks(browser, rootUrl, initialLinks) {
 
   while (queue.length > 0 && crawled < MAX_CRAWL_PAGES && discovered.size < MAX_DISCOVERED_LINKS) {
     const nextUrl = queue.shift();
-    if (!nextUrl) continue;
+    if (!nextUrl || crawledUrls.has(nextUrl)) continue;
+    crawledUrls.add(nextUrl);
     crawled += 1;
 
     const page = await browser.newPage();
@@ -131,10 +173,18 @@ async function collectInternalLinks(browser, rootUrl, initialLinks) {
         timeout: 30000
       });
       const data = await extractPageMetadata(page);
+      discovered.set(nextUrl, {
+        url: nextUrl,
+        title: normalizeDetectedTitle(data && data.title, nextUrl, false)
+      });
       data.hrefs.forEach((href) => {
+        if (discovered.size >= MAX_DISCOVERED_LINKS) return;
         const normalized = normalizeInternalLink(href, rootUrl);
-        if (!normalized || discovered.has(normalized) || discovered.size >= MAX_DISCOVERED_LINKS) return;
-        discovered.add(normalized);
+        if (!normalized || discovered.has(normalized)) return;
+        discovered.set(normalized, {
+          url: normalized,
+          title: buildReadableTitleFromUrl(normalized, false)
+        });
         if (queue.length + crawled < MAX_CRAWL_PAGES) {
           queue.push(normalized);
         }
@@ -146,7 +196,7 @@ async function collectInternalLinks(browser, rootUrl, initialLinks) {
     }
   }
 
-  return discovered;
+  return Array.from(discovered.values()).slice(0, MAX_DISCOVERED_LINKS);
 }
 
 async function buildScanPreviewDataUrl(page) {
@@ -156,6 +206,54 @@ async function buildScanPreviewDataUrl(page) {
   });
   const screenshotBase64 = screenshotBuffer.toString("base64");
   return `data:image/png;base64,${screenshotBase64}`;
+}
+
+async function capturePageScreenshot(page) {
+  return page.screenshot({
+    fullPage: true,
+    type: "jpeg",
+    quality: 72
+  });
+}
+
+async function captureSitePage(inputUrl) {
+  const normalizedUrl = extractUrl(inputUrl || "");
+  if (!normalizedUrl) {
+    throw new Error("Invalid siteUrl.");
+  }
+
+  const rootUrl = new URL(normalizedUrl);
+  const allowPrivateHosts = process.env.ALLOW_PRIVATE_PREVIEW_HOSTS === "true";
+  if (!allowPrivateHosts && isPrivateHost(rootUrl.hostname)) {
+    throw new Error("Private host scanning is not allowed.");
+  }
+
+  let browser;
+
+  try {
+    browser = await launchBrowser();
+    const page = await browser.newPage();
+    await page.setViewport(VIEWPORT);
+    await page.goto(normalizedUrl, {
+      waitUntil: "networkidle2",
+      timeout: 45000
+    });
+
+    const metadata = await extractPageMetadata(page);
+    const screenshotBuffer = await capturePageScreenshot(page);
+
+    return {
+      url: normalizedUrl,
+      title: normalizeDetectedTitle(metadata && metadata.title, normalizedUrl, rootUrl.pathname === "/"),
+      description: metadata && metadata.description ? metadata.description : "",
+      screenshotBuffer,
+      contentType: "image/jpeg"
+    };
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
 }
 
 async function scanSite(inputUrl) {
@@ -190,8 +288,8 @@ async function scanSite(inputUrl) {
     const previewImageUrl = await buildScanPreviewDataUrl(page);
     console.log("SITE_SCAN_SCREENSHOT_OK");
 
-    const discoveredLinks = await collectInternalLinks(browser, rootUrl, metadata.hrefs);
-    const detectedPages = Math.max(1, discoveredLinks.size);
+    const discoveredPages = await discoverSitePages(browser, rootUrl, metadata);
+    const detectedPages = Math.max(1, discoveredPages.length);
 
     const result = {
       siteUrl: normalizedUrl,
@@ -199,6 +297,12 @@ async function scanSite(inputUrl) {
       siteDescription: metadata.description || "",
       previewImageUrl,
       detectedPages,
+      detectedPagesData: discoveredPages.map((item, index) => ({
+        url: item.url,
+        title: normalizeDetectedTitle(item.title, item.url, index === 0),
+        type: index === 0 ? "homepage" : "page",
+        orderIndex: index
+      })),
       scanStatus: "completed"
     };
     console.log("SITE_SCAN_DONE", JSON.stringify({
@@ -219,5 +323,8 @@ async function scanSite(inputUrl) {
 }
 
 module.exports = {
-  scanSite
+  scanSite,
+  captureSitePage,
+  buildReadableTitleFromUrl,
+  normalizeDetectedTitle
 };

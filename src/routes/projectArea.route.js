@@ -1,6 +1,8 @@
 const express = require("express");
 const {
   getProjectAreaDataController,
+  createProjectAreaPageController,
+  processProjectAreaPageController,
   renameProjectAreaPageController,
   saveProjectAreaPageOrderController,
   updateProjectAreaPasswordController,
@@ -13,6 +15,8 @@ const {
 const router = express.Router();
 
 router.get("/project-area-data", getProjectAreaDataController);
+router.post("/project-area-page-create", createProjectAreaPageController);
+router.post("/project-area-page-scan", processProjectAreaPageController);
 router.post("/project-area-page-order", saveProjectAreaPageOrderController);
 router.post("/project-area-page-rename", renameProjectAreaPageController);
 router.post("/project-area-password", updateProjectAreaPasswordController);

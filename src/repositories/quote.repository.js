@@ -23,6 +23,7 @@ function toQuote(row) {
     scanStatus: row.scan_status,
     previewImageUrl: row.preview_image_url,
     detectedPages: Number(row.detected_pages || 0),
+    detectedPagesData: Array.isArray(row.detected_pages_data) ? row.detected_pages_data : [],
     siteTitle: row.site_title || '',
     siteDescription: row.site_description || '',
     stripeSessionId: row.stripe_session_id,
@@ -39,15 +40,15 @@ async function createQuote(input) {
     INSERT INTO quotes (
       id, site_url, email, plan, addons_json,
       setup_fee, monthly_fee, currency, status,
-      scan_status, preview_image_url, detected_pages,
+      scan_status, preview_image_url, detected_pages, detected_pages_data,
       site_title, site_description, stripe_session_id,
       created_at, updated_at
     ) VALUES (
       $1, $2, $3, $4::jsonb, $5::jsonb,
       $6, $7, $8, $9,
-      $10, $11, $12,
-      $13, $14, $15,
-      COALESCE($16, NOW()), COALESCE($17, NOW())
+      $10, $11, $12, $13::jsonb,
+      $14, $15, $16,
+      COALESCE($17, NOW()), COALESCE($18, NOW())
     )
     RETURNING *
   `;
@@ -65,6 +66,7 @@ async function createQuote(input) {
     input.scanStatus || 'pending',
     input.previewImageUrl || null,
     Number.isFinite(input.detectedPages) ? input.detectedPages : null,
+    JSON.stringify(Array.isArray(input.detectedPagesData) ? input.detectedPagesData : []),
     input.siteTitle || null,
     input.siteDescription || null,
     input.stripeSessionId || null,
@@ -110,8 +112,9 @@ async function updateQuoteScan(quoteId, scanPatch) {
       scan_status = COALESCE($2, scan_status),
       preview_image_url = COALESCE($3, preview_image_url),
       detected_pages = COALESCE($4, detected_pages),
-      site_title = COALESCE($5, site_title),
-      site_description = COALESCE($6, site_description),
+      detected_pages_data = COALESCE($5::jsonb, detected_pages_data),
+      site_title = COALESCE($6, site_title),
+      site_description = COALESCE($7, site_description),
       updated_at = NOW()
     WHERE id = $1
     RETURNING *
@@ -122,6 +125,9 @@ async function updateQuoteScan(quoteId, scanPatch) {
     scanPatch && scanPatch.scanStatus ? scanPatch.scanStatus : null,
     scanPatch && scanPatch.previewImageUrl ? scanPatch.previewImageUrl : null,
     scanPatch && Number.isFinite(scanPatch.detectedPages) ? scanPatch.detectedPages : null,
+    scanPatch && Array.isArray(scanPatch.detectedPagesData)
+      ? JSON.stringify(scanPatch.detectedPagesData)
+      : null,
     scanPatch && scanPatch.siteTitle ? scanPatch.siteTitle : null,
     scanPatch && scanPatch.siteDescription ? scanPatch.siteDescription : null
   ]);

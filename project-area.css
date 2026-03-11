@@ -650,6 +650,71 @@ body {
   padding: 28px;
 }
 
+.viewer-manual-scan {
+  min-height: 320px;
+  border: 1px dashed #ccd8f7;
+  border-radius: 16px;
+  background: var(--wp-soft);
+  color: var(--wp-muted);
+  padding: 28px;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.viewer-manual-copy {
+  max-width: 640px;
+}
+
+.viewer-field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--wp-navy);
+}
+
+.viewer-url-input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid rgba(122, 146, 199, 0.38);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--wp-navy);
+  font: inherit;
+  padding: 0 14px;
+}
+
+.viewer-form-status {
+  margin: -2px 0 0;
+  font-size: 13px;
+  color: #48619f;
+}
+
+.viewer-form-status.is-error {
+  color: #c2464d;
+}
+
+.viewer-form-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.viewer-scan-btn {
+  min-width: 116px;
+  min-height: 42px;
+  border-radius: 999px;
+  border: 1px solid rgba(53, 88, 198, 0.26);
+  background: #3558c6;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 18px;
+}
+
+.viewer-scan-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .viewer-section-list {
   margin: 12px 0 0;
   padding: 0;

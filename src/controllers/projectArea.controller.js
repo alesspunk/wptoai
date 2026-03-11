@@ -93,6 +93,58 @@ async function renameProjectAreaPageController(req, res) {
   }
 }
 
+async function createProjectAreaPageController(req, res) {
+  const body = req && req.body ? req.body : {};
+  const projectId = String(body.project || "").trim();
+  const token = String(body.token || "").trim();
+  const parentId = String(body.parentId || "").trim();
+
+  try {
+    const project = await resolveAuthorizedProject(projectId, token);
+    if (!project) {
+      return res.status(401).json({ error: EXPIRED_MESSAGE });
+    }
+
+    const result = await projectAreaService.createProjectAreaPage(project, parentId || null);
+    return res.json({ ok: true, page: result.page, summary: result.summary });
+  } catch (error) {
+    return res.status(400).json({
+      error: error && error.message ? error.message : "Could not create page."
+    });
+  }
+}
+
+async function processProjectAreaPageController(req, res) {
+  const body = req && req.body ? req.body : {};
+  const projectId = String(body.project || "").trim();
+  const token = String(body.token || "").trim();
+  const pageId = String(body.pageId || "").trim();
+  const url = String(body.url || "").trim();
+
+  try {
+    const project = await resolveAuthorizedProject(projectId, token);
+    if (!project) {
+      return res.status(401).json({ error: EXPIRED_MESSAGE });
+    }
+
+    const result = await projectAreaService.processProjectAreaPage(
+      project,
+      pageId || null,
+      url || null
+    );
+    return res.json({
+      ok: true,
+      page: result.page,
+      summary: result.summary,
+      hasPending: Boolean(result.hasPending)
+    });
+  } catch (error) {
+    return res.status(400).json({
+      error: error && error.message ? error.message : "Could not process project page."
+    });
+  }
+}
+
 async function saveProjectAreaPageOrderController(req, res) {
   const body = req && req.body ? req.body : {};
   const projectId = String(body.project || "").trim();
@@ -192,6 +244,8 @@ async function verifyEmailUpdateController(req, res) {
 
 module.exports = {
   getProjectAreaDataController,
+  createProjectAreaPageController,
+  processProjectAreaPageController,
   renameProjectAreaPageController,
   saveProjectAreaPageOrderController,
   updateProjectAreaPasswordController,

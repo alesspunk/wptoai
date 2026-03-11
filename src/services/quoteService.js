@@ -29,6 +29,7 @@ function toPublicQuote(quote) {
     scanStatus: quote.scanStatus,
     previewImageUrl: quote.previewImageUrl,
     detectedPages: quote.detectedPages,
+    detectedPagesData: Array.isArray(quote.detectedPagesData) ? quote.detectedPagesData : [],
     siteTitle: quote.siteTitle,
     siteDescription: quote.siteDescription,
     stripeSessionId: quote.stripeSessionId,

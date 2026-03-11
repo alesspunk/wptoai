@@ -22,6 +22,7 @@ function createDraftQuote(input) {
     email: input.email || "",
     scanStatus: "pending",
     previewImageUrl: null,
+    detectedPagesData: [],
     stripeSessionId: null,
     createdAt: now,
     updatedAt: now

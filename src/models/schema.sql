@@ -11,12 +11,15 @@ CREATE TABLE IF NOT EXISTS quotes (
   scan_status TEXT NOT NULL DEFAULT 'pending' CHECK (scan_status IN ('pending', 'scanning', 'completed', 'failed')),
   preview_image_url TEXT,
   detected_pages INTEGER,
+  detected_pages_data JSONB NOT NULL DEFAULT '[]'::jsonb,
   site_title TEXT,
   site_description TEXT,
   stripe_session_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS detected_pages_data JSONB NOT NULL DEFAULT '[]'::jsonb;
 
 CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes(status);
 CREATE INDEX IF NOT EXISTS idx_quotes_site_url ON quotes(site_url);

@@ -24,7 +24,10 @@
     renameSavingId: "",
     draggingId: "",
     dropTarget: null,
-    savingTree: false
+    savingTree: false,
+    processingPageRequest: false,
+    manualScanDrafts: {},
+    manualScanStatusByPageId: {}
   };
 
   var refs = {
@@ -143,6 +146,14 @@
       var normalized = normalizePage(nextPage, index);
       normalized.type = nextPage.type || page.type;
       normalized.justReadyUntil = page.justReadyUntil || 0;
+      if (
+        normalized.status === "ready" &&
+        normalized.screenshotUrl &&
+        (page.status !== "ready" || !page.screenshotUrl)
+      ) {
+        normalized.justReadyUntil = Date.now() + 1200;
+        scheduleReadyIndicatorClear(normalized.id, 1240);
+      }
       return normalized;
     });
   }
@@ -163,25 +174,55 @@
     return type === "homepage" || type === "page" || type === "section";
   }
 
+  function isRealPageType(type) {
+    return type === "homepage" || type === "page";
+  }
+
+  function hasReadyScreenshot(page) {
+    return Boolean(
+      page &&
+      page.status === "ready" &&
+      String(page.screenshotUrl || "").trim()
+    );
+  }
+
   function getUsage() {
     var used = state.pages.filter(function (page) {
       return isPurchasedPageType(page.type);
     }).length;
-    var purchased = Number(state.project && state.project.purchasedPages ? state.project.purchasedPages : 0);
+    var purchased = Number(
+      state.project && (
+        state.project.purchasedPageCount ||
+        state.project.purchasedPages
+      ) ? (
+        state.project.purchasedPageCount ||
+        state.project.purchasedPages
+      ) : 0
+    );
     var remaining = Math.max(0, purchased - used);
     return { used: used, purchased: purchased, remaining: remaining };
   }
 
   function inferProgress() {
-    var usage = getUsage();
-    var total = Math.max(usage.used, 1);
+    var total = Number(
+      state.project && (
+        state.project.totalRealPageCount ||
+        state.project.detectedPages
+      ) ? (
+        state.project.totalRealPageCount ||
+        state.project.detectedPages
+      ) : 0
+    );
+    if (total <= 0) return 0;
     var readyCount = state.pages.filter(function (page) {
-      return (page.type === "homepage" || page.type === "page") && page.status === "ready";
+      return isRealPageType(page.type) && hasReadyScreenshot(page);
     }).length;
-    var computed = Math.round((readyCount / total) * 100);
-    var seeded = Number(state.project && state.project.migrationProgress ? state.project.migrationProgress : 0);
-    var value = Math.max(computed, seeded);
-    return Math.max(0, Math.min(100, value));
+    return Math.max(0, Math.min(100, Math.round((readyCount / total) * 100)));
+  }
+
+  function updateProjectSummary(summary) {
+    if (!summary || !state.project) return;
+    state.project = Object.assign({}, state.project, summary);
   }
 
   function showTreeStatus(message, isError) {
@@ -424,7 +465,11 @@
     var progress = inferProgress();
     if (refs.progressFill) refs.progressFill.style.width = progress + "%";
     if (refs.progressCopy) refs.progressCopy.textContent = progress + "% complete";
-    if (refs.detectedPages) refs.detectedPages.textContent = String(state.project.detectedPages || 0);
+    if (refs.detectedPages) {
+      refs.detectedPages.textContent = String(
+        (state.project.totalRealPageCount || state.project.detectedPages || 0)
+      );
+    }
     if (refs.purchasedPages) refs.purchasedPages.textContent = String(usage.purchased);
     if (refs.usedPages) refs.usedPages.textContent = String(usage.used);
     if (refs.remainingPages) refs.remainingPages.textContent = String(usage.remaining);
@@ -466,12 +511,65 @@
     );
   }
 
+  function getManualScanDraft(page) {
+    if (!page) return "";
+    if (Object.prototype.hasOwnProperty.call(state.manualScanDrafts, page.id)) {
+      return state.manualScanDrafts[page.id];
+    }
+    return String(page.url || "");
+  }
+
+  function getManualScanStatus(pageId) {
+    return state.manualScanStatusByPageId[pageId] || null;
+  }
+
+  function setManualScanStatus(pageId, message, isError) {
+    if (!pageId) return;
+    if (!message) {
+      delete state.manualScanStatusByPageId[pageId];
+      return;
+    }
+    state.manualScanStatusByPageId[pageId] = {
+      message: String(message || ""),
+      isError: Boolean(isError)
+    };
+  }
+
+  function shouldShowManualScan(page) {
+    if (!page || page.type !== "page") return false;
+    if (page.screenshotUrl) return false;
+    return !String(page.url || "").trim() || page.status === "failed";
+  }
+
+  function renderManualScanState(page) {
+    var status = getManualScanStatus(page.id);
+    return (
+      '<div class="viewer-manual-scan">' +
+      '<div class="viewer-manual-copy">' +
+      "<p style=\"margin:0 0 8px;\"><strong>Add a page URL to generate this screenshot.</strong></p>" +
+      "<p style=\"margin:0;\">We will scan the page, upload the screenshot, and reuse it on future visits.</p>" +
+      "</div>" +
+      '<label class="viewer-field-label" for="manual-page-url-input">Page URL</label>' +
+      '<input id="manual-page-url-input" class="viewer-url-input" type="url" value="' + escapeHtml(getManualScanDraft(page)) + '" placeholder="https://example.com/about">' +
+      (status ? '<p class="viewer-form-status' + (status.isError ? ' is-error' : '') + '">' + escapeHtml(status.message) + '</p>' : '<p class="viewer-form-status" hidden></p>') +
+      '<div class="viewer-form-actions">' +
+      '<button id="manual-page-scan-btn" class="viewer-scan-btn" type="button">' +
+      (page.status === "processing" ? "Scanning..." : "Scan") +
+      "</button>" +
+      "</div>" +
+      "</div>"
+    );
+  }
+
   function renderPreviewForPage(page) {
+    if (shouldShowManualScan(page)) {
+      return renderManualScanState(page);
+    }
     if (page.status === "processing" || page.status === "queued") {
       return (
         '<div class="viewer-placeholder">' +
         '<div>' +
-        "<p style=\"margin:0 0 8px;\"><strong>This page is still processing.</strong></p>" +
+        "<p style=\"margin:0 0 8px;\"><strong>" + (page.status === "processing" ? "This page is still processing." : "This page is queued for screenshot generation.") + "</strong></p>" +
         "<p style=\"margin:0;\">We are preparing the screenshot preview.</p>" +
         "</div>" +
         "</div>"
@@ -513,6 +611,29 @@
     );
   }
 
+  function bindViewerInteractions(selected) {
+    if (!selected || !shouldShowManualScan(selected) || !refs.viewerContent) return;
+    var urlInput = refs.viewerContent.querySelector("#manual-page-url-input");
+    var scanButton = refs.viewerContent.querySelector("#manual-page-scan-btn");
+    if (urlInput) {
+      urlInput.addEventListener("input", function (event) {
+        state.manualScanDrafts[selected.id] = event.target.value;
+      });
+      urlInput.addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          handleManualPageScan(selected.id);
+        }
+      });
+    }
+    if (scanButton) {
+      scanButton.disabled = selected.status === "processing";
+      scanButton.addEventListener("click", function () {
+        handleManualPageScan(selected.id);
+      });
+    }
+  }
+
   function renderViewer() {
     if (!state.project || !refs.viewerContent) return;
     var selected = getById(state.selectedId) || state.pages[0];
@@ -524,13 +645,17 @@
       refs.selectedStatusPill.textContent = statusPillLabel(selected.status);
       refs.selectedStatusPill.setAttribute("data-status", statusPillLabel(selected.status));
     }
-    if (refs.selectedUrlPill) refs.selectedUrlPill.textContent = selected.url || (state.project.wordpressUrl || "");
+    if (refs.selectedUrlPill) {
+      refs.selectedUrlPill.textContent = selected.url ||
+        (shouldShowManualScan(selected) ? "Add page URL" : (state.project.wordpressUrl || ""));
+    }
 
-    if (selected.type === "section") {
+    if (selected.type === "section" && !selected.screenshotUrl) {
       refs.viewerContent.innerHTML = renderSectionState(selected);
       return;
     }
     refs.viewerContent.innerHTML = renderPreviewForPage(selected);
+    bindViewerInteractions(selected);
   }
 
   function normalizeSiblingOrder(parentId) {
@@ -576,6 +701,9 @@
   function buildRenamedPageUrl(page, title) {
     var slug = slugifyTitle(title);
     var currentUrl = String(page && page.url ? page.url : "").trim();
+    if (!currentUrl) {
+      return "";
+    }
     if (currentUrl) {
       try {
         var parsed = new URL(currentUrl);
@@ -958,33 +1086,136 @@
     await persistTreeOrder(previousPages);
   }
 
-  function scheduleReadyState(pageId, delay) {
-    if (state.timers[pageId]) return;
-    var ms = Number.isFinite(delay) ? delay : (1800 + Math.round(Math.random() * 1800));
-    state.timers[pageId] = window.setTimeout(function () {
-      var page = getById(pageId);
-      if (page && (page.status === "processing" || page.status === "queued")) {
-        page.status = "ready";
-        page.justReadyUntil = Date.now() + 1200;
-        renderAll();
-        scheduleReadyIndicatorClear(pageId, 1240);
-      }
-      if (state.timers[pageId]) {
-        window.clearTimeout(state.timers[pageId]);
-        delete state.timers[pageId];
-      }
-    }, ms);
+  function getNextProcessablePage() {
+    return state.pages
+      .filter(function (page) {
+        return (
+          isRealPageType(page.type) &&
+          String(page.url || "").trim() &&
+          page.status !== "failed" &&
+          !hasReadyScreenshot(page)
+        );
+      })
+      .sort(function (a, b) {
+        var aPriority = a.type === "homepage" ? 0 : 1;
+        var bPriority = b.type === "homepage" ? 0 : 1;
+        if (aPriority !== bPriority) return aPriority - bPriority;
+        if (a.orderIndex === b.orderIndex) return a.title.localeCompare(b.title);
+        return a.orderIndex - b.orderIndex;
+      })[0] || null;
   }
 
-  function queuePageProcessing(pageId) {
+  async function requestProjectPageCreate(parentId) {
+    var response = await fetch("/api/project-area-page-create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        project: state.projectId,
+        token: state.token,
+        parentId: parentId || null
+      })
+    });
+    var payload = await response.json();
+    if (!response.ok) {
+      throw new Error((payload && payload.error) || "Could not create page.");
+    }
+    return payload;
+  }
+
+  async function requestProjectPageScan(pageId, url) {
+    var response = await fetch("/api/project-area-page-scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        project: state.projectId,
+        token: state.token,
+        pageId: pageId || null,
+        url: url || null
+      })
+    });
+    var payload = await response.json();
+    if (!response.ok) {
+      throw new Error((payload && payload.error) || "Could not process page.");
+    }
+    return payload;
+  }
+
+  function applyProjectPagePayload(payload) {
+    if (!payload || typeof payload !== "object") return;
+    if (payload.summary) {
+      updateProjectSummary(payload.summary);
+    }
+    if (payload.page) {
+      replacePageState(payload.page);
+      delete state.manualScanDrafts[payload.page.id];
+      setManualScanStatus(payload.page.id, "", false);
+    }
+  }
+
+  async function processNextPendingPage() {
+    if (state.processingPageRequest) return;
+    var nextPage = getNextProcessablePage();
+    if (!nextPage) return;
+
+    state.processingPageRequest = true;
+    nextPage.status = "processing";
+    renderAll();
+
+    try {
+      var payload = await requestProjectPageScan(null, null);
+      applyProjectPagePayload(payload);
+      renderAll();
+      if (payload && payload.hasPending) {
+        window.setTimeout(processNextPendingPage, 180);
+      }
+    } catch (error) {
+      nextPage.status = "failed";
+      renderAll();
+      console.error("PROJECT_PAGE_PROCESS_ERROR", error && error.message ? error.message : error);
+    } finally {
+      state.processingPageRequest = false;
+    }
+  }
+
+  async function handleManualPageScan(pageId) {
     var page = getById(pageId);
-    if (!page) return;
+    if (!page || page.type !== "page" || state.processingPageRequest) return;
+
+    var nextUrl = String(getManualScanDraft(page) || page.url || "").trim();
+    if (!/^https?:\/\/.+/i.test(nextUrl)) {
+      setManualScanStatus(pageId, "Enter a valid page URL.", true);
+      renderViewer();
+      return;
+    }
+
+    state.processingPageRequest = true;
+    setManualScanStatus(pageId, "", false);
+    page.url = nextUrl;
     page.status = "processing";
     renderAll();
-    scheduleReadyState(pageId);
+
+    try {
+      var payload = await requestProjectPageScan(pageId, nextUrl);
+      applyProjectPagePayload(payload);
+      renderAll();
+      if (payload && payload.hasPending) {
+        window.setTimeout(processNextPendingPage, 180);
+      }
+    } catch (error) {
+      page.status = "failed";
+      page.url = nextUrl;
+      setManualScanStatus(
+        pageId,
+        error && error.message ? error.message : "Could not scan this page right now.",
+        true
+      );
+      renderAll();
+    } finally {
+      state.processingPageRequest = false;
+    }
   }
 
-  function addPage() {
+  async function addPage() {
     var usage = getUsage();
     if (usage.remaining <= 0) {
       showTreeStatus("No remaining purchased pages. Delete a page to free one slot.", true);
@@ -994,22 +1225,23 @@
 
     var selected = getById(state.selectedId);
     var parentId = selected && selected.type === "section" ? selected.id : null;
-    var siblings = getChildren(parentId);
-    var newPage = {
-      id: createPageId(),
-      title: createPageTitle(),
-      url: buildPageUrl(createPageTitle()),
-      type: "page",
-      parentId: parentId,
-      persisted: false,
-      status: "queued",
-      screenshotUrl: String(state.project && state.project.previewImageUrl ? state.project.previewImageUrl : ""),
-      orderIndex: siblings.length
-    };
-    state.pages.push(newPage);
-    state.selectedId = newPage.id;
-    renderAll();
-    queuePageProcessing(newPage.id);
+
+    if (refs.addPageBtn) refs.addPageBtn.disabled = true;
+    try {
+      var payload = await requestProjectPageCreate(parentId);
+      var createdPage = normalizePage(payload && payload.page ? payload.page : null, state.pages.length);
+      state.pages.push(createdPage);
+      state.selectedId = createdPage.id;
+      if (payload && payload.summary) {
+        updateProjectSummary(payload.summary);
+      }
+      renderAll();
+    } catch (error) {
+      showTreeStatus(error && error.message ? error.message : "Could not create page.", true);
+    } finally {
+      if (refs.addPageBtn) refs.addPageBtn.disabled = false;
+      renderProgress();
+    }
   }
 
   async function swapSibling(direction, targetId) {
@@ -1077,8 +1309,6 @@
     if (!page || page.type !== "page") return;
     var previousPages = snapshotPages();
     page.type = "section";
-    page.status = "ready";
-    page.screenshotUrl = "";
     state.collapsedSections[page.id] = false;
     renderAll();
     if (page.persisted === false) return;
@@ -1196,16 +1426,6 @@
       return;
     }
     window.location.href = "/";
-  }
-
-  function bootProcessingSimulation() {
-    clearTimers();
-    var processingItems = state.pages.filter(function (page) {
-      return page.type === "page" && (page.status === "processing" || page.status === "queued");
-    });
-    processingItems.forEach(function (page, index) {
-      scheduleReadyState(page.id, 1400 + (index * 700));
-    });
   }
 
   function renderAll() {
@@ -1394,7 +1614,7 @@
       }
 
       renderAll();
-      bootProcessingSimulation();
+      processNextPendingPage();
     } catch (error) {
       if (error && error.code === "expired_access") {
         openAccessModal();
