@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const { sendEmail } = require("./email.service");
 const quoteRepository = require("../repositories/quote.repository");
 const projectRepository = require("../repositories/project.repository");
@@ -131,6 +132,26 @@ function normalizePageUrl(value) {
   }
 }
 
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(String(password || ""), salt, 64).toString("hex");
+  return `scrypt$${salt}$${hash}`;
+}
+
+async function resolveProjectUser(project) {
+  if (project && project.userId) {
+    const existingUser = await userRepository.findUserById(project.userId);
+    if (existingUser) return existingUser;
+  }
+
+  const email = String(project && project.customerEmail ? project.customerEmail : "").trim().toLowerCase();
+  if (!email) return null;
+
+  const found = await userRepository.findUserByEmail(email);
+  if (found) return found;
+  return userRepository.createUser(email);
+}
+
 function toSummary({ project, quote, pages }) {
   const detectedPages = deriveDetectedPages(quote);
   const purchasedPages = derivePurchasedPages(quote, detectedPages);
@@ -254,6 +275,30 @@ async function saveProjectAreaPageOrder(project, updates) {
   return savedPages.map(toApiPage);
 }
 
+async function updateProjectAreaPassword(project, password) {
+  if (!project || !project.id) {
+    throw new Error("Project not found.");
+  }
+
+  const normalizedPassword = String(password || "");
+  if (normalizedPassword.length < 8) {
+    throw new Error("Password must be at least 8 characters.");
+  }
+
+  const user = await resolveProjectUser(project);
+  if (!user || !user.id) {
+    throw new Error("No user found for this project.");
+  }
+
+  const passwordHash = hashPassword(normalizedPassword);
+  const updated = await userRepository.updateUserPasswordHash(user.id, passwordHash);
+  if (!updated) {
+    throw new Error("Could not update password.");
+  }
+
+  return { email: updated.email };
+}
+
 async function sendProjectAreaPasswordUpdateEmail(project) {
   let email = String(project && project.customerEmail ? project.customerEmail : "").trim().toLowerCase();
 
@@ -283,5 +328,6 @@ module.exports = {
   getProjectAreaData,
   renameProjectAreaPage,
   saveProjectAreaPageOrder,
+  updateProjectAreaPassword,
   sendProjectAreaPasswordUpdateEmail
 };

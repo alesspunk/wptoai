@@ -71,8 +71,25 @@ async function createUser(email) {
   return toUser(result.rows[0]);
 }
 
+async function updateUserPasswordHash(userId, passwordHash) {
+  if (!userId || !passwordHash) return null;
+  await ensureSchema();
+  const params = [String(userId), String(passwordHash)];
+  logQuery('updateUserPasswordHash', params);
+  const result = await query(
+    `UPDATE users
+      SET password_hash = $2,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING *`,
+    params
+  );
+  return toUser(result.rows[0]);
+}
+
 module.exports = {
   findUserById,
   findUserByEmail,
-  createUser
+  createUser,
+  updateUserPasswordHash
 };

@@ -44,7 +44,15 @@
     viewerContent: document.querySelector("#viewer-content"),
     contextMenu: document.querySelector("#page-context-menu"),
     updatePasswordBtn: document.querySelector("#update-password-btn"),
-    passwordStatus: document.querySelector("#password-status")
+    passwordStatus: document.querySelector("#password-status"),
+    passwordModal: document.querySelector("#password-modal"),
+    passwordModalBackdrop: document.querySelector("#password-modal-backdrop"),
+    passwordModalClose: document.querySelector("#password-modal-close"),
+    passwordModalBack: document.querySelector("#password-modal-back"),
+    passwordModalSubmit: document.querySelector("#password-modal-submit"),
+    passwordModalStatus: document.querySelector("#password-modal-status"),
+    newPasswordInput: document.querySelector("#new-password-input"),
+    confirmPasswordInput: document.querySelector("#confirm-password-input")
   };
 
   function clearLegacyQuoteState() {
@@ -166,6 +174,13 @@
     refs.passwordStatus.textContent = message || "";
   }
 
+  function showPasswordModalStatus(message, isError) {
+    if (!refs.passwordModalStatus) return;
+    refs.passwordModalStatus.hidden = !message;
+    refs.passwordModalStatus.classList.toggle("is-error", Boolean(isError));
+    refs.passwordModalStatus.textContent = message || "";
+  }
+
   function iconSvg(type) {
     if (type === "homepage") {
       return '<svg viewBox="0 0 24 24" fill="none" width="16" height="16" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.6a.4.4 0 0 1-.4-.4V15a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v5.6a.4.4 0 0 1-.4.4H5a1 1 0 0 1-1-1v-9.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>';
@@ -183,7 +198,10 @@
     }
     if (status === "ready") {
       var justReady = page.justReadyUntil && Date.now() < page.justReadyUntil;
-      return '<span class="tree-status is-ready ' + (justReady ? "is-just-ready" : "") + '">✓</span>';
+      if (justReady) {
+        return '<span class="tree-status is-ready is-just-ready">✓</span>';
+      }
+      return "";
     }
     if (status === "failed") {
       return '<span class="tree-status is-failed">!</span>';
@@ -757,6 +775,25 @@
     updateDropIndicators();
   }
 
+  function scheduleReadyIndicatorClear(pageId, duration) {
+    var timerKey = pageId + ":ready";
+    if (state.timers[timerKey]) {
+      window.clearTimeout(state.timers[timerKey]);
+      delete state.timers[timerKey];
+    }
+    state.timers[timerKey] = window.setTimeout(function () {
+      var page = getById(pageId);
+      if (page) {
+        page.justReadyUntil = 0;
+        renderTree();
+      }
+      if (state.timers[timerKey]) {
+        window.clearTimeout(state.timers[timerKey]);
+        delete state.timers[timerKey];
+      }
+    }, Number.isFinite(duration) ? duration : 1300);
+  }
+
   function movePageToTarget(pageId, targetId, mode) {
     var page = getById(pageId);
     var target = targetId ? getById(targetId) : null;
@@ -834,6 +871,7 @@
         page.status = "ready";
         page.justReadyUntil = Date.now() + 1200;
         renderAll();
+        scheduleReadyIndicatorClear(pageId, 1240);
       }
       if (state.timers[pageId]) {
         window.clearTimeout(state.timers[pageId]);
@@ -1020,6 +1058,22 @@
     });
   }
 
+  function openPasswordModal() {
+    showPasswordStatus("", false);
+    showPasswordModalStatus("", false);
+    if (refs.newPasswordInput) refs.newPasswordInput.value = "";
+    if (refs.confirmPasswordInput) refs.confirmPasswordInput.value = "";
+    if (refs.passwordModal) refs.passwordModal.hidden = false;
+    window.requestAnimationFrame(function () {
+      if (refs.newPasswordInput) refs.newPasswordInput.focus();
+    });
+  }
+
+  function closePasswordModal() {
+    if (refs.passwordModal) refs.passwordModal.hidden = true;
+    showPasswordModalStatus("", false);
+  }
+
   function bootProcessingSimulation() {
     clearTimers();
     var processingItems = state.pages.filter(function (page) {
@@ -1036,28 +1090,46 @@
     renderViewer();
   }
 
-  async function handlePasswordUpdateClick() {
+  async function handlePasswordModalSubmit() {
+    showPasswordModalStatus("", false);
     showPasswordStatus("", false);
-    if (!refs.updatePasswordBtn) return;
-    refs.updatePasswordBtn.disabled = true;
+    var password = refs.newPasswordInput ? String(refs.newPasswordInput.value || "") : "";
+    var confirmPassword = refs.confirmPasswordInput ? String(refs.confirmPasswordInput.value || "") : "";
+
+    if (!password || password.length < 8) {
+      showPasswordModalStatus("Password must be at least 8 characters.", true);
+      return;
+    }
+    if (password !== confirmPassword) {
+      showPasswordModalStatus("Passwords do not match.", true);
+      return;
+    }
+
+    if (refs.passwordModalSubmit) refs.passwordModalSubmit.disabled = true;
+    if (refs.passwordModalBack) refs.passwordModalBack.disabled = true;
+    if (refs.passwordModalClose) refs.passwordModalClose.disabled = true;
     try {
-      var response = await fetch("/api/project-area-password-reset", {
+      var response = await fetch("/api/project-area-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           project: state.projectId,
-          token: state.token
+          token: state.token,
+          password: password
         })
       });
       var payload = await response.json();
       if (!response.ok) {
-        throw new Error((payload && payload.error) || "Could not send password update email.");
+        throw new Error((payload && payload.error) || "Could not update password.");
       }
-      showPasswordStatus("Password update email sent to " + payload.sentTo + ".", false);
+      closePasswordModal();
+      showPasswordStatus("Password updated.", false);
     } catch (error) {
-      showPasswordStatus(error && error.message ? error.message : "Could not send password update email.", true);
+      showPasswordModalStatus(error && error.message ? error.message : "Could not update password.", true);
     } finally {
-      refs.updatePasswordBtn.disabled = false;
+      if (refs.passwordModalSubmit) refs.passwordModalSubmit.disabled = false;
+      if (refs.passwordModalBack) refs.passwordModalBack.disabled = false;
+      if (refs.passwordModalClose) refs.passwordModalClose.disabled = false;
     }
   }
 
@@ -1094,7 +1166,7 @@
       state.selectedId = homepage ? homepage.id : state.pages[0].id;
 
       if (refs.domain) {
-        refs.domain.textContent = String((data.wordpressUrl || "").replace(/^https?:\/\//i, "") || "project");
+        refs.domain.textContent = String((data.wordpressUrl || "").replace(/^https?:\/\//i, "").replace(/\/+$/, "") || "project");
       }
 
       renderAll();
@@ -1109,7 +1181,32 @@
   }
 
   if (refs.updatePasswordBtn) {
-    refs.updatePasswordBtn.addEventListener("click", handlePasswordUpdateClick);
+    refs.updatePasswordBtn.addEventListener("click", openPasswordModal);
+  }
+
+  if (refs.passwordModalBackdrop) {
+    refs.passwordModalBackdrop.addEventListener("click", closePasswordModal);
+  }
+
+  if (refs.passwordModalClose) {
+    refs.passwordModalClose.addEventListener("click", closePasswordModal);
+  }
+
+  if (refs.passwordModalBack) {
+    refs.passwordModalBack.addEventListener("click", closePasswordModal);
+  }
+
+  if (refs.passwordModalSubmit) {
+    refs.passwordModalSubmit.addEventListener("click", handlePasswordModalSubmit);
+  }
+
+  if (refs.confirmPasswordInput) {
+    refs.confirmPasswordInput.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handlePasswordModalSubmit();
+      }
+    });
   }
 
   if (refs.tree) {
@@ -1141,6 +1238,12 @@
     var trigger = event.target && event.target.closest && event.target.closest(".tree-more-btn");
     if (!insideMenu && !trigger) {
       closeContextMenu();
+    }
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && refs.passwordModal && !refs.passwordModal.hidden) {
+      closePasswordModal();
     }
   });
 

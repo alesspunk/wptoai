@@ -12,7 +12,6 @@
       <aside class="project-left-rail" aria-label="Project pages">
         <div class="project-left-head">
           <p id="project-domain" class="project-domain">project</p>
-          <p class="project-left-title">Project Area</p>
         </div>
 
         <section class="project-progress-card" aria-label="Migration progress">
@@ -51,14 +50,12 @@
       <main class="project-main-view" aria-live="polite">
         <header class="project-main-head">
           <img src="/images/wptoai-logo-blackandwhite.png" alt="WPtoAI logo" class="project-logo" />
-          <p class="project-main-title">Project Area</p>
         </header>
 
         <section class="project-preview-card">
           <div class="project-preview-head">
             <div>
               <h1 id="selected-title" class="selected-title">Select a page</h1>
-              <p class="selected-subtitle">Same design. Structured for chat-based changes.</p>
             </div>
             <span id="selected-status-pill" class="selected-status-pill">queued</span>
           </div>
@@ -73,6 +70,24 @@
     </div>
 
     <div id="page-context-menu" class="page-context-menu" hidden></div>
+    <div id="password-modal" class="password-modal" hidden>
+      <div id="password-modal-backdrop" class="password-modal-backdrop"></div>
+      <div class="password-modal-card" role="dialog" aria-modal="true" aria-labelledby="password-modal-title">
+        <div class="password-modal-head">
+          <h2 id="password-modal-title" class="password-modal-title">Update password</h2>
+          <button id="password-modal-close" class="password-modal-close" type="button" aria-label="Close password modal">×</button>
+        </div>
+        <label class="password-modal-label" for="new-password-input">New password</label>
+        <input id="new-password-input" class="password-modal-input" type="password" autocomplete="new-password" />
+        <label class="password-modal-label" for="confirm-password-input">Confirm password</label>
+        <input id="confirm-password-input" class="password-modal-input" type="password" autocomplete="new-password" />
+        <p id="password-modal-status" class="password-modal-status" hidden></p>
+        <div class="password-modal-actions">
+          <button id="password-modal-back" class="password-modal-secondary" type="button">Back</button>
+          <button id="password-modal-submit" class="password-modal-primary" type="button">Update</button>
+        </div>
+      </div>
+    </div>
     <script src="/project-area.js"></script>
   </body>
 </html>

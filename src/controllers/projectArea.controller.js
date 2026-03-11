@@ -104,9 +104,31 @@ async function saveProjectAreaPageOrderController(req, res) {
   }
 }
 
+async function updateProjectAreaPasswordController(req, res) {
+  const body = req && req.body ? req.body : {};
+  const projectId = String(body.project || "").trim();
+  const token = String(body.token || "").trim();
+  const password = String(body.password || "");
+
+  try {
+    const project = await resolveAuthorizedProject(projectId, token);
+    if (!project) {
+      return res.status(401).json({ error: EXPIRED_MESSAGE });
+    }
+
+    const result = await projectAreaService.updateProjectAreaPassword(project, password);
+    return res.json({ ok: true, email: result.email });
+  } catch (error) {
+    return res.status(500).json({
+      error: error && error.message ? error.message : "Could not update password."
+    });
+  }
+}
+
 module.exports = {
   getProjectAreaDataController,
   renameProjectAreaPageController,
   saveProjectAreaPageOrderController,
+  updateProjectAreaPasswordController,
   sendProjectAreaPasswordResetController
 };
