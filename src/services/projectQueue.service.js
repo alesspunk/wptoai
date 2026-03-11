@@ -37,7 +37,7 @@ function hasProjectQueueWork(pages) {
     isRealProjectPageType(page && page.type) &&
     String(page && page.url ? page.url : "").trim() &&
     (
-      page.status === "queued" ||
+      (page.type === "homepage" && page.status === "queued") ||
       (page.status === "processing" && !hasReadyScreenshot(page))
     )
   );

@@ -117,6 +117,9 @@
       persisted: safe.persisted !== false,
       status: String(safe.status || "queued"),
       screenshotUrl: String(safe.screenshotUrl || ""),
+      predictedSections: Array.isArray(safe.predictedSections)
+        ? safe.predictedSections.map(function (item) { return String(item || "").trim(); }).filter(Boolean).slice(0, 6)
+        : [],
       orderIndex: Number.isFinite(Number(safe.orderIndex)) ? Number(safe.orderIndex) : index,
       justReadyUntil: 0
     };
@@ -206,20 +209,35 @@
   }
 
   function inferProgress() {
-    var total = Number(
-      state.project && (
-        state.project.totalRealPageCount ||
-        state.project.detectedPages
-      ) ? (
-        state.project.totalRealPageCount ||
-        state.project.detectedPages
-      ) : 0
-    );
-    if (total <= 0) return 0;
-    var readyCount = state.pages.filter(function (page) {
-      return isRealPageType(page.type) && hasReadyScreenshot(page);
+    var realPages = state.pages.filter(function (page) {
+      return isRealPageType(page.type);
+    });
+    var homepage = realPages.find(function (page) {
+      return page.type === "homepage";
+    });
+    var innerPages = realPages.filter(function (page) {
+      return page.type === "page";
+    });
+    var preparedInnerPages = innerPages.filter(function (page) {
+      return page.predictedSections.length > 0 ||
+        hasReadyScreenshot(page) ||
+        !/^((page \d+)|(new page \d+)|untitled(?: page)?)$/i.test(String(page.title || "").trim());
     }).length;
-    return Math.max(0, Math.min(100, Math.round((readyCount / total) * 100)));
+    var progress = 0;
+
+    if (homepage && (hasReadyScreenshot(homepage) || String(state.project && state.project.previewImageUrl ? state.project.previewImageUrl : "").trim())) {
+      progress += 20;
+    }
+    if (realPages.length > 0) {
+      progress += 20;
+    }
+    if (innerPages.length > 0) {
+      progress += Math.round((preparedInnerPages / innerPages.length) * 20);
+    } else if (homepage) {
+      progress += 20;
+    }
+
+    return Math.max(0, Math.min(60, progress));
   }
 
   function pageNeedsQueue(page) {
@@ -228,7 +246,10 @@
       isRealPageType(page.type) &&
       String(page.url || "").trim() &&
       !hasReadyScreenshot(page) &&
-      (page.status === "queued" || page.status === "processing")
+      (
+        (page.type === "homepage" && page.status === "queued") ||
+        page.status === "processing"
+      )
     );
   }
 
@@ -496,8 +517,11 @@
   }
 
   function statusPillLabel(status) {
-    if (!status) return "queued";
-    return String(status).toLowerCase();
+    var normalized = String(status || "").toLowerCase();
+    if (normalized === "processing") return "preparing";
+    if (normalized === "failed") return "needs review";
+    if (normalized === "queued") return "planned";
+    return "ready";
   }
 
   function renderSectionState(section) {
@@ -523,9 +547,44 @@
       '<div class="viewer-placeholder">' +
       '<div>' +
       "<h3 style=\"margin:0 0 8px;\">Section: " + escapeHtml(section.title) + "</h3>" +
-      "<p style=\"margin:0;\">Select a page or add a new page inside this section.</p>" +
+      "<p style=\"margin:0;\">Review the pages in this section or add a new page inside it.</p>" +
       listHtml +
       "</div>" +
+      "</div>"
+    );
+  }
+
+  function renderPredictedSectionsList(predictedSections) {
+    if (!Array.isArray(predictedSections) || !predictedSections.length) {
+      return '<p class="viewer-form-status">No clear sections were detected yet. Keep this as a simple page entry or refine it later.</p>';
+    }
+
+    return (
+      '<ul class="viewer-section-list">' +
+      predictedSections.map(function (item) {
+        return (
+          '<li class="viewer-section-item">' +
+          "<strong>" + escapeHtml(item) + "</strong>" +
+          "<span>Likely section</span>" +
+          "</li>"
+        );
+      }).join("") +
+      "</ul>"
+    );
+  }
+
+  function renderStructureState(page) {
+    var canLoadPreview = page.type === "page" && String(page.url || "").trim();
+    return (
+      '<div class="viewer-manual-scan">' +
+      '<div class="viewer-manual-copy">' +
+      "<p style=\"margin:0 0 8px;\"><strong>Page structure is ready to review.</strong></p>" +
+      "<p style=\"margin:0;\">We mapped this page as part of the project structure. Likely sections appear below when the original site gives us enough DOM clues.</p>" +
+      "</div>" +
+      renderPredictedSectionsList(page.predictedSections) +
+      (canLoadPreview
+        ? '<div class="viewer-form-actions"><button id="viewer-load-preview-btn" class="viewer-scan-btn" type="button">Load page preview</button></div>'
+        : "") +
       "</div>"
     );
   }
@@ -562,12 +621,12 @@
 
   function renderManualScanState(page) {
     var status = getManualScanStatus(page.id);
-    var buttonLabel = page.status === "processing" ? "Scanning..." : "Scan";
+    var buttonLabel = page.status === "processing" ? "Loading..." : "Load page";
     return (
       '<div class="viewer-manual-scan">' +
       '<div class="viewer-manual-copy">' +
-      "<p style=\"margin:0 0 8px;\"><strong>Add a page URL to generate this screenshot.</strong></p>" +
-      "<p style=\"margin:0;\">We will scan the page, upload the screenshot, and reuse it on future visits.</p>" +
+      "<p style=\"margin:0 0 8px;\"><strong>Add a page URL to prepare this page.</strong></p>" +
+      "<p style=\"margin:0;\">We will load the page preview only when you ask for it and keep the saved result for future visits.</p>" +
       "</div>" +
       '<label class="viewer-field-label" for="manual-page-url-input">Page URL</label>' +
       '<input id="manual-page-url-input" class="viewer-url-input" type="url" value="' + escapeHtml(getManualScanDraft(page)) + '" placeholder="https://example.com/about">' +
@@ -587,8 +646,8 @@
     var html =
       '<div class="viewer-manual-scan">' +
       '<div class="viewer-manual-copy">' +
-      "<p style=\"margin:0 0 8px;\"><strong>Preview failed for this page.</strong></p>" +
-      "<p style=\"margin:0;\">Retry the scan. If the page URL changed, update it first.</p>" +
+      "<p style=\"margin:0 0 8px;\"><strong>We could not load the latest page preview.</strong></p>" +
+      "<p style=\"margin:0;\">Retry the page preview. If the page URL changed, update it first.</p>" +
       "</div>";
 
     if (supportsUrlEdit) {
@@ -602,7 +661,7 @@
     html +=
       (status ? '<p class="viewer-form-status' + (status.isError ? ' is-error' : '') + '">' + escapeHtml(status.message) + '</p>' : '<p class="viewer-form-status" hidden></p>') +
       '<div class="viewer-form-actions">' +
-      '<button id="viewer-retry-scan-btn" class="viewer-scan-btn" type="button">Retry scan</button>' +
+      '<button id="viewer-retry-scan-btn" class="viewer-scan-btn" type="button">Retry page preview</button>' +
       "</div>" +
       "</div>";
 
@@ -617,8 +676,8 @@
       return (
         '<div class="viewer-placeholder">' +
         '<div>' +
-        "<p style=\"margin:0 0 8px;\"><strong>" + (page.status === "processing" ? "This page is still processing." : "This page is queued for screenshot generation.") + "</strong></p>" +
-        "<p style=\"margin:0;\">We are preparing the screenshot preview.</p>" +
+        "<p style=\"margin:0 0 8px;\"><strong>" + (page.status === "processing" ? "This page is still being prepared." : "This page is lined up for preparation.") + "</strong></p>" +
+        "<p style=\"margin:0;\">You can keep organizing the project while the page preview finishes.</p>" +
         "</div>" +
         "</div>"
       );
@@ -628,14 +687,7 @@
     }
 
     if (!page.screenshotUrl) {
-      return (
-        '<div class="viewer-placeholder">' +
-        '<div>' +
-        "<p style=\"margin:0 0 8px;\"><strong>No screenshot available yet.</strong></p>" +
-        "<p style=\"margin:0;\">Screenshot will appear here when ready.</p>" +
-        "</div>" +
-        "</div>"
-      );
+      return renderStructureState(page);
     }
 
     return (
@@ -646,7 +698,7 @@
       '<span class="viewer-dot dot-c"></span>' +
       "</div>" +
       '<div class="viewer-scroll">' +
-      '<img alt="Page screenshot preview" src="' + page.screenshotUrl + '">' +
+      '<img alt="Page preview" src="' + page.screenshotUrl + '">' +
       "</div>" +
       "</div>"
     );
@@ -657,6 +709,7 @@
     var urlInput = refs.viewerContent.querySelector("#manual-page-url-input");
     var scanButton = refs.viewerContent.querySelector("#manual-page-scan-btn");
     var retryButton = refs.viewerContent.querySelector("#viewer-retry-scan-btn");
+    var loadPreviewButton = refs.viewerContent.querySelector("#viewer-load-preview-btn");
     if (urlInput) {
       urlInput.addEventListener("input", function (event) {
         state.manualScanDrafts[selected.id] = event.target.value;
@@ -680,6 +733,12 @@
         handleManualPageScan(selected.id);
       });
     }
+    if (loadPreviewButton) {
+      loadPreviewButton.disabled = selected.status === "processing";
+      loadPreviewButton.addEventListener("click", function () {
+        handleManualPageScan(selected.id);
+      });
+    }
   }
 
   function renderViewer() {
@@ -691,7 +750,7 @@
     if (refs.selectedTitle) refs.selectedTitle.textContent = selected.title || "Untitled";
     if (refs.selectedStatusPill) {
       refs.selectedStatusPill.textContent = statusPillLabel(selected.status);
-      refs.selectedStatusPill.setAttribute("data-status", statusPillLabel(selected.status));
+      refs.selectedStatusPill.setAttribute("data-status", String(selected.status || "queued").toLowerCase());
     }
     if (refs.selectedUrlPill) {
       refs.selectedUrlPill.textContent = selected.url ||
@@ -1339,7 +1398,7 @@
     var previousUrl = page.url || "";
     var previousScreenshotUrl = page.screenshotUrl || "";
     page.url = nextUrl;
-    page.status = "queued";
+    page.status = "processing";
     page.screenshotUrl = "";
     page.justReadyUntil = 0;
     renderAll();

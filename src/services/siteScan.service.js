@@ -7,6 +7,19 @@ const { extractUrl } = require("./quotePricingService");
 const VIEWPORT = { width: 1366, height: 820 };
 const MAX_CRAWL_PAGES = 4;
 const MAX_DISCOVERED_LINKS = 200;
+const STRONG_SECTION_PATTERNS = [
+  { label: "Hero", pattern: /\b(hero|banner|masthead|intro|headline)\b/i },
+  { label: "Services", pattern: /\b(service|services|capabilities|solutions|offerings)\b/i },
+  { label: "Features", pattern: /\b(feature|features|benefits|advantages)\b/i },
+  { label: "About", pattern: /\b(about|our story|company)\b/i },
+  { label: "Team", pattern: /\b(team|leadership|staff)\b/i },
+  { label: "Portfolio", pattern: /\b(portfolio|projects|case stud(?:y|ies)|our work)\b/i },
+  { label: "Testimonials", pattern: /\b(testimonial|testimonials|reviews|clients say)\b/i },
+  { label: "Pricing", pattern: /\b(pricing|plans|packages)\b/i },
+  { label: "FAQ", pattern: /\b(faq|questions)\b/i },
+  { label: "Contact", pattern: /\b(contact|get in touch|consultation|appointment|book now)\b/i },
+  { label: "Footer", pattern: /\bfooter\b/i }
+];
 
 function isPrivateHost(hostname) {
   if (!hostname) return true;
@@ -110,12 +123,106 @@ async function extractPageMetadata(page) {
       .map((anchor) => anchor.getAttribute("href") || "")
       .filter(Boolean);
 
+    const headings = Array.from(document.querySelectorAll("h1, h2, h3"))
+      .map((node) => String(node.textContent || "").replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .slice(0, 18);
+
+    const clueText = Array.from(document.querySelectorAll("section, article, nav, footer, form, main, [class], [id]"))
+      .slice(0, 220)
+      .map((node) => {
+        const className = typeof node.className === "string" ? node.className : "";
+        const id = node.id || "";
+        return [node.tagName || "", className, id].join(" ");
+      })
+      .join(" ");
+
+    const semanticCounts = {
+      section: document.querySelectorAll("section").length,
+      article: document.querySelectorAll("article").length,
+      nav: document.querySelectorAll("nav").length,
+      footer: document.querySelectorAll("footer").length,
+      form: document.querySelectorAll("form").length
+    };
+
     return {
       title: String(title || "").trim(),
       description: String(description || "").trim(),
-      hrefs
+      hrefs,
+      headings,
+      clueText: String(clueText || ""),
+      semanticCounts
     };
   });
+}
+
+function normalizePredictedSectionLabel(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function isUsefulHeading(heading, pageTitle) {
+  const normalized = String(heading || "").replace(/\s+/g, " ").trim();
+  if (!normalized) return false;
+  if (normalized.length < 3 || normalized.length > 64) return false;
+  if (/^(home|homepage|welcome)$/i.test(normalized)) return false;
+  if (pageTitle && normalized.toLowerCase() === String(pageTitle).toLowerCase()) return false;
+  return true;
+}
+
+function predictPageSections(metadata, pageUrl, isHomepage) {
+  const predicted = [];
+  const seen = new Set();
+  const pageTitle = normalizeDetectedTitle(metadata && metadata.title, pageUrl, isHomepage);
+  const headings = Array.isArray(metadata && metadata.headings) ? metadata.headings : [];
+  const semanticCounts = metadata && metadata.semanticCounts ? metadata.semanticCounts : {};
+  const clueText = [
+    pageTitle,
+    metadata && metadata.description ? metadata.description : "",
+    headings.join(" "),
+    metadata && metadata.clueText ? metadata.clueText : ""
+  ].join(" ");
+
+  function addSection(label) {
+    const normalized = normalizePredictedSectionLabel(label);
+    const key = normalized.toLowerCase();
+    if (!normalized || seen.has(key)) return;
+    seen.add(key);
+    predicted.push(normalized);
+  }
+
+  STRONG_SECTION_PATTERNS.forEach((entry) => {
+    if (entry.pattern.test(clueText)) {
+      addSection(entry.label);
+    }
+  });
+
+  headings
+    .filter((heading) => isUsefulHeading(heading, pageTitle))
+    .slice(0, 5)
+    .forEach(addSection);
+
+  if (semanticCounts && Number(semanticCounts.form || 0) > 0) {
+    addSection("Contact Form");
+  }
+  if (semanticCounts && Number(semanticCounts.footer || 0) > 0) {
+    addSection("Footer");
+  }
+  if (isHomepage && headings.length > 0) {
+    addSection("Hero");
+  }
+
+  const confidenceScore = predicted.length +
+    (Number(semanticCounts.form || 0) > 0 ? 1 : 0) +
+    (Number(semanticCounts.section || 0) >= 2 ? 1 : 0);
+
+  if (confidenceScore < 2) {
+    return [];
+  }
+
+  return predicted.slice(0, 6);
 }
 
 async function launchBrowser() {
@@ -139,7 +246,8 @@ async function discoverSitePages(browser, rootUrl, homepageMetadata) {
   const discovered = new Map();
   discovered.set(homepageUrl, {
     url: homepageUrl,
-    title: normalizeDetectedTitle(homepageMetadata && homepageMetadata.title, homepageUrl, true)
+    title: normalizeDetectedTitle(homepageMetadata && homepageMetadata.title, homepageUrl, true),
+    predictedSections: predictPageSections(homepageMetadata, homepageUrl, true)
   });
 
   const queue = [];
@@ -153,7 +261,8 @@ async function discoverSitePages(browser, rootUrl, homepageMetadata) {
     if (!normalized || discovered.has(normalized)) return;
     discovered.set(normalized, {
       url: normalized,
-      title: buildReadableTitleFromUrl(normalized, false)
+      title: buildReadableTitleFromUrl(normalized, false),
+      predictedSections: []
     });
     queue.push(normalized);
   });
@@ -175,7 +284,8 @@ async function discoverSitePages(browser, rootUrl, homepageMetadata) {
       const data = await extractPageMetadata(page);
       discovered.set(nextUrl, {
         url: nextUrl,
-        title: normalizeDetectedTitle(data && data.title, nextUrl, false)
+        title: normalizeDetectedTitle(data && data.title, nextUrl, false),
+        predictedSections: predictPageSections(data, nextUrl, false)
       });
       data.hrefs.forEach((href) => {
         if (discovered.size >= MAX_DISCOVERED_LINKS) return;
@@ -183,7 +293,8 @@ async function discoverSitePages(browser, rootUrl, homepageMetadata) {
         if (!normalized || discovered.has(normalized)) return;
         discovered.set(normalized, {
           url: normalized,
-          title: buildReadableTitleFromUrl(normalized, false)
+          title: buildReadableTitleFromUrl(normalized, false),
+          predictedSections: []
         });
         if (queue.length + crawled < MAX_CRAWL_PAGES) {
           queue.push(normalized);
@@ -301,7 +412,8 @@ async function scanSite(inputUrl) {
         url: item.url,
         title: normalizeDetectedTitle(item.title, item.url, index === 0),
         type: index === 0 ? "homepage" : "page",
-        orderIndex: index
+        orderIndex: index,
+        predictedSections: Array.isArray(item.predictedSections) ? item.predictedSections : []
       })),
       scanStatus: "completed"
     };

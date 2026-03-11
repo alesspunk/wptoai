@@ -45,6 +45,47 @@ function getDetectedPagesData(quote) {
   return Array.isArray(quote && quote.detectedPagesData) ? quote.detectedPagesData : [];
 }
 
+function normalizePredictedSections(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  return value
+    .map((item) => String(item || "").replace(/\s+/g, " ").trim())
+    .filter((item) => {
+      if (!item) return false;
+      const key = item.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 6);
+}
+
+function getHomepagePreviewImageUrl(quote) {
+  return String((quote && quote.previewImageUrl) || "").trim();
+}
+
+function buildDetectedPageMetaLookup(quote) {
+  const lookup = new Map();
+  getDetectedPagesData(quote).forEach((page, index) => {
+    const normalizedUrl = normalizePageUrl(page && page.url ? page.url : "");
+    if (!normalizedUrl) return;
+    lookup.set(normalizedUrl, {
+      orderIndex: Number.isFinite(Number(page && page.orderIndex)) ? Number(page.orderIndex) : index,
+      predictedSections: normalizePredictedSections(page && page.predictedSections)
+    });
+  });
+  return lookup;
+}
+
+function isGenericProjectPageTitle(value) {
+  const normalized = normalizePageTitle(value);
+  if (!normalized) return true;
+  if (/^page \d+$/i.test(normalized)) return true;
+  if (/^new page \d+$/i.test(normalized)) return true;
+  if (/^untitled(?: page)?$/i.test(normalized)) return true;
+  return false;
+}
+
 function buildFallbackDetectedPages(siteUrl, detectedPages) {
   let rootOrigin = "";
   try {
@@ -87,6 +128,7 @@ function buildInitialProjectPages({ project, quote }) {
   return sourcePages.map((page, index) => {
     const normalizedUrl = normalizePageUrl(page && page.url ? page.url : "");
     const type = index === 0 ? "homepage" : "page";
+    const hasHomepagePreview = type === "homepage" && Boolean(getHomepagePreviewImageUrl(quote));
     return {
       title: normalizeDetectedTitle(
         page && page.title ? page.title : "",
@@ -96,24 +138,44 @@ function buildInitialProjectPages({ project, quote }) {
       url: normalizedUrl,
       type,
       parentId: null,
-      status: "queued",
+      status: hasHomepagePreview ? "ready" : (type === "homepage" ? "queued" : "ready"),
       screenshotUrl: "",
       orderIndex: Number.isFinite(Number(page && page.orderIndex)) ? Number(page.orderIndex) : index
     };
   });
 }
 
-function toApiPage(page) {
+function toApiPage(page, quote) {
+  const detectedPageMetaLookup = buildDetectedPageMetaLookup(quote);
+  const normalizedUrl = normalizePageUrl(page && page.url ? page.url : "");
+  const detectedPageMeta = normalizedUrl ? detectedPageMetaLookup.get(normalizedUrl) : null;
+  const predictedSections = normalizePredictedSections(
+    detectedPageMeta && detectedPageMeta.predictedSections
+      ? detectedPageMeta.predictedSections
+      : []
+  );
+  const homepagePreviewImageUrl = page && page.type === "homepage" && !String(page.screenshotUrl || "").trim()
+    ? getHomepagePreviewImageUrl(quote)
+    : "";
+  const screenshotUrl = String(page && page.screenshotUrl ? page.screenshotUrl : "").trim() || homepagePreviewImageUrl;
+  let status = String(page && page.status ? page.status : "queued");
+  if (screenshotUrl) {
+    status = "ready";
+  } else if (page && page.type !== "homepage" && status === "queued") {
+    status = "ready";
+  }
+
   return {
     id: page.id,
     title: page.title,
-    url: page.url || "",
+    url: normalizedUrl,
     type: page.type,
     parentId: page.parentId || null,
     persisted: true,
-    status: page.status,
-    screenshotUrl: page.screenshotUrl || "",
-    orderIndex: Number(page.orderIndex || 0)
+    status,
+    screenshotUrl,
+    orderIndex: Number(page.orderIndex || 0),
+    predictedSections
   };
 }
 
@@ -180,18 +242,43 @@ function isPurchasedProjectPageType(type) {
   return type === "homepage" || type === "page" || type === "section";
 }
 
+function isPreparedProjectPage(page) {
+  if (!page || !isRealProjectPageType(page.type)) return false;
+  if (page.type === "homepage") {
+    return Boolean(String(page.screenshotUrl || "").trim() || String(page.url || "").trim());
+  }
+  if (Array.isArray(page.predictedSections) && page.predictedSections.length > 0) {
+    return true;
+  }
+  if (!isGenericProjectPageTitle(page.title)) {
+    return true;
+  }
+  return Boolean(String(page.screenshotUrl || "").trim());
+}
+
 function toSummary({ project, quote, pages }) {
   const realPages = pages.filter((item) => isRealProjectPageType(item.type));
-  const processedPageCount = realPages.filter((item) =>
-    item.status === "ready" && String(item.screenshotUrl || "").trim()
-  ).length;
+  const preparedPageCount = realPages.filter((item) => isPreparedProjectPage(item)).length;
   const totalRealPageCount = realPages.length || deriveDetectedPages(quote);
   const purchasedPages = derivePurchasedPages(quote, totalRealPageCount);
   const usedPages = pages.filter((item) => isPurchasedProjectPageType(item.type)).length;
   const remainingPages = Math.max(0, purchasedPages - usedPages);
-  const migrationProgress = totalRealPageCount > 0
-    ? Math.round((processedPageCount / totalRealPageCount) * 100)
-    : 0;
+  const homepage = realPages.find((item) => item.type === "homepage");
+  const innerPages = realPages.filter((item) => item.type === "page");
+  const preparedInnerPages = innerPages.filter((item) => isPreparedProjectPage(item)).length;
+  let migrationProgress = 0;
+  if (homepage && isPreparedProjectPage(homepage)) {
+    migrationProgress += 20;
+  }
+  if (realPages.length > 0) {
+    migrationProgress += 20;
+  }
+  if (innerPages.length > 0) {
+    migrationProgress += Math.round((preparedInnerPages / innerPages.length) * 20);
+  } else if (homepage) {
+    migrationProgress += 20;
+  }
+  migrationProgress = Math.max(0, Math.min(60, migrationProgress));
 
   return {
     projectId: project.id,
@@ -204,7 +291,7 @@ function toSummary({ project, quote, pages }) {
     purchasedPages,
     usedPages,
     remainingPages,
-    processedPageCount,
+    processedPageCount: preparedPageCount,
     totalRealPageCount,
     purchasedPageCount: purchasedPages,
     usedPageCount: usedPages,
@@ -227,7 +314,7 @@ async function getOrSeedProjectPages(project, quote) {
 
 async function buildProjectAreaData(project, quote, selectedPageId) {
   const seeded = await getOrSeedProjectPages(project, quote);
-  const pages = (seeded || []).map(toApiPage);
+  const pages = (seeded || []).map((page) => toApiPage(page, quote));
   const summary = toSummary({ project, quote, pages });
   const selectedPage = pages.find((item) => item.id === selectedPageId) || pages[0] || null;
 
@@ -378,16 +465,17 @@ async function createProjectAreaPage(project, parentId) {
     url: null,
     type: "page",
     parentId: normalizedParentId,
-    status: "queued",
+    status: "ready",
     screenshotUrl: null,
     orderIndex: siblingCount
   });
 
   const nextPages = pages.concat(created);
-  const summary = toSummary({ project, quote, pages: nextPages.map(toApiPage) });
+  const apiPages = nextPages.map((item) => toApiPage(item, quote));
+  const summary = toSummary({ project, quote, pages: apiPages });
 
   return {
-    page: toApiPage(created),
+    page: toApiPage(created, quote),
     summary
   };
 }
@@ -436,10 +524,11 @@ async function deleteProjectAreaPage(project, pageId) {
 
   await projectPageRepository.deleteProjectPagesByIds(project.id, idsToDelete);
   const nextPages = await projectPageRepository.findProjectPagesByProjectId(project.id);
+  const apiPages = nextPages.map((item) => toApiPage(item, quote));
 
   return {
-    pages: nextPages.map(toApiPage),
-    summary: toSummary({ project, quote, pages: nextPages.map(toApiPage) })
+    pages: apiPages,
+    summary: toSummary({ project, quote, pages: apiPages })
   };
 }
 
@@ -477,10 +566,11 @@ async function processProjectAreaPage(project, pageId, requestedUrl) {
       !urlChanged
     ) {
       const existingPages = await projectPageRepository.findProjectPagesByProjectId(project.id);
+      const apiPages = existingPages.map((item) => toApiPage(item, quote));
       return {
-        page: toApiPage(page),
-        summary: toSummary({ project, quote, pages: existingPages.map(toApiPage) }),
-        hasPending: projectQueueService.hasProjectQueueWork(existingPages.map(toApiPage))
+        page: toApiPage(page, quote),
+        summary: toSummary({ project, quote, pages: apiPages }),
+        hasPending: projectQueueService.hasProjectQueueWork(apiPages)
       };
     }
 
@@ -491,22 +581,22 @@ async function processProjectAreaPage(project, pageId, requestedUrl) {
     if (page.status !== "processing" || urlChanged || currentUrl !== finalUrl) {
       page = await projectPageRepository.updateProjectPageScanResult(project.id, page.id, {
         url: finalUrl,
-        status: "queued"
+        status: "processing"
       });
     }
   } else {
     const processed = await projectQueueService.processNextProjectQueuePage(project.id);
     const existingPages = await projectPageRepository.findProjectPagesByProjectId(project.id);
-    const apiPages = existingPages.map(toApiPage);
+    const apiPages = existingPages.map((item) => toApiPage(item, quote));
     return {
-      page: processed && processed.page ? toApiPage(processed.page) : null,
+      page: processed && processed.page ? toApiPage(processed.page, quote) : null,
       summary: toSummary({ project, quote, pages: apiPages }),
       hasPending: Boolean(processed && processed.hasPending)
     };
   }
 
   const existingPages = await projectPageRepository.findProjectPagesByProjectId(project.id);
-  const apiPages = existingPages.map(toApiPage);
+  const apiPages = existingPages.map((item) => toApiPage(item, quote));
   const queuedPage = apiPages.find((item) => item.id === explicitPageId) || null;
 
   return {
