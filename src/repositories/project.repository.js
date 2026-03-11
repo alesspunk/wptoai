@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { ensureSchema, query } = require('./postgres');
+const PROJECT_QUEUE_LOCK_STALE_MINUTES = 15;
 
 function generateId(prefix) {
   if (typeof crypto.randomUUID === 'function') {
@@ -20,6 +21,8 @@ function toProject(row) {
     accessToken: row.access_token || null,
     accessTokenExpiresAt: row.access_token_expires_at || null,
     vercelDeploymentUrl: row.vercel_deployment_url,
+    queueStatus: row.queue_status || 'idle',
+    queueLockedAt: row.queue_locked_at || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -169,6 +172,68 @@ async function updateProjectCustomerEmail(projectId, customerEmail) {
   return toProject(result.rows[0]);
 }
 
+async function tryAcquireProjectQueue(projectId) {
+  if (!projectId) return null;
+  await ensureSchema();
+  const params = [String(projectId), PROJECT_QUEUE_LOCK_STALE_MINUTES];
+  logQuery('tryAcquireProjectQueue', params);
+
+  const result = await query(
+    `UPDATE projects
+        SET queue_status = 'processing',
+            queue_locked_at = NOW(),
+            updated_at = NOW()
+      WHERE id = $1
+        AND (
+          COALESCE(queue_status, 'idle') <> 'processing'
+          OR queue_locked_at IS NULL
+          OR queue_locked_at < NOW() - ($2::int * INTERVAL '1 minute')
+        )
+      RETURNING *`,
+    params
+  );
+
+  return toProject(result.rows[0]);
+}
+
+async function touchProjectQueue(projectId) {
+  if (!projectId) return null;
+  await ensureSchema();
+  const params = [String(projectId)];
+  logQuery('touchProjectQueue', params);
+
+  const result = await query(
+    `UPDATE projects
+        SET queue_locked_at = NOW(),
+            updated_at = NOW()
+      WHERE id = $1
+        AND COALESCE(queue_status, 'idle') = 'processing'
+      RETURNING *`,
+    params
+  );
+
+  return toProject(result.rows[0]);
+}
+
+async function releaseProjectQueue(projectId) {
+  if (!projectId) return null;
+  await ensureSchema();
+  const params = [String(projectId)];
+  logQuery('releaseProjectQueue', params);
+
+  const result = await query(
+    `UPDATE projects
+        SET queue_status = 'idle',
+            queue_locked_at = NULL,
+            updated_at = NOW()
+      WHERE id = $1
+      RETURNING *`,
+    params
+  );
+
+  return toProject(result.rows[0]);
+}
+
 module.exports = {
   createProject,
   saveProjectAccessToken,
@@ -176,5 +241,8 @@ module.exports = {
   findProjectById,
   findLatestProjectByUserId,
   findLatestProjectByCustomerEmail,
-  updateProjectCustomerEmail
+  updateProjectCustomerEmail,
+  tryAcquireProjectQueue,
+  touchProjectQueue,
+  releaseProjectQueue
 };

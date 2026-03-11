@@ -58,6 +58,8 @@ CREATE TABLE IF NOT EXISTS projects (
   status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'scanning', 'building', 'deploying', 'ready', 'failed')),
   access_token TEXT,
   access_token_expires_at TIMESTAMPTZ,
+  queue_status TEXT NOT NULL DEFAULT 'idle' CHECK (queue_status IN ('idle', 'processing')),
+  queue_locked_at TIMESTAMPTZ,
   vercel_deployment_url TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -66,11 +68,14 @@ CREATE TABLE IF NOT EXISTS projects (
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS user_id TEXT;
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS access_token TEXT;
 ALTER TABLE projects ADD COLUMN IF NOT EXISTS access_token_expires_at TIMESTAMPTZ;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS queue_status TEXT NOT NULL DEFAULT 'idle';
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS queue_locked_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_projects_quote_id ON projects(quote_id);
 CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
 CREATE INDEX IF NOT EXISTS idx_projects_status ON projects(status);
 CREATE INDEX IF NOT EXISTS idx_projects_access_token ON projects(access_token);
+CREATE INDEX IF NOT EXISTS idx_projects_queue_status ON projects(queue_status);
 
 CREATE TABLE IF NOT EXISTS project_pages (
   id TEXT PRIMARY KEY,

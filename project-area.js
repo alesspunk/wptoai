@@ -26,6 +26,8 @@
     dropTarget: null,
     savingTree: false,
     processingPageRequest: false,
+    pollTimer: 0,
+    pollInFlight: false,
     manualScanDrafts: {},
     manualScanStatusByPageId: {}
   };
@@ -218,6 +220,23 @@
       return isRealPageType(page.type) && hasReadyScreenshot(page);
     }).length;
     return Math.max(0, Math.min(100, Math.round((readyCount / total) * 100)));
+  }
+
+  function pageNeedsQueue(page) {
+    return Boolean(
+      page &&
+      isRealPageType(page.type) &&
+      String(page.url || "").trim() &&
+      !hasReadyScreenshot(page) &&
+      (page.status === "queued" || page.status === "processing")
+    );
+  }
+
+  function hasQueueActivity(project, pages) {
+    if (project && typeof project.queueActive === "boolean") {
+      return project.queueActive;
+    }
+    return Array.isArray(pages) && pages.some(pageNeedsQueue);
   }
 
   function updateProjectSummary(summary) {
@@ -1086,25 +1105,6 @@
     await persistTreeOrder(previousPages);
   }
 
-  function getNextProcessablePage() {
-    return state.pages
-      .filter(function (page) {
-        return (
-          isRealPageType(page.type) &&
-          String(page.url || "").trim() &&
-          page.status !== "failed" &&
-          !hasReadyScreenshot(page)
-        );
-      })
-      .sort(function (a, b) {
-        var aPriority = a.type === "homepage" ? 0 : 1;
-        var bPriority = b.type === "homepage" ? 0 : 1;
-        if (aPriority !== bPriority) return aPriority - bPriority;
-        if (a.orderIndex === b.orderIndex) return a.title.localeCompare(b.title);
-        return a.orderIndex - b.orderIndex;
-      })[0] || null;
-  }
-
   async function requestProjectPageCreate(parentId) {
     var response = await fetch("/api/project-area-page-create", {
       method: "POST",
@@ -1140,6 +1140,64 @@
     return payload;
   }
 
+  function stopProjectPolling() {
+    if (state.pollTimer) {
+      window.clearTimeout(state.pollTimer);
+      state.pollTimer = 0;
+    }
+  }
+
+  function scheduleProjectPolling(delayMs) {
+    stopProjectPolling();
+    state.pollTimer = window.setTimeout(function () {
+      state.pollTimer = 0;
+      refreshProjectAreaDataPreservingUi();
+    }, Number.isFinite(delayMs) ? delayMs : 3000);
+  }
+
+  function applyIncomingProjectAreaData(payload) {
+    if (!payload || typeof payload !== "object") return;
+
+    var previousPageMap = {};
+    state.pages.forEach(function (page) {
+      previousPageMap[page.id] = page;
+    });
+
+    state.project = Object.assign({}, payload);
+    state.pages = Array.isArray(payload.pages)
+      ? payload.pages.map(function (page, index) {
+        var normalized = normalizePage(page, index);
+        var previous = previousPageMap[normalized.id];
+        if (previous && previous.justReadyUntil && Date.now() < previous.justReadyUntil) {
+          normalized.justReadyUntil = previous.justReadyUntil;
+        }
+        if (
+          previous &&
+          normalized.status === "ready" &&
+          normalized.screenshotUrl &&
+          (previous.status !== "ready" || !previous.screenshotUrl)
+        ) {
+          normalized.justReadyUntil = Date.now() + 1200;
+          scheduleReadyIndicatorClear(normalized.id, 1240);
+        }
+        return normalized;
+      })
+      : [];
+
+    if (!getById(state.selectedId)) {
+      var homepage = state.pages.find(function (item) { return item.type === "homepage"; });
+      state.selectedId = homepage ? homepage.id : (state.pages[0] ? state.pages[0].id : "");
+    }
+
+    if (refs.domain) {
+      refs.domain.textContent = String(
+        ((payload.wordpressUrl || "").replace(/^https?:\/\//i, "").replace(/\/+$/, "")) || "project"
+      );
+    }
+
+    renderAll();
+  }
+
   function applyProjectPagePayload(payload) {
     if (!payload || typeof payload !== "object") return;
     if (payload.summary) {
@@ -1152,28 +1210,70 @@
     }
   }
 
-  async function processNextPendingPage() {
+  async function processProjectQueueStep() {
     if (state.processingPageRequest) return;
-    var nextPage = getNextProcessablePage();
-    if (!nextPage) return;
+    if (!hasQueueActivity(state.project, state.pages)) return;
 
     state.processingPageRequest = true;
-    nextPage.status = "processing";
-    renderAll();
 
     try {
       var payload = await requestProjectPageScan(null, null);
       applyProjectPagePayload(payload);
       renderAll();
-      if (payload && payload.hasPending) {
-        window.setTimeout(processNextPendingPage, 180);
-      }
     } catch (error) {
-      nextPage.status = "failed";
-      renderAll();
-      console.error("PROJECT_PAGE_PROCESS_ERROR", error && error.message ? error.message : error);
+      console.error("PROJECT_QUEUE_STEP_ERROR", error && error.message ? error.message : error);
     } finally {
       state.processingPageRequest = false;
+      if (hasQueueActivity(state.project, state.pages)) {
+        scheduleProjectPolling(1200);
+      } else {
+        stopProjectPolling();
+      }
+    }
+  }
+
+  function startProjectPollingIfNeeded() {
+    if (hasQueueActivity(state.project, state.pages)) {
+      processProjectQueueStep();
+      scheduleProjectPolling(3000);
+      return;
+    }
+    stopProjectPolling();
+  }
+
+  async function refreshProjectAreaDataPreservingUi() {
+    if (state.pollInFlight) return;
+    if (!state.projectId || !state.token) return;
+    if (state.draggingId || state.renamingId || state.renameSavingId || state.savingTree) {
+      if (hasQueueActivity(state.project, state.pages)) {
+        scheduleProjectPolling(3000);
+      }
+      return;
+    }
+
+    state.pollInFlight = true;
+
+    try {
+      var data = await loadProjectAreaData();
+      applyIncomingProjectAreaData(data);
+      if (hasQueueActivity(state.project, state.pages)) {
+        processProjectQueueStep();
+        scheduleProjectPolling(3000);
+      } else {
+        stopProjectPolling();
+      }
+    } catch (error) {
+      if (error && error.code === "expired_access") {
+        stopProjectPolling();
+        openAccessModal();
+      } else {
+        console.error("PROJECT_AREA_POLL_ERROR", error && error.message ? error.message : error);
+        if (hasQueueActivity(state.project, state.pages)) {
+          scheduleProjectPolling(5000);
+        }
+      }
+    } finally {
+      state.pollInFlight = false;
     }
   }
 
@@ -1190,20 +1290,23 @@
 
     state.processingPageRequest = true;
     setManualScanStatus(pageId, "", false);
+    var previousUrl = page.url || "";
+    var previousScreenshotUrl = page.screenshotUrl || "";
     page.url = nextUrl;
-    page.status = "processing";
+    page.status = "queued";
+    page.screenshotUrl = "";
+    page.justReadyUntil = 0;
     renderAll();
 
     try {
       var payload = await requestProjectPageScan(pageId, nextUrl);
       applyProjectPagePayload(payload);
       renderAll();
-      if (payload && payload.hasPending) {
-        window.setTimeout(processNextPendingPage, 180);
-      }
+      startProjectPollingIfNeeded();
     } catch (error) {
       page.status = "failed";
-      page.url = nextUrl;
+      page.url = previousUrl || nextUrl;
+      page.screenshotUrl = previousScreenshotUrl;
       setManualScanStatus(
         pageId,
         error && error.message ? error.message : "Could not scan this page right now.",
@@ -1236,6 +1339,7 @@
         updateProjectSummary(payload.summary);
       }
       renderAll();
+      startProjectPollingIfNeeded();
     } catch (error) {
       showTreeStatus(error && error.message ? error.message : "Could not create page.", true);
     } finally {
@@ -1436,6 +1540,7 @@
   }
 
   function handleLogout() {
+    stopProjectPolling();
     clearTimers();
     clearLegacyQuoteState();
     closeContextMenu();
@@ -1584,6 +1689,7 @@
 
   async function init() {
     clearLegacyQuoteState();
+    stopProjectPolling();
     closeAccountMenu();
     closeAccessModal();
     closeEmailUpdateModal();
@@ -1598,23 +1704,12 @@
 
     try {
       var data = await loadProjectAreaData();
-      state.project = data;
-      state.pages = Array.isArray(data.pages)
-        ? data.pages.map(normalizePage)
-        : [];
+      applyIncomingProjectAreaData(data);
       if (!state.pages.length) {
         setFatalMessage("Project data is empty. Please check your email for your project access link.");
         return;
       }
-      var homepage = state.pages.find(function (item) { return item.type === "homepage"; });
-      state.selectedId = homepage ? homepage.id : state.pages[0].id;
-
-      if (refs.domain) {
-        refs.domain.textContent = String((data.wordpressUrl || "").replace(/^https?:\/\//i, "").replace(/\/+$/, "") || "project");
-      }
-
-      renderAll();
-      processNextPendingPage();
+      startProjectPollingIfNeeded();
     } catch (error) {
       if (error && error.code === "expired_access") {
         openAccessModal();
@@ -1771,6 +1866,9 @@
     }
   });
 
-  window.addEventListener("beforeunload", clearTimers);
+  window.addEventListener("beforeunload", function () {
+    stopProjectPolling();
+    clearTimers();
+  });
   init();
 })();

@@ -1,8 +1,8 @@
 const crypto = require("crypto");
 const { sendEmail } = require("./email.service");
-const { uploadScreenshotToBlob } = require("./blobStorage.service");
+const projectQueueService = require("./projectQueue.service");
 const projectService = require("./project.service");
-const { captureSitePage, normalizeDetectedTitle } = require("./siteScan.service");
+const { normalizeDetectedTitle } = require("./siteScan.service");
 const quoteRepository = require("../repositories/quote.repository");
 const emailUpdateTokenRepository = require("../repositories/emailUpdateToken.repository");
 const projectRepository = require("../repositories/project.repository");
@@ -198,6 +198,7 @@ function toSummary({ project, quote, pages }) {
     status: project.status || "queued",
     wordpressUrl: project.wordpressUrl || "",
     customerEmail: project.customerEmail || "",
+    queueActive: projectQueueService.hasProjectQueueWork(pages),
     migrationProgress,
     detectedPages: totalRealPageCount,
     purchasedPages,
@@ -350,15 +351,6 @@ async function saveProjectAreaPageOrder(project, updates) {
   return savedPages.map(toApiPage);
 }
 
-function shouldAutoTitlePage(page) {
-  const currentTitle = normalizePageTitle(page && page.title ? page.title : "");
-  if (!currentTitle) return true;
-  if (currentTitle === "Untitled Page") return true;
-  if (/^Page \d+$/i.test(currentTitle)) return true;
-  if (/^New page \d+$/i.test(currentTitle)) return true;
-  return false;
-}
-
 async function createProjectAreaPage(project, parentId) {
   if (!project || !project.id) {
     throw new Error("Project not found.");
@@ -424,51 +416,53 @@ async function processProjectAreaPage(project, pageId, requestedUrl) {
     if (!finalUrl) {
       throw new Error("Enter a valid page URL to scan.");
     }
-    page = await projectPageRepository.updateProjectPageScanResult(project.id, page.id, {
-      url: finalUrl,
-      status: "processing"
-    });
-  } else {
-    page = await projectPageRepository.claimNextQueuedProjectPage(project.id);
-    if (!page) {
+    const currentUrl = normalizePageUrl(page.url || "");
+    const currentScreenshotUrl = String(page.screenshotUrl || "").trim();
+    const urlChanged = Boolean(currentUrl && finalUrl && currentUrl !== finalUrl);
+
+    if (
+      currentScreenshotUrl &&
+      page.status === "ready" &&
+      !urlChanged
+    ) {
       const existingPages = await projectPageRepository.findProjectPagesByProjectId(project.id);
       return {
-        page: null,
+        page: toApiPage(page),
         summary: toSummary({ project, quote, pages: existingPages.map(toApiPage) }),
-        hasPending: false
+        hasPending: projectQueueService.hasProjectQueueWork(existingPages.map(toApiPage))
       };
     }
-  }
 
-  try {
-    const captured = await captureSitePage(page.url);
-    const screenshotUrl = await uploadScreenshotToBlob(
-      project.id,
-      page.id,
-      captured.screenshotBuffer,
-      captured.contentType
-    );
-    const nextTitle = shouldAutoTitlePage(page)
-      ? normalizeDetectedTitle(captured.title, captured.url, page.type === "homepage")
-      : page.title;
+    if (currentScreenshotUrl && urlChanged) {
+      await projectPageRepository.clearProjectPageScreenshot(project.id, page.id);
+    }
 
-    const updated = await projectPageRepository.updateProjectPageScanResult(project.id, page.id, {
-      title: nextTitle,
-      url: captured.url,
-      status: "ready",
-      screenshotUrl
-    });
+    if (page.status !== "processing" || urlChanged || currentUrl !== finalUrl) {
+      page = await projectPageRepository.updateProjectPageScanResult(project.id, page.id, {
+        url: finalUrl,
+        status: "queued"
+      });
+    }
+  } else {
+    const processed = await projectQueueService.processNextProjectQueuePage(project.id);
     const existingPages = await projectPageRepository.findProjectPagesByProjectId(project.id);
-    const nextQueued = await projectPageRepository.getNextQueuedProjectPage(project.id);
+    const apiPages = existingPages.map(toApiPage);
     return {
-      page: toApiPage(updated),
-      summary: toSummary({ project, quote, pages: existingPages.map(toApiPage) }),
-      hasPending: Boolean(nextQueued)
+      page: processed && processed.page ? toApiPage(processed.page) : null,
+      summary: toSummary({ project, quote, pages: apiPages }),
+      hasPending: Boolean(processed && processed.hasPending)
     };
-  } catch (error) {
-    await projectPageRepository.updateProjectPageStatus(project.id, page.id, "failed");
-    throw error;
   }
+
+  const existingPages = await projectPageRepository.findProjectPagesByProjectId(project.id);
+  const apiPages = existingPages.map(toApiPage);
+  const queuedPage = apiPages.find((item) => item.id === explicitPageId) || null;
+
+  return {
+    page: queuedPage,
+    summary: toSummary({ project, quote, pages: apiPages }),
+    hasPending: projectQueueService.hasProjectQueueWork(apiPages)
+  };
 }
 
 async function updateProjectAreaPassword(project, password) {
