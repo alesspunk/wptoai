@@ -412,7 +412,7 @@ body {
   display: block;
 }
 
-.update-password-btn {
+.project-access-link-btn {
   width: 100%;
   min-height: 40px;
   border-radius: 999px;
@@ -423,13 +423,13 @@ body {
   cursor: pointer;
 }
 
-.password-status {
+.account-status {
   margin: 0;
   font-size: 12px;
   color: #a2c8ff;
 }
 
-.password-status.is-error {
+.account-status.is-error {
   color: #ff9da5;
 }
 
@@ -666,8 +666,7 @@ body {
   color: #ffc1c7;
 }
 
-.access-modal,
-.password-modal {
+.access-modal {
   position: fixed;
   inset: 0;
   z-index: 160;
@@ -675,20 +674,17 @@ body {
   place-items: center;
 }
 
-.access-modal[hidden],
-.password-modal[hidden] {
+.access-modal[hidden] {
   display: none !important;
 }
 
-.access-modal-backdrop,
-.password-modal-backdrop {
+.access-modal-backdrop {
   position: absolute;
   inset: 0;
   background: rgba(15, 28, 54, 0.48);
 }
 
-.access-modal-card,
-.password-modal-card {
+.access-modal-card {
   position: relative;
   z-index: 1;
   width: min(420px, calc(100vw - 32px));
@@ -699,8 +695,7 @@ body {
   padding: 20px;
 }
 
-.access-modal-head,
-.password-modal-head {
+.access-modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -708,15 +703,13 @@ body {
   margin-bottom: 14px;
 }
 
-.access-modal-title,
-.password-modal-title {
+.access-modal-title {
   margin: 0;
   font-size: 20px;
   color: var(--wp-navy);
 }
 
-.access-modal-close,
-.password-modal-close {
+.access-modal-close {
   border: 0;
   background: none;
   color: #6b7a9d;
@@ -732,8 +725,7 @@ body {
   color: #4f5f86;
 }
 
-.access-modal-label,
-.password-modal-label {
+.access-modal-label {
   display: block;
   margin: 0 0 6px;
   font-size: 13px;
@@ -741,8 +733,7 @@ body {
   color: var(--wp-navy);
 }
 
-.access-modal-input,
-.password-modal-input {
+.access-modal-input {
   width: 100%;
   min-height: 44px;
   border: 1px solid rgba(122, 146, 199, 0.38);
@@ -754,20 +745,17 @@ body {
   margin-bottom: 12px;
 }
 
-.access-modal-status,
-.password-modal-status {
+.access-modal-status {
   margin: 2px 0 0;
   font-size: 13px;
   color: #48619f;
 }
 
-.access-modal-status.is-error,
-.password-modal-status.is-error {
+.access-modal-status.is-error {
   color: #c2464d;
 }
 
-.access-modal-actions,
-.password-modal-actions {
+.access-modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
@@ -775,9 +763,7 @@ body {
 }
 
 .access-modal-secondary,
-.access-modal-primary,
-.password-modal-secondary,
-.password-modal-primary {
+.access-modal-primary {
   min-height: 40px;
   border-radius: 999px;
   font: inherit;
@@ -786,24 +772,20 @@ body {
   padding: 0 18px;
 }
 
-.access-modal-secondary,
-.password-modal-secondary {
+.access-modal-secondary {
   border: 1px solid rgba(122, 146, 199, 0.38);
   background: #fff;
   color: var(--wp-navy);
 }
 
-.access-modal-primary,
-.password-modal-primary {
+.access-modal-primary {
   border: 1px solid rgba(53, 88, 198, 0.32);
   background: rgba(53, 88, 198, 0.1);
   color: #2447b6;
 }
 
 .access-modal-primary:disabled,
-.access-modal-secondary:disabled,
-.password-modal-primary:disabled,
-.password-modal-secondary:disabled {
+.access-modal-secondary:disabled {
   opacity: 0.56;
   cursor: wait;
 }

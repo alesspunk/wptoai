@@ -347,10 +347,10 @@ async function sendProjectAreaPasswordUpdateEmail(project) {
   const accessProject = await projectService.ensureProjectAccessToken(project);
   const baseUrl = String(process.env.BASE_URL || "https://wptoai.com").replace(/\/+$/, "");
   const link = `${baseUrl}/project-area?project=${encodeURIComponent(accessProject.id)}&token=${encodeURIComponent(accessProject.accessToken || "")}`;
-  const subject = "Update your WPtoAI password";
+  const subject = "Your WPtoAI access link";
   const html = `
     <p>Hi,</p>
-    <p>Use this secure link to continue into your Project Area and update your password.</p>
+    <p>Use this secure link to continue into your WPtoAI Project Area.</p>
     <p><a href="${link}">${link}</a></p>
     <p>— WPtoAI</p>
   `;

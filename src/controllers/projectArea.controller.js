@@ -65,7 +65,7 @@ async function sendProjectAreaPasswordResetController(req, res) {
     });
   } catch (error) {
     return res.status(500).json({
-      error: error && error.message ? error.message : "Could not send password update email."
+      error: error && error.message ? error.message : "Could not send access link."
     });
   }
 }

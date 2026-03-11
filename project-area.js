@@ -45,23 +45,15 @@
     contextMenu: document.querySelector("#page-context-menu"),
     accountEmail: document.querySelector("#account-email"),
     logoutBtn: document.querySelector("#logout-btn"),
-    updatePasswordBtn: document.querySelector("#update-password-btn"),
-    passwordStatus: document.querySelector("#password-status"),
+    sendAccessLinkBtn: document.querySelector("#send-access-link-btn"),
+    accountStatus: document.querySelector("#account-status"),
     accessModal: document.querySelector("#access-modal"),
     accessModalBackdrop: document.querySelector("#access-modal-backdrop"),
     accessModalClose: document.querySelector("#access-modal-close"),
     accessModalBack: document.querySelector("#access-modal-back"),
     accessModalSubmit: document.querySelector("#access-modal-submit"),
     accessModalStatus: document.querySelector("#access-modal-status"),
-    accessEmailInput: document.querySelector("#access-email-input"),
-    passwordModal: document.querySelector("#password-modal"),
-    passwordModalBackdrop: document.querySelector("#password-modal-backdrop"),
-    passwordModalClose: document.querySelector("#password-modal-close"),
-    passwordModalBack: document.querySelector("#password-modal-back"),
-    passwordModalSubmit: document.querySelector("#password-modal-submit"),
-    passwordModalStatus: document.querySelector("#password-modal-status"),
-    newPasswordInput: document.querySelector("#new-password-input"),
-    confirmPasswordInput: document.querySelector("#confirm-password-input")
+    accessEmailInput: document.querySelector("#access-email-input")
   };
 
   function clearLegacyQuoteState() {
@@ -187,13 +179,6 @@
     refs.treeStatus.textContent = message || "";
   }
 
-  function showPasswordStatus(message, isError) {
-    if (!refs.passwordStatus) return;
-    refs.passwordStatus.hidden = !message;
-    refs.passwordStatus.classList.toggle("is-error", Boolean(isError));
-    refs.passwordStatus.textContent = message || "";
-  }
-
   function showAccessModalStatus(message, isError) {
     if (!refs.accessModalStatus) return;
     refs.accessModalStatus.hidden = !message;
@@ -201,11 +186,11 @@
     refs.accessModalStatus.textContent = message || "";
   }
 
-  function showPasswordModalStatus(message, isError) {
-    if (!refs.passwordModalStatus) return;
-    refs.passwordModalStatus.hidden = !message;
-    refs.passwordModalStatus.classList.toggle("is-error", Boolean(isError));
-    refs.passwordModalStatus.textContent = message || "";
+  function showAccountStatus(message, isError) {
+    if (!refs.accountStatus) return;
+    refs.accountStatus.hidden = !message;
+    refs.accountStatus.classList.toggle("is-error", Boolean(isError));
+    refs.accountStatus.textContent = message || "";
   }
 
   function iconSvg(type) {
@@ -1114,18 +1099,8 @@
     });
   }
 
-  function openPasswordModal() {
-    showPasswordStatus("", false);
-    showPasswordModalStatus("", false);
-    if (refs.newPasswordInput) refs.newPasswordInput.value = "";
-    if (refs.confirmPasswordInput) refs.confirmPasswordInput.value = "";
-    if (refs.passwordModal) refs.passwordModal.hidden = false;
-    window.requestAnimationFrame(function () {
-      if (refs.newPasswordInput) refs.newPasswordInput.focus();
-    });
-  }
-
   function openAccessModal() {
+    showAccountStatus("", false);
     showAccessModalStatus("", false);
     if (refs.accessEmailInput && !refs.accessEmailInput.value && state.project && state.project.customerEmail) {
       refs.accessEmailInput.value = String(state.project.customerEmail || "");
@@ -1152,16 +1127,6 @@
     window.location.href = "/";
   }
 
-  function closePasswordModal() {
-    if (refs.passwordModal) refs.passwordModal.hidden = true;
-    if (refs.newPasswordInput) refs.newPasswordInput.value = "";
-    if (refs.confirmPasswordInput) refs.confirmPasswordInput.value = "";
-    if (refs.passwordModalSubmit) refs.passwordModalSubmit.disabled = false;
-    if (refs.passwordModalBack) refs.passwordModalBack.disabled = false;
-    if (refs.passwordModalClose) refs.passwordModalClose.disabled = false;
-    showPasswordModalStatus("", false);
-  }
-
   function bootProcessingSimulation() {
     clearTimers();
     var processingItems = state.pages.filter(function (page) {
@@ -1184,7 +1149,6 @@
     clearLegacyQuoteState();
     closeContextMenu();
     closeAccessModal();
-    closePasswordModal();
     state.projectId = "";
     state.token = "";
     state.project = null;
@@ -1197,29 +1161,33 @@
     }
   }
 
+  async function requestAccessLinkForEmail(email) {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new Error("Enter a valid email to continue.");
+    }
+
+    var response = await fetch("/api/request-access-link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email })
+    });
+    var payload = await response.json();
+    if (!response.ok) {
+      throw new Error((payload && payload.error) || "Could not send access link.");
+    }
+    return payload;
+  }
+
   async function handleAccessModalSubmit() {
     showAccessModalStatus("", false);
     var email = refs.accessEmailInput ? String(refs.accessEmailInput.value || "").trim() : "";
-
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      showAccessModalStatus("Enter a valid email to continue.", true);
-      return;
-    }
 
     if (refs.accessModalSubmit) refs.accessModalSubmit.disabled = true;
     if (refs.accessModalBack) refs.accessModalBack.disabled = true;
     if (refs.accessModalClose) refs.accessModalClose.disabled = true;
 
     try {
-      var response = await fetch("/api/request-access-link", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email })
-      });
-      var payload = await response.json();
-      if (!response.ok) {
-        throw new Error((payload && payload.error) || "Could not send access link.");
-      }
+      await requestAccessLinkForEmail(email);
       showAccessModalStatus("Access link sent. Check your email.", false);
     } catch (error) {
       showAccessModalStatus(error && error.message ? error.message : "Could not send access link.", true);
@@ -1230,46 +1198,19 @@
     }
   }
 
-  async function handlePasswordModalSubmit() {
-    showPasswordModalStatus("", false);
-    showPasswordStatus("", false);
-    var password = refs.newPasswordInput ? String(refs.newPasswordInput.value || "") : "";
-    var confirmPassword = refs.confirmPasswordInput ? String(refs.confirmPasswordInput.value || "") : "";
-
-    if (!password || password.length < 8) {
-      showPasswordModalStatus("Password must be at least 8 characters.", true);
-      return;
-    }
-    if (password !== confirmPassword) {
-      showPasswordModalStatus("Passwords do not match.", true);
-      return;
-    }
-
-    if (refs.passwordModalSubmit) refs.passwordModalSubmit.disabled = true;
-    if (refs.passwordModalBack) refs.passwordModalBack.disabled = true;
-    if (refs.passwordModalClose) refs.passwordModalClose.disabled = true;
+  async function handleAccountAccessLinkSend() {
+    showAccountStatus("", false);
+    var email = state.project && state.project.customerEmail
+      ? String(state.project.customerEmail || "").trim()
+      : "";
+    if (refs.sendAccessLinkBtn) refs.sendAccessLinkBtn.disabled = true;
     try {
-      var response = await fetch("/api/project-area-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          project: state.projectId,
-          token: state.token,
-          password: password
-        })
-      });
-      var payload = await response.json();
-      if (!response.ok) {
-        throw new Error((payload && payload.error) || "Could not update password.");
-      }
-      closePasswordModal();
-      showPasswordStatus("Password updated.", false);
+      await requestAccessLinkForEmail(email);
+      showAccountStatus("Access link sent. Check your email.", false);
     } catch (error) {
-      showPasswordModalStatus(error && error.message ? error.message : "Could not update password.", true);
+      showAccountStatus(error && error.message ? error.message : "Could not send access link.", true);
     } finally {
-      if (refs.passwordModalSubmit) refs.passwordModalSubmit.disabled = false;
-      if (refs.passwordModalBack) refs.passwordModalBack.disabled = false;
-      if (refs.passwordModalClose) refs.passwordModalClose.disabled = false;
+      if (refs.sendAccessLinkBtn) refs.sendAccessLinkBtn.disabled = false;
     }
   }
 
@@ -1285,8 +1226,7 @@
   async function init() {
     clearLegacyQuoteState();
     closeAccessModal();
-    closePasswordModal();
-    showPasswordStatus("", false);
+    showAccountStatus("", false);
     var access = parseAccessFromUrl();
     state.projectId = access.project;
     state.token = access.token;
@@ -1327,8 +1267,8 @@
     refs.addPageBtn.addEventListener("click", addPage);
   }
 
-  if (refs.updatePasswordBtn) {
-    refs.updatePasswordBtn.addEventListener("click", openPasswordModal);
+  if (refs.sendAccessLinkBtn) {
+    refs.sendAccessLinkBtn.addEventListener("click", handleAccountAccessLinkSend);
   }
 
   if (refs.logoutBtn) {
@@ -1356,31 +1296,6 @@
       if (event.key === "Enter") {
         event.preventDefault();
         handleAccessModalSubmit();
-      }
-    });
-  }
-
-  if (refs.passwordModalBackdrop) {
-    refs.passwordModalBackdrop.addEventListener("click", closePasswordModal);
-  }
-
-  if (refs.passwordModalClose) {
-    refs.passwordModalClose.addEventListener("click", closePasswordModal);
-  }
-
-  if (refs.passwordModalBack) {
-    refs.passwordModalBack.addEventListener("click", closePasswordModal);
-  }
-
-  if (refs.passwordModalSubmit) {
-    refs.passwordModalSubmit.addEventListener("click", handlePasswordModalSubmit);
-  }
-
-  if (refs.confirmPasswordInput) {
-    refs.confirmPasswordInput.addEventListener("keydown", function (event) {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        handlePasswordModalSubmit();
       }
     });
   }
@@ -1421,9 +1336,6 @@
     if (event.key === "Escape" && refs.accessModal && !refs.accessModal.hidden) {
       exitAccessModal();
       return;
-    }
-    if (event.key === "Escape" && refs.passwordModal && !refs.passwordModal.hidden) {
-      closePasswordModal();
     }
   });
 

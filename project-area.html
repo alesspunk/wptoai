@@ -50,10 +50,10 @@
               </svg>
             </button>
           </div>
-          <button id="update-password-btn" class="update-password-btn" type="button">
-            Update password
+          <button id="send-access-link-btn" class="project-access-link-btn" type="button">
+            Send access link
           </button>
-          <p id="password-status" class="password-status" hidden></p>
+          <p id="account-status" class="account-status" hidden></p>
         </div>
       </aside>
 
@@ -94,24 +94,6 @@
         <div class="access-modal-actions">
           <button id="access-modal-back" class="access-modal-secondary" type="button">Back</button>
           <button id="access-modal-submit" class="access-modal-primary" type="button">Send access link</button>
-        </div>
-      </div>
-    </div>
-    <div id="password-modal" class="password-modal" hidden>
-      <div id="password-modal-backdrop" class="password-modal-backdrop"></div>
-      <div class="password-modal-card" role="dialog" aria-modal="true" aria-labelledby="password-modal-title">
-        <div class="password-modal-head">
-          <h2 id="password-modal-title" class="password-modal-title">Update password</h2>
-          <button id="password-modal-close" class="password-modal-close" type="button" aria-label="Close password modal">×</button>
-        </div>
-        <label class="password-modal-label" for="new-password-input">New password</label>
-        <input id="new-password-input" class="password-modal-input" type="password" autocomplete="new-password" />
-        <label class="password-modal-label" for="confirm-password-input">Confirm password</label>
-        <input id="confirm-password-input" class="password-modal-input" type="password" autocomplete="new-password" />
-        <p id="password-modal-status" class="password-modal-status" hidden></p>
-        <div class="password-modal-actions">
-          <button id="password-modal-back" class="password-modal-secondary" type="button">Back</button>
-          <button id="password-modal-submit" class="password-modal-primary" type="button">Update</button>
         </div>
       </div>
     </div>
