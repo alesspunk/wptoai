@@ -44,6 +44,20 @@ async function findProjectPagesByProjectId(projectId) {
   return result.rows.map(toProjectPage);
 }
 
+async function findProjectPageById(projectId, pageId) {
+  if (!projectId || !pageId) return null;
+  await ensureSchema();
+  const params = [String(projectId), String(pageId)];
+  logQuery("findProjectPageById", params);
+  const result = await query(
+    `SELECT * FROM project_pages
+      WHERE project_id = $1 AND id = $2
+      LIMIT 1`,
+    params
+  );
+  return toProjectPage(result.rows[0]);
+}
+
 async function seedProjectPagesIfEmpty(projectId, pages) {
   if (!projectId || !Array.isArray(pages) || pages.length === 0) {
     return [];
@@ -92,7 +106,79 @@ async function seedProjectPagesIfEmpty(projectId, pages) {
   return findProjectPagesByProjectId(projectId);
 }
 
+async function updateProjectPageTitle(projectId, pageId, title) {
+  if (!projectId || !pageId) return null;
+  await ensureSchema();
+  const params = [String(projectId), String(pageId), String(title || "").trim()];
+  logQuery("updateProjectPageTitle", params);
+  const result = await query(
+    `UPDATE project_pages
+      SET title = $3,
+          updated_at = NOW()
+      WHERE project_id = $1 AND id = $2
+      RETURNING *`,
+    params
+  );
+  return toProjectPage(result.rows[0]);
+}
+
+async function updateProjectPageOrder(projectId, updates) {
+  if (!projectId || !Array.isArray(updates) || !updates.length) {
+    return [];
+  }
+  await ensureSchema();
+
+  const normalizedUpdates = updates
+    .map(function (item, index) {
+      return {
+        id: String(item && item.id ? item.id : "").trim(),
+        parentId: item && item.parentId ? String(item.parentId) : null,
+        orderIndex: Number.isFinite(Number(item && item.orderIndex)) ? Number(item.orderIndex) : index
+      };
+    })
+    .filter(function (item) {
+      return Boolean(item.id);
+    });
+
+  if (!normalizedUpdates.length) {
+    return [];
+  }
+
+  const values = [String(projectId)];
+  const ids = [];
+  const parentCases = [];
+  const orderCases = [];
+
+  normalizedUpdates.forEach(function (item) {
+    values.push(item.id);
+    var idParam = values.length;
+    values.push(item.parentId);
+    var parentParam = values.length;
+    values.push(item.orderIndex);
+    var orderParam = values.length;
+
+    ids.push("$" + idParam);
+    parentCases.push("WHEN id = $" + idParam + " THEN $" + parentParam + "::text");
+    orderCases.push("WHEN id = $" + idParam + " THEN $" + orderParam + "::int");
+  });
+
+  const sql =
+    "UPDATE project_pages " +
+    "SET parent_id = CASE " + parentCases.join(" ") + " ELSE parent_id END, " +
+    "order_index = CASE " + orderCases.join(" ") + " ELSE order_index END, " +
+    "updated_at = NOW() " +
+    "WHERE project_id = $1 AND id IN (" + ids.join(", ") + ") " +
+    "RETURNING *";
+
+  logQuery("updateProjectPageOrder", values);
+  const result = await query(sql, values);
+  return result.rows.map(toProjectPage);
+}
+
 module.exports = {
+  findProjectPageById,
   findProjectPagesByProjectId,
-  seedProjectPagesIfEmpty
+  seedProjectPagesIfEmpty,
+  updateProjectPageTitle,
+  updateProjectPageOrder
 };

@@ -105,10 +105,17 @@ function toApiPage(page) {
     url: page.url || "",
     type: page.type,
     parentId: page.parentId || null,
+    persisted: true,
     status: page.status,
     screenshotUrl: page.screenshotUrl || "",
     orderIndex: Number(page.orderIndex || 0)
   };
+}
+
+function normalizePageTitle(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function toSummary({ project, quote, pages }) {
@@ -153,6 +160,81 @@ async function getProjectAreaData(project, selectedPageId) {
   };
 }
 
+async function renameProjectAreaPage(project, pageId, title) {
+  if (!project || !project.id) {
+    throw new Error("Project not found.");
+  }
+
+  const page = await projectPageRepository.findProjectPageById(project.id, pageId);
+  if (!page) {
+    throw new Error("Project page not found.");
+  }
+  if (page.type === "homepage") {
+    throw new Error("Homepage rename is not available here.");
+  }
+
+  const normalizedTitle = normalizePageTitle(title);
+  if (!normalizedTitle) {
+    throw new Error("Page name cannot be empty.");
+  }
+
+  const updated = await projectPageRepository.updateProjectPageTitle(project.id, page.id, normalizedTitle);
+  if (!updated) {
+    throw new Error("Could not rename page.");
+  }
+  return toApiPage(updated);
+}
+
+async function saveProjectAreaPageOrder(project, updates) {
+  if (!project || !project.id) {
+    throw new Error("Project not found.");
+  }
+  if (!Array.isArray(updates) || !updates.length) {
+    throw new Error("No page updates provided.");
+  }
+
+  const normalizedUpdates = updates
+    .map((item, index) => ({
+      id: String(item && item.id ? item.id : "").trim(),
+      parentId: item && item.parentId ? String(item.parentId).trim() : null,
+      orderIndex: Number.isFinite(Number(item && item.orderIndex)) ? Number(item.orderIndex) : index
+    }))
+    .filter((item) => item.id);
+
+  if (!normalizedUpdates.length) {
+    throw new Error("No valid page updates provided.");
+  }
+
+  const allPages = await projectPageRepository.findProjectPagesByProjectId(project.id);
+  const pageMap = new Map();
+  allPages.forEach((page) => {
+    pageMap.set(page.id, page);
+  });
+
+  normalizedUpdates.forEach((item) => {
+    const page = pageMap.get(item.id);
+    if (!page) {
+      throw new Error("Project page not found.");
+    }
+    if (page.type === "homepage" && item.parentId) {
+      throw new Error("Homepage cannot be moved into a section.");
+    }
+    if (item.parentId) {
+      const parent = pageMap.get(item.parentId);
+      if (!parent || parent.type !== "section") {
+        throw new Error("Pages can only be dropped into sections.");
+      }
+      if (parent.id === page.id) {
+        throw new Error("A page cannot be moved into itself.");
+      }
+    }
+  });
+
+  await projectPageRepository.updateProjectPageOrder(project.id, normalizedUpdates);
+  const savedPages = await projectPageRepository.findProjectPagesByProjectId(project.id);
+  return savedPages.map(toApiPage);
+}
+
 async function sendProjectAreaPasswordUpdateEmail(project) {
   let email = String(project && project.customerEmail ? project.customerEmail : "").trim().toLowerCase();
 
@@ -180,5 +262,7 @@ async function sendProjectAreaPasswordUpdateEmail(project) {
 
 module.exports = {
   getProjectAreaData,
+  renameProjectAreaPage,
+  saveProjectAreaPageOrder,
   sendProjectAreaPasswordUpdateEmail
 };

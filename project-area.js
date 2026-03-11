@@ -17,7 +17,14 @@
     collapsedSections: {},
     contextTargetId: "",
     timers: {},
-    now: Date.now()
+    now: Date.now(),
+    renamingId: "",
+    renameDraft: "",
+    renameOriginal: "",
+    renameSavingId: "",
+    draggingId: "",
+    dropTarget: null,
+    savingTree: false
   };
 
   var refs = {
@@ -34,7 +41,6 @@
     selectedTitle: document.querySelector("#selected-title"),
     selectedStatusPill: document.querySelector("#selected-status-pill"),
     selectedUrlPill: document.querySelector("#selected-url-pill"),
-    selectedPagesPill: document.querySelector("#selected-pages-pill"),
     viewerContent: document.querySelector("#viewer-content"),
     contextMenu: document.querySelector("#page-context-menu"),
     updatePasswordBtn: document.querySelector("#update-password-btn"),
@@ -75,6 +81,7 @@
       url: String(safe.url || ""),
       type: String(safe.type || "page"),
       parentId: safe.parentId ? String(safe.parentId) : null,
+      persisted: safe.persisted !== false,
       status: String(safe.status || "queued"),
       screenshotUrl: String(safe.screenshotUrl || ""),
       orderIndex: Number.isFinite(Number(safe.orderIndex)) ? Number(safe.orderIndex) : index,
@@ -87,6 +94,28 @@
       if (state.pages[i].id === id) return state.pages[i];
     }
     return null;
+  }
+
+  function snapshotPages() {
+    return state.pages.map(function (page) {
+      return Object.assign({}, page);
+    });
+  }
+
+  function restorePages(snapshot) {
+    state.pages = Array.isArray(snapshot)
+      ? snapshot.map(function (page, index) { return normalizePage(page, index); })
+      : [];
+  }
+
+  function replacePageState(nextPage) {
+    if (!nextPage || !nextPage.id) return;
+    state.pages = state.pages.map(function (page, index) {
+      if (page.id !== nextPage.id) return page;
+      var normalized = normalizePage(nextPage, index);
+      normalized.justReadyUntil = page.justReadyUntil || 0;
+      return normalized;
+    });
   }
 
   function getChildren(parentId) {
@@ -176,6 +205,9 @@
     row.setAttribute("data-id", page.id);
     row.setAttribute("data-type", page.type);
     row.setAttribute("aria-selected", state.selectedId === page.id ? "true" : "false");
+    if (page.type === "page") {
+      row.draggable = true;
+    }
 
     var left = document.createElement("div");
     left.className = "tree-row-left";
@@ -202,10 +234,38 @@
     icon.innerHTML = iconSvg(page.type);
     left.appendChild(icon);
 
-    var title = document.createElement("p");
-    title.className = "tree-title";
-    title.textContent = page.title;
-    left.appendChild(title);
+    if (state.renamingId === page.id) {
+      var input = document.createElement("input");
+      input.type = "text";
+      input.className = "tree-title-input";
+      input.setAttribute("data-id", page.id);
+      input.value = state.renameDraft || page.title || "";
+      input.addEventListener("click", function (event) {
+        event.stopPropagation();
+      });
+      input.addEventListener("input", function (event) {
+        state.renameDraft = event.target.value;
+      });
+      input.addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          input.blur();
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          cancelRename();
+        }
+      });
+      input.addEventListener("blur", function () {
+        if (state.renamingId !== page.id) return;
+        persistRename(page.id, input.value, state.renameOriginal || page.title || "");
+      });
+      left.appendChild(input);
+    } else {
+      var title = document.createElement("p");
+      title.className = "tree-title";
+      title.textContent = page.title;
+      left.appendChild(title);
+    }
 
     var right = document.createElement("div");
     right.className = "tree-row-right";
@@ -227,10 +287,56 @@
     row.appendChild(left);
     row.appendChild(right);
     row.addEventListener("click", function () {
+      if (state.renamingId === page.id) return;
       state.selectedId = page.id;
       closeContextMenu();
       renderViewer();
       renderTree();
+    });
+
+    if (page.type === "page") {
+      row.addEventListener("dragstart", function (event) {
+        if (state.renamingId) {
+          event.preventDefault();
+          return;
+        }
+        state.draggingId = page.id;
+        if (event.dataTransfer) {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", page.id);
+        }
+        updateDropIndicators();
+      });
+    }
+
+    row.addEventListener("dragover", function (event) {
+      if (!state.draggingId) return;
+      var dropMode = getDropMode(page, row, event.clientY);
+      if (!isValidDrop(state.draggingId, page.id, dropMode)) {
+        clearDropTarget();
+        return;
+      }
+      event.preventDefault();
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "move";
+      }
+      setDropTarget(page.id, dropMode);
+    });
+
+    row.addEventListener("drop", function (event) {
+      if (!state.draggingId) return;
+      var dropMode = getDropMode(page, row, event.clientY);
+      if (!isValidDrop(state.draggingId, page.id, dropMode)) return;
+      event.preventDefault();
+      var draggedId = state.draggingId;
+      state.draggingId = "";
+      clearDropTarget();
+      applyTreeMove(draggedId, page.id, dropMode);
+    });
+
+    row.addEventListener("dragend", function () {
+      state.draggingId = "";
+      clearDropTarget();
     });
 
     return row;
@@ -252,6 +358,7 @@
     var fragment = document.createDocumentFragment();
     renderTreeBranch(null, 0, fragment);
     refs.tree.appendChild(fragment);
+    updateDropIndicators();
   }
 
   function renderProgress() {
@@ -362,9 +469,6 @@
       refs.selectedStatusPill.setAttribute("data-status", statusPillLabel(selected.status));
     }
     if (refs.selectedUrlPill) refs.selectedUrlPill.textContent = selected.url || (state.project.wordpressUrl || "");
-    if (refs.selectedPagesPill) {
-      refs.selectedPagesPill.textContent = String(state.project.detectedPages || 0) + " pages detected";
-    }
 
     if (selected.type === "section") {
       refs.viewerContent.innerHTML = renderSectionState(selected);
@@ -404,6 +508,282 @@
     } catch (_error) {
       return root + "/" + slug;
     }
+  }
+
+  function normalizeEditableTitle(value) {
+    return String(value || "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function buildTreeOrderPayload() {
+    return state.pages
+      .filter(function (page) {
+        return page.type !== "homepage" && page.persisted !== false;
+      })
+      .map(function (page, index) {
+        return {
+          id: page.id,
+          parentId: page.parentId || null,
+          orderIndex: Number.isFinite(page.orderIndex) ? page.orderIndex : index
+        };
+      });
+  }
+
+  async function persistTreeOrder(previousPages) {
+    var pages = buildTreeOrderPayload();
+    if (!pages.length || state.savingTree) return true;
+
+    state.savingTree = true;
+    showTreeStatus("", false);
+
+    try {
+      var response = await fetch("/api/project-area-page-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project: state.projectId,
+          token: state.token,
+          pages: pages
+        })
+      });
+      var payload = await response.json();
+      if (!response.ok) {
+        throw new Error((payload && payload.error) || "Could not save page order.");
+      }
+      return true;
+    } catch (error) {
+      restorePages(previousPages);
+      renderAll();
+      showTreeStatus(error && error.message ? error.message : "Could not save page order.", true);
+      return false;
+    } finally {
+      state.savingTree = false;
+    }
+  }
+
+  async function persistRename(pageId, nextTitle, previousTitle) {
+    var page = getById(pageId);
+    if (!page || state.renameSavingId === pageId) return;
+
+    var normalizedTitle = normalizeEditableTitle(nextTitle);
+    state.renameSavingId = pageId;
+    state.renamingId = "";
+    state.renameDraft = "";
+    state.renameOriginal = "";
+
+    if (!normalizedTitle) {
+      page.title = previousTitle;
+      renderAll();
+      showTreeStatus("Page name cannot be empty.", true);
+      state.renameSavingId = "";
+      return;
+    }
+
+    if (normalizedTitle === normalizeEditableTitle(previousTitle)) {
+      page.title = previousTitle;
+      renderAll();
+      state.renameSavingId = "";
+      return;
+    }
+
+    page.title = normalizedTitle;
+    renderAll();
+    showTreeStatus("", false);
+
+    if (page.persisted === false) {
+      state.renameSavingId = "";
+      return;
+    }
+
+    try {
+      var response = await fetch("/api/project-area-page-rename", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project: state.projectId,
+          token: state.token,
+          pageId: pageId,
+          title: normalizedTitle
+        })
+      });
+      var payload = await response.json();
+      if (!response.ok) {
+        throw new Error((payload && payload.error) || "Could not rename page.");
+      }
+      replacePageState(payload && payload.page ? payload.page : null);
+      renderAll();
+    } catch (error) {
+      page.title = previousTitle;
+      renderAll();
+      showTreeStatus(error && error.message ? error.message : "Could not rename page.", true);
+    } finally {
+      state.renameSavingId = "";
+    }
+  }
+
+  function focusRenameInput(pageId) {
+    if (!refs.tree || !pageId) return;
+    var input = refs.tree.querySelector('.tree-title-input[data-id="' + pageId + '"]');
+    if (!input) return;
+    input.focus();
+    input.select();
+  }
+
+  function startRename(pageId) {
+    var page = getById(pageId);
+    if (!page || page.type === "homepage") return;
+    state.renamingId = pageId;
+    state.renameDraft = page.title || "";
+    state.renameOriginal = page.title || "";
+    closeContextMenu();
+    renderAll();
+    window.requestAnimationFrame(function () {
+      focusRenameInput(pageId);
+    });
+  }
+
+  function cancelRename() {
+    state.renamingId = "";
+    state.renameDraft = "";
+    state.renameOriginal = "";
+    renderAll();
+  }
+
+  function getDropMode(page, row, clientY) {
+    if (!page || !row) return "";
+    var rect = row.getBoundingClientRect();
+    var offset = clientY - rect.top;
+    var ratio = rect.height > 0 ? offset / rect.height : 0.5;
+    if (page.type === "section" && ratio > 0.26 && ratio < 0.74) {
+      return "inside";
+    }
+    return ratio <= 0.5 ? "before" : "after";
+  }
+
+  function isValidDrop(pageId, targetId, mode) {
+    var page = getById(pageId);
+    var target = getById(targetId);
+    if (!page || !target || page.id === target.id) return false;
+    if (page.type !== "page") return false;
+    if (mode === "inside") return target.type === "section";
+    return mode === "before" || mode === "after";
+  }
+
+  function updateDropIndicators() {
+    if (!refs.tree) return;
+    var rows = refs.tree.querySelectorAll(".tree-row");
+    rows.forEach(function (row) {
+      row.classList.remove("is-drop-before", "is-drop-after", "is-drop-folder-target", "is-dragging");
+      if (state.draggingId && row.getAttribute("data-id") === state.draggingId) {
+        row.classList.add("is-dragging");
+      }
+      if (
+        state.dropTarget &&
+        state.dropTarget.pageId &&
+        row.getAttribute("data-id") === state.dropTarget.pageId
+      ) {
+        if (state.dropTarget.mode === "inside") {
+          row.classList.add("is-drop-folder-target");
+        } else if (state.dropTarget.mode === "before") {
+          row.classList.add("is-drop-before");
+        } else if (state.dropTarget.mode === "after") {
+          row.classList.add("is-drop-after");
+        }
+      }
+    });
+
+    if (state.dropTarget && state.dropTarget.mode === "root") {
+      refs.tree.classList.add("is-root-drop-target");
+    } else {
+      refs.tree.classList.remove("is-root-drop-target");
+    }
+  }
+
+  function setDropTarget(pageId, mode) {
+    var next = pageId || mode === "root"
+      ? { pageId: pageId || "", mode: mode || "" }
+      : null;
+    var currentPageId = state.dropTarget && state.dropTarget.pageId ? state.dropTarget.pageId : "";
+    var currentMode = state.dropTarget && state.dropTarget.mode ? state.dropTarget.mode : "";
+    var nextPageId = next && next.pageId ? next.pageId : "";
+    var nextMode = next && next.mode ? next.mode : "";
+    if (currentPageId === nextPageId && currentMode === nextMode) return;
+    state.dropTarget = next;
+    updateDropIndicators();
+  }
+
+  function clearDropTarget() {
+    state.dropTarget = null;
+    updateDropIndicators();
+  }
+
+  function movePageToTarget(pageId, targetId, mode) {
+    var page = getById(pageId);
+    var target = targetId ? getById(targetId) : null;
+    if (!page || page.type !== "page") return false;
+
+    var originalParentId = page.parentId || null;
+    var originalSiblings = getChildren(originalParentId).filter(function (item) {
+      return item.id !== page.id;
+    });
+    originalSiblings.forEach(function (sibling, index) {
+      sibling.orderIndex = index;
+    });
+
+    var nextParentId = null;
+    var insertIndex = 0;
+
+    if (mode === "inside") {
+      if (!target || target.type !== "section") return false;
+      nextParentId = target.id;
+      state.collapsedSections[target.id] = false;
+      insertIndex = getChildren(nextParentId).filter(function (item) {
+        return item.id !== page.id;
+      }).length;
+    } else if (mode === "root") {
+      nextParentId = null;
+      insertIndex = getChildren(null).filter(function (item) {
+        return item.id !== page.id;
+      }).length;
+    } else {
+      if (!target) return false;
+      nextParentId = target.parentId || null;
+      var nextSiblings = getChildren(nextParentId).filter(function (item) {
+        return item.id !== page.id;
+      });
+      var targetIndex = nextSiblings.findIndex(function (item) {
+        return item.id === target.id;
+      });
+      if (targetIndex < 0) {
+        targetIndex = nextSiblings.length;
+      }
+      insertIndex = mode === "after" ? targetIndex + 1 : targetIndex;
+    }
+
+    page.parentId = nextParentId;
+    var siblings = getChildren(nextParentId).filter(function (item) {
+      return item.id !== page.id;
+    });
+    if (insertIndex < 0) insertIndex = 0;
+    if (insertIndex > siblings.length) insertIndex = siblings.length;
+    siblings.splice(insertIndex, 0, page);
+    siblings.forEach(function (sibling, index) {
+      sibling.orderIndex = index;
+    });
+
+    return true;
+  }
+
+  async function applyTreeMove(pageId, targetId, mode) {
+    var previousPages = snapshotPages();
+    if (!movePageToTarget(pageId, targetId, mode)) {
+      restorePages(previousPages);
+      renderAll();
+      return;
+    }
+    renderAll();
+    await persistTreeOrder(previousPages);
   }
 
   function scheduleReadyState(pageId, delay) {
@@ -448,6 +828,7 @@
       url: buildPageUrl(createPageTitle()),
       type: "page",
       parentId: parentId,
+      persisted: false,
       status: "queued",
       screenshotUrl: String(state.project && state.project.previewImageUrl ? state.project.previewImageUrl : ""),
       orderIndex: siblings.length
@@ -458,7 +839,7 @@
     queuePageProcessing(newPage.id);
   }
 
-  function swapSibling(direction, targetId) {
+  async function swapSibling(direction, targetId) {
     var target = getById(targetId);
     if (!target || target.type === "homepage") return;
     var siblings = getChildren(target.parentId);
@@ -469,11 +850,13 @@
 
     var current = siblings[index];
     var next = siblings[swapIndex];
+    var previousPages = snapshotPages();
     var temp = current.orderIndex;
     current.orderIndex = next.orderIndex;
     next.orderIndex = temp;
     normalizeSiblingOrder(target.parentId);
     renderAll();
+    await persistTreeOrder(previousPages);
   }
 
   function collectDescendants(sectionId) {
@@ -551,6 +934,9 @@
     refs.contextMenu.style.left = Math.round(rect.left - 148) + "px";
 
     if (target.type === "page") {
+      refs.contextMenu.appendChild(createContextAction("Rename", function () {
+        startRename(target.id);
+      }, false));
       refs.contextMenu.appendChild(createContextAction("Convert to section", function () {
         convertPageToSection(target.id);
       }, false));
@@ -564,6 +950,9 @@
         deleteNode(target.id);
       }, true));
     } else if (target.type === "section") {
+      refs.contextMenu.appendChild(createContextAction("Rename", function () {
+        startRename(target.id);
+      }, false));
       refs.contextMenu.appendChild(createContextAction("Move up", function () {
         swapSibling("up", target.id);
       }, false));
@@ -694,6 +1083,30 @@
 
   if (refs.updatePasswordBtn) {
     refs.updatePasswordBtn.addEventListener("click", handlePasswordUpdateClick);
+  }
+
+  if (refs.tree) {
+    refs.tree.addEventListener("dragover", function (event) {
+      if (!state.draggingId) return;
+      var row = event.target && event.target.closest ? event.target.closest(".tree-row") : null;
+      if (row) return;
+      event.preventDefault();
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "move";
+      }
+      setDropTarget("", "root");
+    });
+
+    refs.tree.addEventListener("drop", function (event) {
+      if (!state.draggingId) return;
+      var row = event.target && event.target.closest ? event.target.closest(".tree-row") : null;
+      if (row) return;
+      event.preventDefault();
+      var draggedId = state.draggingId;
+      state.draggingId = "";
+      clearDropTarget();
+      applyTreeMove(draggedId, "", "root");
+    });
   }
 
   document.addEventListener("click", function (event) {

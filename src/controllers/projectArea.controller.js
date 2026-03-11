@@ -60,7 +60,52 @@ async function sendProjectAreaPasswordResetController(req, res) {
   }
 }
 
+async function renameProjectAreaPageController(req, res) {
+  const body = req && req.body ? req.body : {};
+  const projectId = String(body.project || "").trim();
+  const token = String(body.token || "").trim();
+  const pageId = String(body.pageId || "").trim();
+  const title = String(body.title || "");
+
+  try {
+    const project = await resolveAuthorizedProject(projectId, token);
+    if (!project) {
+      return res.status(401).json({ error: EXPIRED_MESSAGE });
+    }
+
+    const page = await projectAreaService.renameProjectAreaPage(project, pageId, title);
+    return res.json({ ok: true, page });
+  } catch (error) {
+    return res.status(500).json({
+      error: error && error.message ? error.message : "Could not rename page."
+    });
+  }
+}
+
+async function saveProjectAreaPageOrderController(req, res) {
+  const body = req && req.body ? req.body : {};
+  const projectId = String(body.project || "").trim();
+  const token = String(body.token || "").trim();
+  const pages = Array.isArray(body.pages) ? body.pages : [];
+
+  try {
+    const project = await resolveAuthorizedProject(projectId, token);
+    if (!project) {
+      return res.status(401).json({ error: EXPIRED_MESSAGE });
+    }
+
+    const savedPages = await projectAreaService.saveProjectAreaPageOrder(project, pages);
+    return res.json({ ok: true, pages: savedPages });
+  } catch (error) {
+    return res.status(500).json({
+      error: error && error.message ? error.message : "Could not save page order."
+    });
+  }
+}
+
 module.exports = {
   getProjectAreaDataController,
+  renameProjectAreaPageController,
+  saveProjectAreaPageOrderController,
   sendProjectAreaPasswordResetController
 };
