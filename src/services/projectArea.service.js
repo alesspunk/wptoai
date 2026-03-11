@@ -392,6 +392,57 @@ async function createProjectAreaPage(project, parentId) {
   };
 }
 
+function collectDescendantPageIds(pages, rootId) {
+  const ids = [rootId];
+  const queue = [rootId];
+
+  while (queue.length) {
+    const parentId = queue.shift();
+    pages.forEach((page) => {
+      if ((page.parentId || null) !== parentId) return;
+      ids.push(page.id);
+      if (page.type === "section") {
+        queue.push(page.id);
+      }
+    });
+  }
+
+  return Array.from(new Set(ids));
+}
+
+async function deleteProjectAreaPage(project, pageId) {
+  if (!project || !project.id) {
+    throw new Error("Project not found.");
+  }
+
+  const normalizedPageId = String(pageId || "").trim();
+  if (!normalizedPageId) {
+    throw new Error("Project page not found.");
+  }
+
+  const quote = await loadProjectQuote(project);
+  const pages = await getOrSeedProjectPages(project, quote);
+  const target = pages.find((item) => item.id === normalizedPageId);
+  if (!target) {
+    throw new Error("Project page not found.");
+  }
+  if (target.type === "homepage") {
+    throw new Error("Homepage cannot be deleted.");
+  }
+
+  const idsToDelete = target.type === "section"
+    ? collectDescendantPageIds(pages, target.id)
+    : [target.id];
+
+  await projectPageRepository.deleteProjectPagesByIds(project.id, idsToDelete);
+  const nextPages = await projectPageRepository.findProjectPagesByProjectId(project.id);
+
+  return {
+    pages: nextPages.map(toApiPage),
+    summary: toSummary({ project, quote, pages: nextPages.map(toApiPage) })
+  };
+}
+
 async function processProjectAreaPage(project, pageId, requestedUrl) {
   if (!project || !project.id) {
     throw new Error("Project not found.");
@@ -686,6 +737,7 @@ async function verifyProjectAreaEmailUpdate(token) {
 module.exports = {
   getProjectAreaData,
   createProjectAreaPage,
+  deleteProjectAreaPage,
   processProjectAreaPage,
   renameProjectAreaPage,
   saveProjectAreaPageOrder,

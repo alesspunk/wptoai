@@ -261,6 +261,33 @@ async function clearProjectPageScreenshot(projectId, pageId) {
   return toProjectPage(result.rows[0]);
 }
 
+async function deleteProjectPagesByIds(projectId, pageIds) {
+  if (!projectId || !Array.isArray(pageIds) || !pageIds.length) {
+    return 0;
+  }
+  await ensureSchema();
+
+  const normalizedIds = pageIds
+    .map(function (pageId) {
+      return String(pageId || "").trim();
+    })
+    .filter(Boolean);
+
+  if (!normalizedIds.length) {
+    return 0;
+  }
+
+  const params = [String(projectId), normalizedIds];
+  logQuery("deleteProjectPagesByIds", params);
+  const result = await query(
+    `DELETE FROM project_pages
+      WHERE project_id = $1
+        AND id = ANY($2::text[])`,
+    params
+  );
+  return Number(result.rowCount || 0);
+}
+
 async function updateProjectPageOrder(projectId, updates) {
   if (!projectId || !Array.isArray(updates) || !updates.length) {
     return [];
@@ -327,6 +354,7 @@ module.exports = {
   getNextQueuedProjectPage,
   claimNextQueuedProjectPage,
   clearProjectPageScreenshot,
+  deleteProjectPagesByIds,
   findProjectPageById,
   findProjectPagesByProjectId,
   seedProjectPagesIfEmpty,

@@ -1151,6 +1151,23 @@
     return payload;
   }
 
+  async function requestProjectPageDelete(pageId) {
+    var response = await fetch("/api/project-area-page-delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        project: state.projectId,
+        token: state.token,
+        pageId: pageId
+      })
+    });
+    var payload = await response.json();
+    if (!response.ok) {
+      throw new Error((payload && payload.error) || "Could not delete page.");
+    }
+    return payload;
+  }
+
   async function requestProjectPageScan(pageId, url) {
     var response = await fetch("/api/project-area-page-scan", {
       method: "POST",
@@ -1416,7 +1433,37 @@
     return all;
   }
 
-  function deleteNode(targetId) {
+  async function deleteNode(targetId) {
+    var target = getById(targetId);
+    if (!target || target.type === "homepage") return;
+
+    if (target.persisted === false) {
+      deleteNodeLocal(targetId);
+      return;
+    }
+
+    showTreeStatus("", false);
+    try {
+      var payload = await requestProjectPageDelete(targetId);
+      state.pages = Array.isArray(payload && payload.pages)
+        ? payload.pages.map(normalizePage)
+        : [];
+      if (payload && payload.summary) {
+        updateProjectSummary(payload.summary);
+      }
+      if (!getById(state.selectedId)) {
+        var homepage = state.pages.find(function (page) { return page.type === "homepage"; });
+        state.selectedId = homepage ? homepage.id : (state.pages[0] ? state.pages[0].id : "");
+      }
+      renderAll();
+      return;
+    } catch (error) {
+      showTreeStatus(error && error.message ? error.message : "Could not delete page.", true);
+      return;
+    }
+  }
+
+  function deleteNodeLocal(targetId) {
     var target = getById(targetId);
     if (!target || target.type === "homepage") return;
 
