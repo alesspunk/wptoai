@@ -44,13 +44,46 @@ function hasProjectQueueWork(pages) {
 }
 
 async function processQueuedProjectPage(project, page) {
-  const captured = await captureSitePage(page.url);
-  const screenshotUrl = await uploadScreenshotToBlob(
-    project.id,
-    page.id,
-    captured.screenshotBuffer,
-    captured.contentType
-  );
+  let captured;
+  console.log("PROJECT_QUEUE_CAPTURE_START", project.id, page.id, page.url);
+  try {
+    captured = await captureSitePage(page.url);
+    console.log(
+      "PROJECT_QUEUE_CAPTURE_OK",
+      project.id,
+      page.id,
+      captured && captured.url ? captured.url : page.url
+    );
+  } catch (error) {
+    console.error(
+      "PROJECT_QUEUE_CAPTURE_ERROR",
+      project.id,
+      page.id,
+      error && error.message ? error.message : error
+    );
+    throw error;
+  }
+
+  let screenshotUrl = "";
+  console.log("PROJECT_QUEUE_BLOB_START", project.id, page.id);
+  try {
+    screenshotUrl = await uploadScreenshotToBlob(
+      project.id,
+      page.id,
+      captured.screenshotBuffer,
+      captured.contentType
+    );
+    console.log("PROJECT_QUEUE_BLOB_OK", project.id, page.id, screenshotUrl);
+  } catch (error) {
+    console.error(
+      "PROJECT_QUEUE_BLOB_ERROR",
+      project.id,
+      page.id,
+      error && error.message ? error.message : error
+    );
+    throw error;
+  }
+
   const nextTitle = shouldAutoTitlePage(page)
     ? normalizeDetectedTitle(captured.title, captured.url, page.type === "homepage")
     : page.title;
@@ -104,6 +137,7 @@ async function processNextProjectQueuePage(projectId) {
           error && error.message ? error.message : error
         );
         processedPage = await projectPageRepository.updateProjectPageStatus(lockedProject.id, page.id, "failed");
+        console.log("PROJECT_QUEUE_PAGE_FAILED", lockedProject.id, page.id);
       }
 
       const nextPages = await projectPageRepository.findProjectPagesByProjectId(lockedProject.id);

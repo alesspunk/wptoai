@@ -557,11 +557,12 @@
   function shouldShowManualScan(page) {
     if (!page || page.type !== "page") return false;
     if (page.screenshotUrl) return false;
-    return !String(page.url || "").trim() || page.status === "failed";
+    return !String(page.url || "").trim();
   }
 
   function renderManualScanState(page) {
     var status = getManualScanStatus(page.id);
+    var buttonLabel = page.status === "processing" ? "Scanning..." : "Scan";
     return (
       '<div class="viewer-manual-scan">' +
       '<div class="viewer-manual-copy">' +
@@ -573,11 +574,39 @@
       (status ? '<p class="viewer-form-status' + (status.isError ? ' is-error' : '') + '">' + escapeHtml(status.message) + '</p>' : '<p class="viewer-form-status" hidden></p>') +
       '<div class="viewer-form-actions">' +
       '<button id="manual-page-scan-btn" class="viewer-scan-btn" type="button">' +
-      (page.status === "processing" ? "Scanning..." : "Scan") +
+      buttonLabel +
       "</button>" +
       "</div>" +
       "</div>"
     );
+  }
+
+  function renderFailedScanState(page) {
+    var status = getManualScanStatus(page.id);
+    var supportsUrlEdit = page.type === "page";
+    var html =
+      '<div class="viewer-manual-scan">' +
+      '<div class="viewer-manual-copy">' +
+      "<p style=\"margin:0 0 8px;\"><strong>Preview failed for this page.</strong></p>" +
+      "<p style=\"margin:0;\">Retry the scan. If the page URL changed, update it first.</p>" +
+      "</div>";
+
+    if (supportsUrlEdit) {
+      html +=
+        '<label class="viewer-field-label" for="manual-page-url-input">Page URL</label>' +
+        '<input id="manual-page-url-input" class="viewer-url-input" type="url" value="' + escapeHtml(getManualScanDraft(page)) + '" placeholder="https://example.com/about">';
+    } else {
+      html += '<p class="viewer-form-status">' + escapeHtml(page.url || (state.project && state.project.wordpressUrl) || "") + '</p>';
+    }
+
+    html +=
+      (status ? '<p class="viewer-form-status' + (status.isError ? ' is-error' : '') + '">' + escapeHtml(status.message) + '</p>' : '<p class="viewer-form-status" hidden></p>') +
+      '<div class="viewer-form-actions">' +
+      '<button id="viewer-retry-scan-btn" class="viewer-scan-btn" type="button">Retry scan</button>' +
+      "</div>" +
+      "</div>";
+
+    return html;
   }
 
   function renderPreviewForPage(page) {
@@ -595,14 +624,7 @@
       );
     }
     if (page.status === "failed") {
-      return (
-        '<div class="viewer-placeholder">' +
-        '<div>' +
-        "<p style=\"margin:0 0 8px;\"><strong>Preview failed for this page.</strong></p>" +
-        "<p style=\"margin:0;\">Try again later.</p>" +
-        "</div>" +
-        "</div>"
-      );
+      return renderFailedScanState(page);
     }
 
     if (!page.screenshotUrl) {
@@ -631,9 +653,10 @@
   }
 
   function bindViewerInteractions(selected) {
-    if (!selected || !shouldShowManualScan(selected) || !refs.viewerContent) return;
+    if (!selected || !refs.viewerContent) return;
     var urlInput = refs.viewerContent.querySelector("#manual-page-url-input");
     var scanButton = refs.viewerContent.querySelector("#manual-page-scan-btn");
+    var retryButton = refs.viewerContent.querySelector("#viewer-retry-scan-btn");
     if (urlInput) {
       urlInput.addEventListener("input", function (event) {
         state.manualScanDrafts[selected.id] = event.target.value;
@@ -648,6 +671,12 @@
     if (scanButton) {
       scanButton.disabled = selected.status === "processing";
       scanButton.addEventListener("click", function () {
+        handleManualPageScan(selected.id);
+      });
+    }
+    if (retryButton) {
+      retryButton.disabled = selected.status === "processing";
+      retryButton.addEventListener("click", function () {
         handleManualPageScan(selected.id);
       });
     }
@@ -1279,7 +1308,7 @@
 
   async function handleManualPageScan(pageId) {
     var page = getById(pageId);
-    if (!page || page.type !== "page" || state.processingPageRequest) return;
+    if (!page || !isRealPageType(page.type) || state.processingPageRequest) return;
 
     var nextUrl = String(getManualScanDraft(page) || page.url || "").trim();
     if (!/^https?:\/\/.+/i.test(nextUrl)) {
@@ -1450,6 +1479,13 @@
       refs.contextMenu.appendChild(createContextAction("Rename", function () {
         startRename(target.id);
       }, false));
+      if (target.status === "failed" && String(target.url || "").trim()) {
+        refs.contextMenu.appendChild(createContextAction("Retry scan", function () {
+          state.selectedId = target.id;
+          renderAll();
+          handleManualPageScan(target.id);
+        }, false));
+      }
       refs.contextMenu.appendChild(createContextAction("Convert to section", function () {
         convertPageToSection(target.id);
       }, false));
