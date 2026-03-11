@@ -36,13 +36,21 @@ function derivePurchasedPages(quote, detectedPages) {
   return detectedPages;
 }
 
-function makeFallbackPageTitle(index) {
-  if (index === 0) return "Homepage";
-  return `Page ${index + 1}`;
-}
-
 function getDetectedPagesData(quote) {
   return Array.isArray(quote && quote.detectedPagesData) ? quote.detectedPagesData : [];
+}
+
+function getHomepageSeedPage(quote, siteUrl) {
+  const detectedPages = getDetectedPagesData(quote);
+  const homepage = detectedPages.find((page) => String(page && page.type ? page.type : "").toLowerCase() === "homepage");
+  if (homepage) return homepage;
+  if (detectedPages.length) return detectedPages[0];
+  return {
+    title: "Home",
+    url: siteUrl || "",
+    type: "homepage",
+    orderIndex: 0
+  };
 }
 
 function normalizePredictedSections(value) {
@@ -86,48 +94,15 @@ function isGenericProjectPageTitle(value) {
   return false;
 }
 
-function buildFallbackDetectedPages(siteUrl, detectedPages) {
-  let rootOrigin = "";
-  try {
-    rootOrigin = siteUrl ? new URL(siteUrl).origin : "";
-  } catch (_error) {
-    rootOrigin = "";
-  }
-
-  const pages = [{
-    title: "Home",
-    url: rootOrigin || siteUrl || "",
-    type: "homepage",
-    orderIndex: 0
-  }];
-
-  for (let index = 1; index < detectedPages; index += 1) {
-    const slug = `page-${index + 1}`;
-    pages.push({
-      title: makeFallbackPageTitle(index),
-      url: rootOrigin ? `${rootOrigin}/${slug}` : "",
-      type: "page",
-      orderIndex: index
-    });
-  }
-
-  return pages;
-}
-
 function buildInitialProjectPages({ project, quote }) {
   const siteUrl = normalizeSiteUrl(
     (project && project.wordpressUrl) ||
     (quote && quote.siteUrl) ||
     ""
   );
-  const detectedPages = deriveDetectedPages(quote);
-  const purchasedPages = Math.max(1, derivePurchasedPages(quote, detectedPages));
-  const sourcePages = getDetectedPagesData(quote).length
-    ? getDetectedPagesData(quote)
-    : buildFallbackDetectedPages(siteUrl, detectedPages);
-  const visibleSourcePages = sourcePages.slice(0, purchasedPages);
+  const sourcePages = [getHomepageSeedPage(quote, siteUrl)];
 
-  return visibleSourcePages.map((page, index) => {
+  return sourcePages.map((page, index) => {
     const normalizedUrl = normalizePageUrl(page && page.url ? page.url : "");
     const type = index === 0 ? "homepage" : "page";
     const hasHomepagePreview = type === "homepage" && Boolean(getHomepagePreviewImageUrl(quote));
