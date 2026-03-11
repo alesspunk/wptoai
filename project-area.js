@@ -43,6 +43,8 @@
     selectedUrlPill: document.querySelector("#selected-url-pill"),
     viewerContent: document.querySelector("#viewer-content"),
     contextMenu: document.querySelector("#page-context-menu"),
+    accountEmail: document.querySelector("#account-email"),
+    logoutBtn: document.querySelector("#logout-btn"),
     updatePasswordBtn: document.querySelector("#update-password-btn"),
     passwordStatus: document.querySelector("#password-status"),
     accessModal: document.querySelector("#access-modal"),
@@ -68,6 +70,13 @@
       LEGACY_KEYS_TO_CLEAR.forEach(function (key) {
         window.sessionStorage.removeItem(key);
       });
+    } catch (_error) {
+      // ignore
+    }
+    try {
+      if (window.name && window.name.indexOf("wptoai.previewState=") === 0) {
+        window.name = "";
+      }
     } catch (_error) {
       // ignore
     }
@@ -146,9 +155,13 @@
       });
   }
 
+  function isPurchasedPageType(type) {
+    return type === "homepage" || type === "page" || type === "section";
+  }
+
   function getUsage() {
     var used = state.pages.filter(function (page) {
-      return page.type === "homepage" || page.type === "page";
+      return isPurchasedPageType(page.type);
     }).length;
     var purchased = Number(state.project && state.project.purchasedPages ? state.project.purchasedPages : 0);
     var remaining = Math.max(0, purchased - used);
@@ -234,6 +247,9 @@
   function createTreeRow(page, depth) {
     var row = document.createElement("div");
     row.className = "tree-row" + (state.selectedId === page.id ? " is-selected" : "");
+    if (state.contextTargetId === page.id) {
+      row.className += " is-context-open";
+    }
     row.setAttribute("role", "treeitem");
     row.setAttribute("data-id", page.id);
     row.setAttribute("data-type", page.type);
@@ -309,7 +325,7 @@
       moreBtn.type = "button";
       moreBtn.className = "tree-more-btn";
       moreBtn.setAttribute("aria-label", "Page options");
-      moreBtn.textContent = "⋯";
+      moreBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="6.5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="17.5" cy="12" r="1.6"></circle></svg>';
       moreBtn.addEventListener("click", function (event) {
         event.stopPropagation();
         openContextMenu(page.id, event.currentTarget);
@@ -329,7 +345,7 @@
 
     if (page.type === "page") {
       row.addEventListener("dragstart", function (event) {
-        if (state.renamingId) {
+        if (state.renamingId || state.savingTree) {
           event.preventDefault();
           return;
         }
@@ -591,6 +607,7 @@
         return {
           id: page.id,
           parentId: page.parentId || null,
+          type: page.type || "page",
           orderIndex: Number.isFinite(page.orderIndex) ? page.orderIndex : index
         };
       });
@@ -789,6 +806,14 @@
     updateDropIndicators();
   }
 
+  function renderAccount() {
+    if (!refs.accountEmail) return;
+    refs.accountEmail.textContent = String(
+      (state.project && state.project.customerEmail) || "No email on file"
+    );
+    refs.accountEmail.title = refs.accountEmail.textContent;
+  }
+
   function scheduleReadyIndicatorClear(pageId, duration) {
     var timerKey = pageId + ":ready";
     if (state.timers[timerKey]) {
@@ -866,6 +891,7 @@
   }
 
   async function applyTreeMove(pageId, targetId, mode) {
+    if (state.savingTree) return;
     var previousPages = snapshotPages();
     if (!movePageToTarget(pageId, targetId, mode)) {
       restorePages(previousPages);
@@ -989,16 +1015,18 @@
     renderAll();
   }
 
-  function convertPageToSection(targetId) {
+  async function convertPageToSection(targetId) {
+    if (state.savingTree) return;
     var page = getById(targetId);
     if (!page || page.type !== "page") return;
+    var previousPages = snapshotPages();
     page.type = "section";
     page.status = "ready";
     page.screenshotUrl = "";
-    if (!state.collapsedSections[page.id]) {
-      state.collapsedSections[page.id] = false;
-    }
+    state.collapsedSections[page.id] = false;
     renderAll();
+    if (page.persisted === false) return;
+    await persistTreeOrder(previousPages);
   }
 
   function createContextAction(label, onClick, danger) {
@@ -1019,6 +1047,10 @@
     if (!target) return;
 
     state.contextTargetId = pageId;
+    var row = anchor && anchor.closest ? anchor.closest(".tree-row") : null;
+    if (row) {
+      row.classList.add("is-context-open");
+    }
     refs.contextMenu.innerHTML = "";
     var rect = anchor.getBoundingClientRect();
     refs.contextMenu.style.top = Math.round(rect.bottom + 6) + "px";
@@ -1050,6 +1082,12 @@
     if (!refs.contextMenu) return;
     refs.contextMenu.hidden = true;
     refs.contextMenu.innerHTML = "";
+    if (refs.tree) {
+      var contextRows = refs.tree.querySelectorAll(".tree-row.is-context-open");
+      contextRows.forEach(function (row) {
+        row.classList.remove("is-context-open");
+      });
+    }
     state.contextTargetId = "";
   }
 
@@ -1136,8 +1174,27 @@
 
   function renderAll() {
     renderProgress();
+    renderAccount();
     renderTree();
     renderViewer();
+  }
+
+  function handleLogout() {
+    clearTimers();
+    clearLegacyQuoteState();
+    closeContextMenu();
+    closeAccessModal();
+    closePasswordModal();
+    state.projectId = "";
+    state.token = "";
+    state.project = null;
+    state.pages = [];
+    state.selectedId = "";
+    try {
+      window.location.replace("/");
+    } catch (_error) {
+      window.location.assign("/");
+    }
   }
 
   async function handleAccessModalSubmit() {
@@ -1272,6 +1329,10 @@
 
   if (refs.updatePasswordBtn) {
     refs.updatePasswordBtn.addEventListener("click", openPasswordModal);
+  }
+
+  if (refs.logoutBtn) {
+    refs.logoutBtn.addEventListener("click", handleLogout);
   }
 
   if (refs.accessModalBackdrop) {

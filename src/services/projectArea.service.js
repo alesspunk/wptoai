@@ -164,7 +164,9 @@ async function resolveProjectUser(project) {
 function toSummary({ project, quote, pages }) {
   const detectedPages = deriveDetectedPages(quote);
   const purchasedPages = derivePurchasedPages(quote, detectedPages);
-  const usedPages = pages.filter((item) => item.type === "homepage" || item.type === "page").length;
+  const usedPages = pages.filter((item) =>
+    item.type === "homepage" || item.type === "page" || item.type === "section"
+  ).length;
   const remainingPages = Math.max(0, purchasedPages - usedPages);
 
   return {
@@ -246,6 +248,7 @@ async function saveProjectAreaPageOrder(project, updates) {
     .map((item, index) => ({
       id: String(item && item.id ? item.id : "").trim(),
       parentId: item && item.parentId ? String(item.parentId).trim() : null,
+      type: String(item && item.type ? item.type : "").trim().toLowerCase() || "page",
       orderIndex: Number.isFinite(Number(item && item.orderIndex)) ? Number(item.orderIndex) : index
     }))
     .filter((item) => item.id);
@@ -260,16 +263,37 @@ async function saveProjectAreaPageOrder(project, updates) {
     pageMap.set(page.id, page);
   });
 
+  const nextPageMap = new Map();
+  allPages.forEach((page) => {
+    nextPageMap.set(page.id, {
+      id: page.id,
+      type: page.type,
+      parentId: page.parentId || null
+    });
+  });
+
   normalizedUpdates.forEach((item) => {
-    const page = pageMap.get(item.id);
+    const page = nextPageMap.get(item.id);
+    if (!page) return;
+    if (item.type === "homepage" || item.type === "page" || item.type === "section") {
+      page.type = item.type;
+    }
+    page.parentId = item.parentId || null;
+  });
+
+  normalizedUpdates.forEach((item) => {
+    const page = nextPageMap.get(item.id);
     if (!page) {
       throw new Error("Project page not found.");
+    }
+    if (page.type !== "homepage" && page.type !== "page" && page.type !== "section") {
+      throw new Error("Invalid project page type.");
     }
     if (page.type === "homepage" && item.parentId) {
       throw new Error("Homepage cannot be moved into a section.");
     }
     if (item.parentId) {
-      const parent = pageMap.get(item.parentId);
+      const parent = nextPageMap.get(item.parentId);
       if (!parent || parent.type !== "section") {
         throw new Error("Pages can only be dropped into sections.");
       }

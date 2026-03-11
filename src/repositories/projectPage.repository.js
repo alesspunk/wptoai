@@ -139,6 +139,7 @@ async function updateProjectPageOrder(projectId, updates) {
       return {
         id: String(item && item.id ? item.id : "").trim(),
         parentId: item && item.parentId ? String(item.parentId) : null,
+        type: String(item && item.type ? item.type : "page").trim() || "page",
         orderIndex: Number.isFinite(Number(item && item.orderIndex)) ? Number(item.orderIndex) : index
       };
     })
@@ -153,6 +154,7 @@ async function updateProjectPageOrder(projectId, updates) {
   const values = [String(projectId)];
   const ids = [];
   const parentCases = [];
+  const typeCases = [];
   const orderCases = [];
 
   normalizedUpdates.forEach(function (item) {
@@ -160,17 +162,21 @@ async function updateProjectPageOrder(projectId, updates) {
     var idParam = values.length;
     values.push(item.parentId);
     var parentParam = values.length;
+    values.push(item.type);
+    var typeParam = values.length;
     values.push(item.orderIndex);
     var orderParam = values.length;
 
     ids.push("$" + idParam);
     parentCases.push("WHEN id = $" + idParam + " THEN $" + parentParam + "::text");
+    typeCases.push("WHEN id = $" + idParam + " THEN $" + typeParam + "::text");
     orderCases.push("WHEN id = $" + idParam + " THEN $" + orderParam + "::int");
   });
 
   const sql =
     "UPDATE project_pages " +
     "SET parent_id = CASE " + parentCases.join(" ") + " ELSE parent_id END, " +
+    "type = CASE " + typeCases.join(" ") + " ELSE type END, " +
     "order_index = CASE " + orderCases.join(" ") + " ELSE order_index END, " +
     "updated_at = NOW() " +
     "WHERE project_id = $1 AND id IN (" + ids.join(", ") + ") " +
