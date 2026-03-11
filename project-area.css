@@ -623,6 +623,11 @@ body {
   place-items: center;
 }
 
+.access-modal[hidden],
+.password-modal[hidden] {
+  display: none !important;
+}
+
 .access-modal-backdrop,
 .password-modal-backdrop {
   position: absolute;
