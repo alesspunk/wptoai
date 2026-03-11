@@ -66,6 +66,7 @@ async function renameProjectAreaPageController(req, res) {
   const token = String(body.token || "").trim();
   const pageId = String(body.pageId || "").trim();
   const title = String(body.title || "");
+  const url = String(body.url || "").trim();
 
   try {
     const project = await resolveAuthorizedProject(projectId, token);
@@ -73,7 +74,7 @@ async function renameProjectAreaPageController(req, res) {
       return res.status(401).json({ error: EXPIRED_MESSAGE });
     }
 
-    const page = await projectAreaService.renameProjectAreaPage(project, pageId, title);
+    const page = await projectAreaService.renameProjectAreaPage(project, pageId, title, url);
     return res.json({ ok: true, page });
   } catch (error) {
     return res.status(500).json({

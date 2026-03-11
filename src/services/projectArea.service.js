@@ -118,6 +118,19 @@ function normalizePageTitle(value) {
     .trim();
 }
 
+function normalizePageUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const parsed = new URL(raw);
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString();
+  } catch (_error) {
+    return raw;
+  }
+}
+
 function toSummary({ project, quote, pages }) {
   const detectedPages = deriveDetectedPages(quote);
   const purchasedPages = derivePurchasedPages(quote, detectedPages);
@@ -160,7 +173,7 @@ async function getProjectAreaData(project, selectedPageId) {
   };
 }
 
-async function renameProjectAreaPage(project, pageId, title) {
+async function renameProjectAreaPage(project, pageId, title, url) {
   if (!project || !project.id) {
     throw new Error("Project not found.");
   }
@@ -174,11 +187,17 @@ async function renameProjectAreaPage(project, pageId, title) {
   }
 
   const normalizedTitle = normalizePageTitle(title);
+  const normalizedUrl = normalizePageUrl(url);
   if (!normalizedTitle) {
     throw new Error("Page name cannot be empty.");
   }
 
-  const updated = await projectPageRepository.updateProjectPageTitle(project.id, page.id, normalizedTitle);
+  const updated = await projectPageRepository.updateProjectPageTitle(
+    project.id,
+    page.id,
+    normalizedTitle,
+    normalizedUrl || page.url || ""
+  );
   if (!updated) {
     throw new Error("Could not rename page.");
   }

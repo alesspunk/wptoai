@@ -106,14 +106,20 @@ async function seedProjectPagesIfEmpty(projectId, pages) {
   return findProjectPagesByProjectId(projectId);
 }
 
-async function updateProjectPageTitle(projectId, pageId, title) {
+async function updateProjectPageTitle(projectId, pageId, title, url) {
   if (!projectId || !pageId) return null;
   await ensureSchema();
-  const params = [String(projectId), String(pageId), String(title || "").trim()];
+  const params = [
+    String(projectId),
+    String(pageId),
+    String(title || "").trim(),
+    String(url || "").trim() || null
+  ];
   logQuery("updateProjectPageTitle", params);
   const result = await query(
     `UPDATE project_pages
       SET title = $3,
+          url = COALESCE($4, url),
           updated_at = NOW()
       WHERE project_id = $1 AND id = $2
       RETURNING *`,

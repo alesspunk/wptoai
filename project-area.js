@@ -113,6 +113,7 @@
     state.pages = state.pages.map(function (page, index) {
       if (page.id !== nextPage.id) return page;
       var normalized = normalizePage(nextPage, index);
+      normalized.type = nextPage.type || page.type;
       normalized.justReadyUntil = page.justReadyUntil || 0;
       return normalized;
     });
@@ -325,13 +326,16 @@
 
     row.addEventListener("drop", function (event) {
       if (!state.draggingId) return;
-      var dropMode = getDropMode(page, row, event.clientY);
-      if (!isValidDrop(state.draggingId, page.id, dropMode)) return;
+      var targetId = state.dropTarget && state.dropTarget.pageId ? state.dropTarget.pageId : page.id;
+      var dropMode = state.dropTarget && state.dropTarget.mode
+        ? state.dropTarget.mode
+        : getDropMode(page, row, event.clientY);
+      if (!isValidDrop(state.draggingId, targetId, dropMode)) return;
       event.preventDefault();
       var draggedId = state.draggingId;
       state.draggingId = "";
       clearDropTarget();
-      applyTreeMove(draggedId, page.id, dropMode);
+      applyTreeMove(draggedId, targetId, dropMode);
     });
 
     row.addEventListener("dragend", function () {
@@ -510,6 +514,36 @@
     }
   }
 
+  function slugifyTitle(title) {
+    return String(title || "page")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "page";
+  }
+
+  function buildRenamedPageUrl(page, title) {
+    var slug = slugifyTitle(title);
+    var currentUrl = String(page && page.url ? page.url : "").trim();
+    if (currentUrl) {
+      try {
+        var parsed = new URL(currentUrl);
+        var segments = parsed.pathname.split("/").filter(Boolean);
+        if (!segments.length) {
+          parsed.pathname = "/" + slug;
+        } else {
+          segments[segments.length - 1] = slug;
+          parsed.pathname = "/" + segments.join("/");
+        }
+        parsed.search = "";
+        parsed.hash = "";
+        return parsed.toString();
+      } catch (_error) {
+        // fall back to root-based URL below
+      }
+    }
+    return buildPageUrl(slug);
+  }
+
   function normalizeEditableTitle(value) {
     return String(value || "")
       .replace(/\s+/g, " ")
@@ -555,7 +589,7 @@
     } catch (error) {
       restorePages(previousPages);
       renderAll();
-      showTreeStatus(error && error.message ? error.message : "Could not save page order.", true);
+      console.error("PROJECT_AREA_TREE_ORDER_SAVE_ERROR", error && error.message ? error.message : error);
       return false;
     } finally {
       state.savingTree = false;
@@ -567,6 +601,8 @@
     if (!page || state.renameSavingId === pageId) return;
 
     var normalizedTitle = normalizeEditableTitle(nextTitle);
+    var nextUrl = buildRenamedPageUrl(page, normalizedTitle);
+    var previousUrl = page.url || "";
     state.renameSavingId = pageId;
     state.renamingId = "";
     state.renameDraft = "";
@@ -588,6 +624,7 @@
     }
 
     page.title = normalizedTitle;
+    page.url = nextUrl;
     renderAll();
     showTreeStatus("", false);
 
@@ -604,7 +641,8 @@
           project: state.projectId,
           token: state.token,
           pageId: pageId,
-          title: normalizedTitle
+          title: normalizedTitle,
+          url: nextUrl
         })
       });
       var payload = await response.json();
@@ -615,6 +653,7 @@
       renderAll();
     } catch (error) {
       page.title = previousTitle;
+      page.url = previousUrl;
       renderAll();
       showTreeStatus(error && error.message ? error.message : "Could not rename page.", true);
     } finally {
@@ -940,24 +979,12 @@
       refs.contextMenu.appendChild(createContextAction("Convert to section", function () {
         convertPageToSection(target.id);
       }, false));
-      refs.contextMenu.appendChild(createContextAction("Move up", function () {
-        swapSibling("up", target.id);
-      }, false));
-      refs.contextMenu.appendChild(createContextAction("Move down", function () {
-        swapSibling("down", target.id);
-      }, false));
       refs.contextMenu.appendChild(createContextAction("Delete page", function () {
         deleteNode(target.id);
       }, true));
     } else if (target.type === "section") {
       refs.contextMenu.appendChild(createContextAction("Rename", function () {
         startRename(target.id);
-      }, false));
-      refs.contextMenu.appendChild(createContextAction("Move up", function () {
-        swapSibling("up", target.id);
-      }, false));
-      refs.contextMenu.appendChild(createContextAction("Move down", function () {
-        swapSibling("down", target.id);
       }, false));
       refs.contextMenu.appendChild(createContextAction("Delete section", function () {
         deleteNode(target.id);
