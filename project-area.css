@@ -485,6 +485,7 @@ body {
 }
 
 .project-main-head {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -494,6 +495,27 @@ body {
 .project-logo {
   width: 148px;
   height: auto;
+}
+
+.convert-ai-btn {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  min-height: 42px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #6d5efc 0%, #2cf0c0 100%);
+  color: #08162f;
+  font-weight: 700;
+  font-size: 14px;
+  box-shadow: 0 12px 28px rgba(71, 94, 173, 0.22);
+  cursor: pointer;
+}
+
+.convert-ai-btn:hover {
+  filter: brightness(1.02);
 }
 
 .project-main-title {

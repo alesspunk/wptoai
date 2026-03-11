@@ -32,7 +32,7 @@ function deriveDetectedPages(quote) {
 
 function derivePurchasedPages(quote, detectedPages) {
   const fromPlan = Number(quote && quote.plan && quote.plan.pages ? quote.plan.pages : 0);
-  if (fromPlan > 0) return Math.max(fromPlan, detectedPages);
+  if (fromPlan > 0) return fromPlan;
   return detectedPages;
 }
 
@@ -121,11 +121,13 @@ function buildInitialProjectPages({ project, quote }) {
     ""
   );
   const detectedPages = deriveDetectedPages(quote);
+  const purchasedPages = Math.max(1, derivePurchasedPages(quote, detectedPages));
   const sourcePages = getDetectedPagesData(quote).length
     ? getDetectedPagesData(quote)
     : buildFallbackDetectedPages(siteUrl, detectedPages);
+  const visibleSourcePages = sourcePages.slice(0, purchasedPages);
 
-  return sourcePages.map((page, index) => {
+  return visibleSourcePages.map((page, index) => {
     const normalizedUrl = normalizePageUrl(page && page.url ? page.url : "");
     const type = index === 0 ? "homepage" : "page";
     const hasHomepagePreview = type === "homepage" && Boolean(getHomepagePreviewImageUrl(quote));
@@ -246,9 +248,6 @@ function isPreparedProjectPage(page) {
   if (!page || !isRealProjectPageType(page.type)) return false;
   if (page.type === "homepage") {
     return Boolean(String(page.screenshotUrl || "").trim() || String(page.url || "").trim());
-  }
-  if (Array.isArray(page.predictedSections) && page.predictedSections.length > 0) {
-    return true;
   }
   if (!isGenericProjectPageTitle(page.title)) {
     return true;

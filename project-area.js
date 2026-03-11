@@ -43,6 +43,7 @@
     addPageBtn: document.querySelector("#add-page-btn"),
     tree: document.querySelector("#page-tree"),
     treeStatus: document.querySelector("#tree-status"),
+    convertAiBtn: document.querySelector("#convert-ai-btn"),
     selectedTitle: document.querySelector("#selected-title"),
     selectedStatusPill: document.querySelector("#selected-status-pill"),
     selectedUrlPill: document.querySelector("#selected-url-pill"),
@@ -219,8 +220,7 @@
       return page.type === "page";
     });
     var preparedInnerPages = innerPages.filter(function (page) {
-      return page.predictedSections.length > 0 ||
-        hasReadyScreenshot(page) ||
+      return hasReadyScreenshot(page) ||
         !/^((page \d+)|(new page \d+)|untitled(?: page)?)$/i.test(String(page.title || "").trim());
     }).length;
     var progress = 0;
@@ -554,36 +554,16 @@
     );
   }
 
-  function renderPredictedSectionsList(predictedSections) {
-    if (!Array.isArray(predictedSections) || !predictedSections.length) {
-      return '<p class="viewer-form-status">No clear sections were detected yet. Keep this as a simple page entry or refine it later.</p>';
-    }
-
-    return (
-      '<ul class="viewer-section-list">' +
-      predictedSections.map(function (item) {
-        return (
-          '<li class="viewer-section-item">' +
-          "<strong>" + escapeHtml(item) + "</strong>" +
-          "<span>Likely section</span>" +
-          "</li>"
-        );
-      }).join("") +
-      "</ul>"
-    );
-  }
-
   function renderStructureState(page) {
     var canLoadPreview = page.type === "page" && String(page.url || "").trim();
     return (
       '<div class="viewer-manual-scan">' +
       '<div class="viewer-manual-copy">' +
-      "<p style=\"margin:0 0 8px;\"><strong>Page structure is ready to review.</strong></p>" +
-      "<p style=\"margin:0;\">We mapped this page as part of the project structure. Likely sections appear below when the original site gives us enough DOM clues.</p>" +
+      "<p style=\"margin:0 0 8px;\"><strong>This page is part of your project structure.</strong></p>" +
+      "<p style=\"margin:0;\">Keep organizing your pages here. When needed, you can load the latest page view.</p>" +
       "</div>" +
-      renderPredictedSectionsList(page.predictedSections) +
       (canLoadPreview
-        ? '<div class="viewer-form-actions"><button id="viewer-load-preview-btn" class="viewer-scan-btn" type="button">Load page preview</button></div>'
+        ? '<div class="viewer-form-actions"><button id="viewer-load-preview-btn" class="viewer-scan-btn" type="button">Load page</button></div>'
         : "") +
       "</div>"
     );
@@ -625,8 +605,8 @@
     return (
       '<div class="viewer-manual-scan">' +
       '<div class="viewer-manual-copy">' +
-      "<p style=\"margin:0 0 8px;\"><strong>Add a page URL to prepare this page.</strong></p>" +
-      "<p style=\"margin:0;\">We will load the page preview only when you ask for it and keep the saved result for future visits.</p>" +
+      "<p style=\"margin:0 0 8px;\"><strong>Add a page URL to connect this page.</strong></p>" +
+      "<p style=\"margin:0;\">We will load the saved page view only when you ask for it and keep it available for future visits.</p>" +
       "</div>" +
       '<label class="viewer-field-label" for="manual-page-url-input">Page URL</label>' +
       '<input id="manual-page-url-input" class="viewer-url-input" type="url" value="' + escapeHtml(getManualScanDraft(page)) + '" placeholder="https://example.com/about">' +
@@ -646,8 +626,8 @@
     var html =
       '<div class="viewer-manual-scan">' +
       '<div class="viewer-manual-copy">' +
-      "<p style=\"margin:0 0 8px;\"><strong>We could not load the latest page preview.</strong></p>" +
-      "<p style=\"margin:0;\">Retry the page preview. If the page URL changed, update it first.</p>" +
+      "<p style=\"margin:0 0 8px;\"><strong>We could not load the latest page.</strong></p>" +
+      "<p style=\"margin:0;\">Retry the page load. If the page URL changed, update it first.</p>" +
       "</div>";
 
     if (supportsUrlEdit) {
@@ -661,7 +641,7 @@
     html +=
       (status ? '<p class="viewer-form-status' + (status.isError ? ' is-error' : '') + '">' + escapeHtml(status.message) + '</p>' : '<p class="viewer-form-status" hidden></p>') +
       '<div class="viewer-form-actions">' +
-      '<button id="viewer-retry-scan-btn" class="viewer-scan-btn" type="button">Retry page preview</button>' +
+      '<button id="viewer-retry-scan-btn" class="viewer-scan-btn" type="button">Retry page</button>' +
       "</div>" +
       "</div>";
 
@@ -677,7 +657,7 @@
         '<div class="viewer-placeholder">' +
         '<div>' +
         "<p style=\"margin:0 0 8px;\"><strong>" + (page.status === "processing" ? "This page is still being prepared." : "This page is lined up for preparation.") + "</strong></p>" +
-        "<p style=\"margin:0;\">You can keep organizing the project while the page preview finishes.</p>" +
+        "<p style=\"margin:0;\">You can keep organizing the project while this page finishes loading.</p>" +
         "</div>" +
         "</div>"
       );
@@ -1820,6 +1800,10 @@
     closeAccountMenu();
   }
 
+  function handleConvertAiClick() {
+    console.log("CONVERT_TO_AI_CLICKED");
+  }
+
   function escapeHtml(value) {
     return String(value || "")
       .replace(/&/g, "&amp;")
@@ -1894,6 +1878,13 @@
       event.preventDefault();
       event.stopPropagation();
       handleUpgradeMaintenanceClick();
+    });
+  }
+
+  if (refs.convertAiBtn) {
+    refs.convertAiBtn.addEventListener("click", function (event) {
+      event.preventDefault();
+      handleConvertAiClick();
     });
   }
 
