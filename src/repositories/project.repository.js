@@ -151,11 +151,30 @@ async function findLatestProjectByCustomerEmail(email) {
   return toProject(result.rows[0]);
 }
 
+async function updateProjectCustomerEmail(projectId, customerEmail) {
+  if (!projectId || !customerEmail) return null;
+  await ensureSchema();
+  const params = [String(projectId), String(customerEmail).trim().toLowerCase()];
+  logQuery("updateProjectCustomerEmail", params);
+
+  const result = await query(
+    `UPDATE projects
+      SET customer_email = $2,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING *`,
+    params
+  );
+
+  return toProject(result.rows[0]);
+}
+
 module.exports = {
   createProject,
   saveProjectAccessToken,
   findProjectByQuoteId,
   findProjectById,
   findLatestProjectByUserId,
-  findLatestProjectByCustomerEmail
+  findLatestProjectByCustomerEmail,
+  updateProjectCustomerEmail
 };

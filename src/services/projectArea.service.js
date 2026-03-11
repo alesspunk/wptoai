@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const { sendEmail } = require("./email.service");
 const projectService = require("./project.service");
 const quoteRepository = require("../repositories/quote.repository");
+const emailUpdateTokenRepository = require("../repositories/emailUpdateToken.repository");
 const projectRepository = require("../repositories/project.repository");
 const projectPageRepository = require("../repositories/projectPage.repository");
 const userRepository = require("../repositories/user.repository");
@@ -145,6 +146,14 @@ function normalizeEmail(value) {
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
+}
+
+function generateEmailUpdateToken() {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+function computeEmailUpdateExpiry() {
+  return new Date(Date.now() + (30 * 60 * 1000)).toISOString();
 }
 
 async function resolveProjectUser(project) {
@@ -412,11 +421,127 @@ async function requestProjectAreaAccessLink(email, baseUrl) {
   };
 }
 
+async function requestProjectAreaEmailUpdate(project, newEmail, baseUrl) {
+  if (!project || !project.id) {
+    throw new Error("Project not found.");
+  }
+
+  const normalizedEmail = normalizeEmail(newEmail);
+  if (!isValidEmail(normalizedEmail)) {
+    throw new Error("Enter a valid email address.");
+  }
+
+  const user = await resolveProjectUser(project);
+  if (!user || !user.id) {
+    throw new Error("No user found for this project.");
+  }
+
+  const currentEmail = normalizeEmail((user && user.email) || project.customerEmail || "");
+  if (!currentEmail) {
+    throw new Error("No customer email found for this project.");
+  }
+  if (normalizedEmail === currentEmail) {
+    throw new Error("Enter a different email address.");
+  }
+
+  const existingUser = await userRepository.findUserByEmail(normalizedEmail);
+  if (existingUser && existingUser.id !== user.id) {
+    throw new Error("This email is already in use.");
+  }
+
+  const verificationToken = generateEmailUpdateToken();
+  const expiresAt = computeEmailUpdateExpiry();
+  await emailUpdateTokenRepository.deleteEmailUpdateTokensByProjectId(project.id);
+  await emailUpdateTokenRepository.createEmailUpdateToken({
+    projectId: project.id,
+    newEmail: normalizedEmail,
+    token: verificationToken,
+    expiresAt
+  });
+
+  const normalizedBaseUrl = String(baseUrl || process.env.BASE_URL || "https://wptoai.com").replace(/\/+$/, "");
+  const link = `${normalizedBaseUrl}/api/verify-email-update?token=${encodeURIComponent(verificationToken)}`;
+  const subject = "Confirm your new WPtoAI email";
+  const html = `
+    <p>Hi,</p>
+    <p>Confirm your new email to keep using your WPtoAI Project Area.</p>
+    <p>
+      <a href="${link}" style="display:inline-block;padding:12px 18px;border-radius:999px;background:#3558c6;color:#ffffff;text-decoration:none;font-weight:600;">
+        Confirm new email
+      </a>
+    </p>
+    <p><a href="${link}">${link}</a></p>
+    <p>This secure link expires in 30 minutes.</p>
+    <p>— WPtoAI</p>
+  `;
+
+  console.log("EMAIL_UPDATE_REQUESTED", project.id, normalizedEmail);
+  await sendEmail(normalizedEmail, subject, html);
+
+  return {
+    email: normalizedEmail,
+    projectId: project.id
+  };
+}
+
+async function verifyProjectAreaEmailUpdate(token) {
+  const verificationToken = String(token || "").trim();
+  if (!verificationToken) {
+    throw new Error("This email verification link is invalid or expired.");
+  }
+
+  const emailUpdateToken = await emailUpdateTokenRepository.findEmailUpdateTokenByToken(verificationToken);
+  if (!emailUpdateToken || !emailUpdateToken.id) {
+    throw new Error("This email verification link is invalid or expired.");
+  }
+
+  const expiresAt = emailUpdateToken.expiresAt ? new Date(emailUpdateToken.expiresAt).getTime() : 0;
+  if (!expiresAt || expiresAt < Date.now()) {
+    await emailUpdateTokenRepository.deleteEmailUpdateTokenById(emailUpdateToken.id);
+    throw new Error("This email verification link is invalid or expired.");
+  }
+
+  const project = await projectRepository.findProjectById(emailUpdateToken.projectId);
+  if (!project || !project.id) {
+    await emailUpdateTokenRepository.deleteEmailUpdateTokenById(emailUpdateToken.id);
+    throw new Error("This email verification link is invalid or expired.");
+  }
+
+  const user = await resolveProjectUser(project);
+  if (!user || !user.id) {
+    throw new Error("No user found for this project.");
+  }
+
+  const nextEmail = normalizeEmail(emailUpdateToken.newEmail);
+  const existingUser = await userRepository.findUserByEmail(nextEmail);
+  if (existingUser && existingUser.id !== user.id) {
+    throw new Error("This email is already in use.");
+  }
+
+  await userRepository.updateUserEmail(user.id, nextEmail);
+  const updatedProject = await projectRepository.updateProjectCustomerEmail(project.id, nextEmail);
+  await emailUpdateTokenRepository.deleteEmailUpdateTokenById(emailUpdateToken.id);
+
+  const refreshedProject = await projectService.refreshProjectAccessToken(updatedProject || project);
+  if (!refreshedProject || !refreshedProject.id || !refreshedProject.accessToken) {
+    throw new Error("Could not generate a new access link.");
+  }
+
+  console.log("EMAIL_UPDATE_VERIFIED", refreshedProject.id, nextEmail);
+
+  return {
+    projectId: refreshedProject.id,
+    accessToken: refreshedProject.accessToken
+  };
+}
+
 module.exports = {
   getProjectAreaData,
   renameProjectAreaPage,
   saveProjectAreaPageOrder,
   updateProjectAreaPassword,
   sendProjectAreaPasswordUpdateEmail,
-  requestProjectAreaAccessLink
+  requestProjectAreaAccessLink,
+  requestProjectAreaEmailUpdate,
+  verifyProjectAreaEmailUpdate
 };

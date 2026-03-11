@@ -87,9 +87,26 @@ async function updateUserPasswordHash(userId, passwordHash) {
   return toUser(result.rows[0]);
 }
 
+async function updateUserEmail(userId, email) {
+  if (!userId || !email) return null;
+  await ensureSchema();
+  const params = [String(userId), String(email).trim().toLowerCase()];
+  logQuery("updateUserEmail", params);
+  const result = await query(
+    `UPDATE users
+      SET email = $2,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING *`,
+    params
+  );
+  return toUser(result.rows[0]);
+}
+
 module.exports = {
   findUserById,
   findUserByEmail,
   createUser,
-  updateUserPasswordHash
+  updateUserPasswordHash,
+  updateUserEmail
 };

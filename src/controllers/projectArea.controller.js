@@ -149,11 +149,54 @@ async function requestAccessLinkController(req, res) {
   }
 }
 
+async function requestEmailUpdateController(req, res) {
+  const body = req && req.body ? req.body : {};
+  const projectId = String(body.projectId || "").trim();
+  const token = String(body.token || "").trim();
+  const newEmail = String(body.newEmail || "").trim();
+
+  try {
+    const project = await resolveAuthorizedProject(projectId, token);
+    if (!project) {
+      return res.status(401).json({ error: EXPIRED_MESSAGE });
+    }
+
+    const result = await projectAreaService.requestProjectAreaEmailUpdate(
+      project,
+      newEmail,
+      getBaseUrl(req)
+    );
+    return res.json({ ok: true, email: result.email });
+  } catch (error) {
+    return res.status(400).json({
+      error: error && error.message ? error.message : "Could not request email update."
+    });
+  }
+}
+
+async function verifyEmailUpdateController(req, res) {
+  const token = String((req.query && req.query.token) || "").trim();
+
+  try {
+    const result = await projectAreaService.verifyProjectAreaEmailUpdate(token);
+    const redirectUrl =
+      `${getBaseUrl(req)}/project-area?project=${encodeURIComponent(result.projectId)}` +
+      `&token=${encodeURIComponent(result.accessToken)}`;
+    return res.redirect(302, redirectUrl);
+  } catch (error) {
+    return res.status(400).send(
+      error && error.message ? error.message : "This email verification link is invalid or expired."
+    );
+  }
+}
+
 module.exports = {
   getProjectAreaDataController,
   renameProjectAreaPageController,
   saveProjectAreaPageOrderController,
   updateProjectAreaPasswordController,
   sendProjectAreaPasswordResetController,
-  requestAccessLinkController
+  requestAccessLinkController,
+  requestEmailUpdateController,
+  verifyEmailUpdateController
 };

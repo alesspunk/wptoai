@@ -41,7 +41,15 @@
 
         <div class="project-settings">
           <div class="project-account-row">
-            <p id="account-email" class="project-account-email">email@example.com</p>
+            <button
+              id="account-menu-toggle"
+              class="project-account-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="account-menu"
+            >
+              <span id="account-email" class="project-account-email">email@example.com</span>
+            </button>
             <button id="logout-btn" class="project-logout-btn" type="button" aria-label="Log out">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M10 6H6.8A1.8 1.8 0 0 0 5 7.8v8.4A1.8 1.8 0 0 0 6.8 18H10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -49,6 +57,10 @@
                 <path d="M17 12H9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>
               </svg>
             </button>
+          </div>
+          <div id="account-menu" class="account-menu" hidden>
+            <button id="account-update-email-btn" class="account-menu-action" type="button">Update Email</button>
+            <button id="account-upgrade-btn" class="account-menu-action" type="button">Upgrade Maintenance</button>
           </div>
           <button id="send-access-link-btn" class="project-access-link-btn" type="button">
             Send access link
@@ -94,6 +106,24 @@
         <div class="access-modal-actions">
           <button id="access-modal-back" class="access-modal-secondary" type="button">Back</button>
           <button id="access-modal-submit" class="access-modal-primary" type="button">Send access link</button>
+        </div>
+      </div>
+    </div>
+    <div id="email-update-modal" class="access-modal" hidden>
+      <div id="email-update-modal-backdrop" class="access-modal-backdrop"></div>
+      <div class="access-modal-card" role="dialog" aria-modal="true" aria-labelledby="email-update-modal-title">
+        <div class="access-modal-head">
+          <h2 id="email-update-modal-title" class="access-modal-title">Update Email</h2>
+          <button id="email-update-modal-close" class="access-modal-close" type="button" aria-label="Close update email modal">×</button>
+        </div>
+        <label class="access-modal-label" for="new-email-input">New Email</label>
+        <input id="new-email-input" class="access-modal-input" type="email" autocomplete="email" />
+        <label class="access-modal-label" for="confirm-email-input">Confirm Email</label>
+        <input id="confirm-email-input" class="access-modal-input" type="email" autocomplete="email" />
+        <p id="email-update-status" class="access-modal-status" hidden></p>
+        <div class="access-modal-actions">
+          <button id="email-update-cancel" class="access-modal-secondary" type="button">Cancel</button>
+          <button id="email-update-submit" class="access-modal-primary" type="button">Send Verification Link</button>
         </div>
       </div>
     </div>

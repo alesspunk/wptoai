@@ -43,6 +43,10 @@
     selectedUrlPill: document.querySelector("#selected-url-pill"),
     viewerContent: document.querySelector("#viewer-content"),
     contextMenu: document.querySelector("#page-context-menu"),
+    accountMenuToggle: document.querySelector("#account-menu-toggle"),
+    accountMenu: document.querySelector("#account-menu"),
+    accountUpdateEmailBtn: document.querySelector("#account-update-email-btn"),
+    accountUpgradeBtn: document.querySelector("#account-upgrade-btn"),
     accountEmail: document.querySelector("#account-email"),
     logoutBtn: document.querySelector("#logout-btn"),
     sendAccessLinkBtn: document.querySelector("#send-access-link-btn"),
@@ -53,7 +57,15 @@
     accessModalBack: document.querySelector("#access-modal-back"),
     accessModalSubmit: document.querySelector("#access-modal-submit"),
     accessModalStatus: document.querySelector("#access-modal-status"),
-    accessEmailInput: document.querySelector("#access-email-input")
+    accessEmailInput: document.querySelector("#access-email-input"),
+    emailUpdateModal: document.querySelector("#email-update-modal"),
+    emailUpdateModalBackdrop: document.querySelector("#email-update-modal-backdrop"),
+    emailUpdateModalClose: document.querySelector("#email-update-modal-close"),
+    emailUpdateCancel: document.querySelector("#email-update-cancel"),
+    emailUpdateSubmit: document.querySelector("#email-update-submit"),
+    emailUpdateStatus: document.querySelector("#email-update-status"),
+    newEmailInput: document.querySelector("#new-email-input"),
+    confirmEmailInput: document.querySelector("#confirm-email-input")
   };
 
   function clearLegacyQuoteState() {
@@ -191,6 +203,13 @@
     refs.accountStatus.hidden = !message;
     refs.accountStatus.classList.toggle("is-error", Boolean(isError));
     refs.accountStatus.textContent = message || "";
+  }
+
+  function showEmailUpdateStatus(message, isError) {
+    if (!refs.emailUpdateStatus) return;
+    refs.emailUpdateStatus.hidden = !message;
+    refs.emailUpdateStatus.classList.toggle("is-error", Boolean(isError));
+    refs.emailUpdateStatus.textContent = message || "";
   }
 
   function iconSvg(type) {
@@ -791,12 +810,64 @@
     updateDropIndicators();
   }
 
+  function closeAccountMenu() {
+    if (!refs.accountMenu || refs.accountMenu.hidden) return;
+    refs.accountMenu.hidden = true;
+    if (refs.accountMenuToggle) {
+      refs.accountMenuToggle.setAttribute("aria-expanded", "false");
+    }
+    console.log("ACCOUNT_MENU_CLOSED");
+  }
+
+  function openAccountMenu() {
+    if (!refs.accountMenu || !refs.accountMenu.hidden) return;
+    refs.accountMenu.hidden = false;
+    if (refs.accountMenuToggle) {
+      refs.accountMenuToggle.setAttribute("aria-expanded", "true");
+    }
+    console.log("ACCOUNT_MENU_OPENED");
+  }
+
+  function toggleAccountMenu() {
+    if (!refs.accountMenu) return;
+    if (refs.accountMenu.hidden) {
+      openAccountMenu();
+      return;
+    }
+    closeAccountMenu();
+  }
+
+  function closeEmailUpdateModal() {
+    if (refs.emailUpdateModal) refs.emailUpdateModal.hidden = true;
+    if (refs.emailUpdateSubmit) refs.emailUpdateSubmit.disabled = false;
+    if (refs.emailUpdateCancel) refs.emailUpdateCancel.disabled = false;
+    if (refs.emailUpdateModalClose) refs.emailUpdateModalClose.disabled = false;
+    if (refs.newEmailInput) refs.newEmailInput.value = "";
+    if (refs.confirmEmailInput) refs.confirmEmailInput.value = "";
+    showEmailUpdateStatus("", false);
+  }
+
+  function openEmailUpdateModal() {
+    closeAccountMenu();
+    showAccountStatus("", false);
+    showEmailUpdateStatus("", false);
+    if (refs.newEmailInput) refs.newEmailInput.value = "";
+    if (refs.confirmEmailInput) refs.confirmEmailInput.value = "";
+    if (refs.emailUpdateModal) refs.emailUpdateModal.hidden = false;
+    window.requestAnimationFrame(function () {
+      if (refs.newEmailInput) refs.newEmailInput.focus();
+    });
+  }
+
   function renderAccount() {
     if (!refs.accountEmail) return;
     refs.accountEmail.textContent = String(
       (state.project && state.project.customerEmail) || "No email on file"
     );
     refs.accountEmail.title = refs.accountEmail.textContent;
+    if (refs.accountMenuToggle) {
+      refs.accountMenuToggle.title = refs.accountEmail.textContent;
+    }
   }
 
   function scheduleReadyIndicatorClear(pageId, duration) {
@@ -1148,7 +1219,9 @@
     clearTimers();
     clearLegacyQuoteState();
     closeContextMenu();
+    closeAccountMenu();
     closeAccessModal();
+    closeEmailUpdateModal();
     state.projectId = "";
     state.token = "";
     state.project = null;
@@ -1178,6 +1251,27 @@
     return payload;
   }
 
+  function isValidEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+  }
+
+  async function requestEmailUpdate(newEmail) {
+    var response = await fetch("/api/request-email-update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        projectId: state.projectId,
+        token: state.token,
+        newEmail: newEmail
+      })
+    });
+    var payload = await response.json();
+    if (!response.ok) {
+      throw new Error((payload && payload.error) || "Could not request email update.");
+    }
+    return payload;
+  }
+
   async function handleAccessModalSubmit() {
     showAccessModalStatus("", false);
     var email = refs.accessEmailInput ? String(refs.accessEmailInput.value || "").trim() : "";
@@ -1200,6 +1294,7 @@
 
   async function handleAccountAccessLinkSend() {
     showAccountStatus("", false);
+    closeAccountMenu();
     var email = state.project && state.project.customerEmail
       ? String(state.project.customerEmail || "").trim()
       : "";
@@ -1214,6 +1309,50 @@
     }
   }
 
+  async function handleEmailUpdateSubmit() {
+    showEmailUpdateStatus("", false);
+    var newEmail = refs.newEmailInput ? String(refs.newEmailInput.value || "").trim() : "";
+    var confirmEmail = refs.confirmEmailInput ? String(refs.confirmEmailInput.value || "").trim() : "";
+
+    if (!isValidEmail(newEmail)) {
+      showEmailUpdateStatus("Enter a valid email address.", true);
+      return;
+    }
+    if (String(newEmail).toLowerCase() !== String(confirmEmail).trim().toLowerCase()) {
+      showEmailUpdateStatus("Emails must match.", true);
+      return;
+    }
+
+    if (refs.emailUpdateSubmit) refs.emailUpdateSubmit.disabled = true;
+    if (refs.emailUpdateCancel) refs.emailUpdateCancel.disabled = true;
+    if (refs.emailUpdateModalClose) refs.emailUpdateModalClose.disabled = true;
+
+    try {
+      await requestEmailUpdate(newEmail);
+      closeEmailUpdateModal();
+      showAccountStatus("Verification link sent to your new email.", false);
+    } catch (error) {
+      showEmailUpdateStatus(
+        error && error.message ? error.message : "Could not request email update.",
+        true
+      );
+    } finally {
+      if (refs.emailUpdateSubmit) refs.emailUpdateSubmit.disabled = false;
+      if (refs.emailUpdateCancel) refs.emailUpdateCancel.disabled = false;
+      if (refs.emailUpdateModalClose) refs.emailUpdateModalClose.disabled = false;
+    }
+  }
+
+  function handleAccountUpdateEmailClick() {
+    console.log("ACCOUNT_UPDATE_EMAIL_CLICKED");
+    openEmailUpdateModal();
+  }
+
+  function handleUpgradeMaintenanceClick() {
+    console.log("UPGRADE_MAINTENANCE_CLICKED");
+    closeAccountMenu();
+  }
+
   function escapeHtml(value) {
     return String(value || "")
       .replace(/&/g, "&amp;")
@@ -1225,7 +1364,9 @@
 
   async function init() {
     clearLegacyQuoteState();
+    closeAccountMenu();
     closeAccessModal();
+    closeEmailUpdateModal();
     showAccountStatus("", false);
     var access = parseAccessFromUrl();
     state.projectId = access.project;
@@ -1275,6 +1416,30 @@
     refs.logoutBtn.addEventListener("click", handleLogout);
   }
 
+  if (refs.accountMenuToggle) {
+    refs.accountMenuToggle.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleAccountMenu();
+    });
+  }
+
+  if (refs.accountUpdateEmailBtn) {
+    refs.accountUpdateEmailBtn.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      handleAccountUpdateEmailClick();
+    });
+  }
+
+  if (refs.accountUpgradeBtn) {
+    refs.accountUpgradeBtn.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      handleUpgradeMaintenanceClick();
+    });
+  }
+
   if (refs.accessModalBackdrop) {
     refs.accessModalBackdrop.addEventListener("click", exitAccessModal);
   }
@@ -1296,6 +1461,40 @@
       if (event.key === "Enter") {
         event.preventDefault();
         handleAccessModalSubmit();
+      }
+    });
+  }
+
+  if (refs.emailUpdateModalBackdrop) {
+    refs.emailUpdateModalBackdrop.addEventListener("click", closeEmailUpdateModal);
+  }
+
+  if (refs.emailUpdateModalClose) {
+    refs.emailUpdateModalClose.addEventListener("click", closeEmailUpdateModal);
+  }
+
+  if (refs.emailUpdateCancel) {
+    refs.emailUpdateCancel.addEventListener("click", closeEmailUpdateModal);
+  }
+
+  if (refs.emailUpdateSubmit) {
+    refs.emailUpdateSubmit.addEventListener("click", handleEmailUpdateSubmit);
+  }
+
+  if (refs.newEmailInput) {
+    refs.newEmailInput.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleEmailUpdateSubmit();
+      }
+    });
+  }
+
+  if (refs.confirmEmailInput) {
+    refs.confirmEmailInput.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleEmailUpdateSubmit();
       }
     });
   }
@@ -1330,12 +1529,25 @@
     if (!insideMenu && !trigger) {
       closeContextMenu();
     }
+    var insideAccountMenu = refs.accountMenu && refs.accountMenu.contains(event.target);
+    var accountTrigger = event.target && event.target.closest && event.target.closest("#account-menu-toggle");
+    if (!insideAccountMenu && !accountTrigger) {
+      closeAccountMenu();
+    }
   });
 
   document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && refs.emailUpdateModal && !refs.emailUpdateModal.hidden) {
+      closeEmailUpdateModal();
+      return;
+    }
     if (event.key === "Escape" && refs.accessModal && !refs.accessModal.hidden) {
       exitAccessModal();
       return;
+    }
+    if (event.key === "Escape") {
+      closeAccountMenu();
+      closeContextMenu();
     }
   });
 

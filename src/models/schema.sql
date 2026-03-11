@@ -86,3 +86,15 @@ CREATE TABLE IF NOT EXISTS project_pages (
 CREATE INDEX IF NOT EXISTS idx_project_pages_project_id ON project_pages(project_id);
 CREATE INDEX IF NOT EXISTS idx_project_pages_parent_id ON project_pages(parent_id);
 CREATE INDEX IF NOT EXISTS idx_project_pages_order_index ON project_pages(order_index);
+
+CREATE TABLE IF NOT EXISTS email_update_tokens (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  new_email TEXT NOT NULL,
+  token TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_update_tokens_project_id ON email_update_tokens(project_id);
+CREATE INDEX IF NOT EXISTS idx_email_update_tokens_expires_at ON email_update_tokens(expires_at);
