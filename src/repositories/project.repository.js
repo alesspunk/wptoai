@@ -117,9 +117,45 @@ async function findProjectById(projectId) {
   return toProject(result.rows[0]);
 }
 
+async function findLatestProjectByUserId(userId) {
+  if (!userId) return null;
+  await ensureSchema();
+  const params = [String(userId)];
+  logQuery('findLatestProjectByUserId', params);
+
+  const result = await query(
+    `SELECT * FROM projects
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    params
+  );
+
+  return toProject(result.rows[0]);
+}
+
+async function findLatestProjectByCustomerEmail(email) {
+  if (!email) return null;
+  await ensureSchema();
+  const params = [String(email).trim().toLowerCase()];
+  logQuery('findLatestProjectByCustomerEmail', params);
+
+  const result = await query(
+    `SELECT * FROM projects
+      WHERE customer_email = $1
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    params
+  );
+
+  return toProject(result.rows[0]);
+}
+
 module.exports = {
   createProject,
   saveProjectAccessToken,
   findProjectByQuoteId,
-  findProjectById
+  findProjectById,
+  findLatestProjectByUserId,
+  findLatestProjectByCustomerEmail
 };

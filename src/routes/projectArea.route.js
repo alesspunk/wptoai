@@ -4,7 +4,8 @@ const {
   renameProjectAreaPageController,
   saveProjectAreaPageOrderController,
   updateProjectAreaPasswordController,
-  sendProjectAreaPasswordResetController
+  sendProjectAreaPasswordResetController,
+  requestAccessLinkController
 } = require("../controllers/projectArea.controller");
 
 const router = express.Router();
@@ -14,5 +15,6 @@ router.post("/project-area-page-order", saveProjectAreaPageOrderController);
 router.post("/project-area-page-rename", renameProjectAreaPageController);
 router.post("/project-area-password", updateProjectAreaPasswordController);
 router.post("/project-area-password-reset", sendProjectAreaPasswordResetController);
+router.post("/request-access-link", requestAccessLinkController);
 
 module.exports = router;

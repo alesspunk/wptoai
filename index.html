@@ -1950,6 +1950,111 @@
         background: #f4f7ff;
         opacity: 1;
       }
+      .access-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 390;
+        display: grid;
+        place-items: center;
+      }
+      .access-modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 28, 54, 0.32);
+        backdrop-filter: blur(2px);
+      }
+      .access-modal-card {
+        position: relative;
+        z-index: 1;
+        width: min(420px, calc(100vw - 32px));
+        border-radius: 18px;
+        border: 1px solid rgba(39, 49, 77, 0.12);
+        background: rgba(255, 255, 255, 0.98);
+        box-shadow: 0 24px 48px rgba(18, 32, 63, 0.24);
+        padding: 20px;
+      }
+      .access-modal-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      .access-modal-title {
+        margin: 0;
+        font-size: 20px;
+        color: #27314d;
+      }
+      .access-modal-close {
+        border: 0;
+        background: none;
+        color: #6b7a9d;
+        font-size: 28px;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0;
+      }
+      .access-modal-copy {
+        margin: 0 0 12px;
+        font-size: 14px;
+        color: #4f5f86;
+      }
+      .access-modal-label {
+        display: block;
+        margin: 0 0 6px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #27314d;
+      }
+      .access-modal-input {
+        width: 100%;
+        min-height: 44px;
+        border: 1px solid rgba(122, 146, 199, 0.38);
+        border-radius: 12px;
+        background: #fff;
+        color: #27314d;
+        font: inherit;
+        padding: 0 14px;
+        margin-bottom: 12px;
+      }
+      .access-modal-status {
+        margin: 2px 0 0;
+        font-size: 13px;
+        color: #48619f;
+      }
+      .access-modal-status.is-error {
+        color: #c2464d;
+      }
+      .access-modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 16px;
+      }
+      .access-modal-secondary,
+      .access-modal-primary {
+        min-height: 40px;
+        border-radius: 999px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 0 18px;
+      }
+      .access-modal-secondary {
+        border: 1px solid rgba(122, 146, 199, 0.38);
+        background: #fff;
+        color: #27314d;
+      }
+      .access-modal-primary {
+        border: 1px solid rgba(53, 88, 198, 0.32);
+        background: rgba(53, 88, 198, 0.1);
+        color: #2447b6;
+      }
+      .access-modal-primary:disabled,
+      .access-modal-secondary:disabled {
+        opacity: 0.56;
+        cursor: wait;
+      }
       .quick-top-actions .quick-sidebar-fab {
         position: static;
         top: auto;
@@ -4784,8 +4889,7 @@
             </svg>
           </button>
           <div id="quick-auth-menu" class="quick-auth-menu" role="menu" aria-label="Account menu">
-            <a class="quick-auth-btn sign-in" href="#top" role="menuitem">Sign In</a>
-            <a class="quick-auth-btn sign-up" href="#top" role="menuitem">Sign Up</a>
+            <a id="quick-auth-sign-in" class="quick-auth-btn sign-in" href="#top" role="menuitem">Sign In</a>
           </div>
         </div>
         <button id="quick-sidebar-fab" class="quick-sidebar-fab" type="button" aria-label="Open order summary sidebar" hidden>
@@ -4800,6 +4904,23 @@
             <span id="quick-sidebar-fab-total" class="quick-sidebar-fab-total">$0</span>
           </span>
         </button>
+      </div>
+      <div id="access-modal" class="access-modal" hidden>
+        <div id="access-modal-backdrop" class="access-modal-backdrop"></div>
+        <div class="access-modal-card" role="dialog" aria-modal="true" aria-labelledby="access-modal-title">
+          <div class="access-modal-head">
+            <h2 id="access-modal-title" class="access-modal-title">Your secure link expired</h2>
+            <button id="access-modal-close" class="access-modal-close" type="button" aria-label="Close access modal">×</button>
+          </div>
+          <p class="access-modal-copy">Enter your email to continue.</p>
+          <label class="access-modal-label" for="access-email-input">Email</label>
+          <input id="access-email-input" class="access-modal-input" type="email" autocomplete="email" />
+          <p id="access-modal-status" class="access-modal-status" hidden></p>
+          <div class="access-modal-actions">
+            <button id="access-modal-back" class="access-modal-secondary" type="button">Back</button>
+            <button id="access-modal-submit" class="access-modal-primary" type="button">Send access link</button>
+          </div>
+        </div>
       </div>
       <div id="site-migration-tour" class="site-migration-tour" aria-hidden="true" hidden>
         <svg class="site-migration-tour-svg" viewBox="0 0 260 180" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -5257,11 +5378,77 @@
         var authActions = document.querySelector('.quick-auth-actions');
         var authToggle = document.querySelector('#quick-auth-toggle');
         var authMenu = document.querySelector('#quick-auth-menu');
+        var signInLink = document.querySelector('#quick-auth-sign-in');
+        var accessModal = document.querySelector('#access-modal');
+        var accessModalBackdrop = document.querySelector('#access-modal-backdrop');
+        var accessModalClose = document.querySelector('#access-modal-close');
+        var accessModalBack = document.querySelector('#access-modal-back');
+        var accessModalSubmit = document.querySelector('#access-modal-submit');
+        var accessModalStatus = document.querySelector('#access-modal-status');
+        var accessEmailInput = document.querySelector('#access-email-input');
         if (!authActions || !authToggle || !authMenu) return;
 
         function closeAuthMenu() {
           authActions.classList.remove('is-open');
           authToggle.setAttribute('aria-expanded', 'false');
+        }
+
+        function showAccessModalStatus(message, isError) {
+          if (!accessModalStatus) return;
+          accessModalStatus.hidden = !message;
+          accessModalStatus.classList.toggle('is-error', Boolean(isError));
+          accessModalStatus.textContent = message || '';
+        }
+
+        function openAccessModal() {
+          if (!accessModal) return;
+          console.log('SIGN_IN_MODAL_OPENED');
+          showAccessModalStatus('', false);
+          accessModal.hidden = false;
+          window.requestAnimationFrame(function () {
+            if (accessEmailInput) accessEmailInput.focus();
+          });
+        }
+
+        function closeAccessModal() {
+          if (!accessModal) return;
+          accessModal.hidden = true;
+          if (accessModalSubmit) accessModalSubmit.disabled = false;
+          if (accessModalBack) accessModalBack.disabled = false;
+          if (accessModalClose) accessModalClose.disabled = false;
+          showAccessModalStatus('', false);
+        }
+
+        async function requestAccessLink() {
+          var email = accessEmailInput ? String(accessEmailInput.value || '').trim() : '';
+          showAccessModalStatus('', false);
+          if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            showAccessModalStatus('Enter a valid email to continue.', true);
+            return;
+          }
+
+          if (accessModalSubmit) accessModalSubmit.disabled = true;
+          if (accessModalBack) accessModalBack.disabled = true;
+          if (accessModalClose) accessModalClose.disabled = true;
+
+          try {
+            var response = await fetch('/api/request-access-link', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: email })
+            });
+            var payload = await response.json();
+            if (!response.ok) {
+              throw new Error((payload && payload.error) || 'Could not send access link.');
+            }
+            showAccessModalStatus('Access link sent. Check your email.', false);
+          } catch (error) {
+            showAccessModalStatus(error && error.message ? error.message : 'Could not send access link.', true);
+          } finally {
+            if (accessModalSubmit) accessModalSubmit.disabled = false;
+            if (accessModalBack) accessModalBack.disabled = false;
+            if (accessModalClose) accessModalClose.disabled = false;
+          }
         }
 
         authToggle.addEventListener('click', function (event) {
@@ -5270,6 +5457,39 @@
           authActions.classList.toggle('is-open', willOpen);
           authToggle.setAttribute('aria-expanded', String(willOpen));
         });
+
+        if (signInLink) {
+          signInLink.addEventListener('click', function (event) {
+            event.preventDefault();
+            closeAuthMenu();
+            openAccessModal();
+          });
+        }
+
+        if (accessModalBackdrop) {
+          accessModalBackdrop.addEventListener('click', closeAccessModal);
+        }
+
+        if (accessModalClose) {
+          accessModalClose.addEventListener('click', closeAccessModal);
+        }
+
+        if (accessModalBack) {
+          accessModalBack.addEventListener('click', closeAccessModal);
+        }
+
+        if (accessModalSubmit) {
+          accessModalSubmit.addEventListener('click', requestAccessLink);
+        }
+
+        if (accessEmailInput) {
+          accessEmailInput.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              requestAccessLink();
+            }
+          });
+        }
 
         document.addEventListener('click', function (event) {
           if (authActions.contains(event.target)) return;
@@ -5282,6 +5502,10 @@
         });
 
         document.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape' && accessModal && !accessModal.hidden) {
+            closeAccessModal();
+            return;
+          }
           if (event.key === 'Escape') closeAuthMenu();
         });
       })();

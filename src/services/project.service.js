@@ -49,6 +49,13 @@ async function ensureProjectAccessToken(project) {
   return projectRepository.saveProjectAccessToken(project.id, accessToken, accessTokenExpiresAt);
 }
 
+async function refreshProjectAccessToken(project) {
+  if (!project || !project.id) return null;
+  const accessToken = generateProjectAccessToken();
+  const accessTokenExpiresAt = computeAccessTokenExpiry();
+  return projectRepository.saveProjectAccessToken(project.id, accessToken, accessTokenExpiresAt);
+}
+
 function isProjectAccessValid(project, token) {
   if (!project || !token) return false;
   const expected = String(project.accessToken || '');
@@ -64,5 +71,6 @@ module.exports = {
   getProjectByQuoteId,
   getProjectById,
   ensureProjectAccessToken,
+  refreshProjectAccessToken,
   isProjectAccessValid
 };

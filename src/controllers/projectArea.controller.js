@@ -3,6 +3,13 @@ const projectAreaService = require("../services/projectArea.service");
 
 const EXPIRED_MESSAGE = "Session expired. Please check your email for your project access link.";
 
+function getBaseUrl(req) {
+  return (
+    process.env.BASE_URL ||
+    `${req.headers["x-forwarded-proto"] || req.protocol}://${req.get("host")}`
+  );
+}
+
 function parseAccessParams(req) {
   const projectId = String((req.query && req.query.project) || "").trim();
   const token = String((req.query && req.query.token) || "").trim();
@@ -14,7 +21,10 @@ async function resolveAuthorizedProject(projectId, token) {
   const project = await projectService.getProjectById(projectId);
   if (!project) return null;
   const valid = projectService.isProjectAccessValid(project, token);
-  if (!valid) return null;
+  if (!valid) {
+    console.log("ACCESS_TOKEN_EXPIRED", projectId);
+    return null;
+  }
   return project;
 }
 
@@ -125,10 +135,25 @@ async function updateProjectAreaPasswordController(req, res) {
   }
 }
 
+async function requestAccessLinkController(req, res) {
+  const body = req && req.body ? req.body : {};
+  const email = String(body.email || "").trim();
+
+  try {
+    const result = await projectAreaService.requestProjectAreaAccessLink(email, getBaseUrl(req));
+    return res.json({ ok: true, email: result.email });
+  } catch (error) {
+    return res.status(400).json({
+      error: error && error.message ? error.message : "Could not send access link."
+    });
+  }
+}
+
 module.exports = {
   getProjectAreaDataController,
   renameProjectAreaPageController,
   saveProjectAreaPageOrderController,
   updateProjectAreaPasswordController,
-  sendProjectAreaPasswordResetController
+  sendProjectAreaPasswordResetController,
+  requestAccessLinkController
 };

@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const { sendEmail } = require("./email.service");
+const projectService = require("./project.service");
 const quoteRepository = require("../repositories/quote.repository");
 const projectRepository = require("../repositories/project.repository");
 const projectPageRepository = require("../repositories/projectPage.repository");
@@ -136,6 +137,14 @@ function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString("hex");
   const hash = crypto.scryptSync(String(password || ""), salt, 64).toString("hex");
   return `scrypt$${salt}$${hash}`;
+}
+
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
 }
 
 async function resolveProjectUser(project) {
@@ -311,8 +320,9 @@ async function sendProjectAreaPasswordUpdateEmail(project) {
     throw new Error("No customer email found for this project.");
   }
 
+  const accessProject = await projectService.ensureProjectAccessToken(project);
   const baseUrl = String(process.env.BASE_URL || "https://wptoai.com").replace(/\/+$/, "");
-  const link = `${baseUrl}/project-area?project=${encodeURIComponent(project.id)}&token=${encodeURIComponent(project.accessToken || "")}`;
+  const link = `${baseUrl}/project-area?project=${encodeURIComponent(accessProject.id)}&token=${encodeURIComponent(accessProject.accessToken || "")}`;
   const subject = "Update your WPtoAI password";
   const html = `
     <p>Hi,</p>
@@ -324,10 +334,65 @@ async function sendProjectAreaPasswordUpdateEmail(project) {
   return { email };
 }
 
+async function requestProjectAreaAccessLink(email, baseUrl) {
+  const normalizedEmail = normalizeEmail(email);
+  if (!isValidEmail(normalizedEmail)) {
+    throw new Error("Enter a valid email to continue.");
+  }
+
+  console.log("ACCESS_LINK_REQUESTED", normalizedEmail);
+
+  const user = await userRepository.findUserByEmail(normalizedEmail);
+  let project = null;
+
+  if (user && user.id) {
+    project = await projectRepository.findLatestProjectByUserId(user.id);
+  }
+
+  if (!project) {
+    project = await projectRepository.findLatestProjectByCustomerEmail(normalizedEmail);
+  }
+
+  if (!project || !project.id) {
+    throw new Error("No project found for this email.");
+  }
+
+  const refreshedProject = await projectService.refreshProjectAccessToken(project);
+  if (!refreshedProject || !refreshedProject.id || !refreshedProject.accessToken) {
+    throw new Error("Could not generate a new access link.");
+  }
+
+  const normalizedBaseUrl = String(baseUrl || process.env.BASE_URL || "https://wptoai.com").replace(/\/+$/, "");
+  const link =
+    `${normalizedBaseUrl}/project-area?project=${encodeURIComponent(refreshedProject.id)}` +
+    `&token=${encodeURIComponent(refreshedProject.accessToken)}`;
+  const subject = "Your WPtoAI access link";
+  const html = `
+    <p>Hi,</p>
+    <p>Use this secure link to continue into your WPtoAI Project Area.</p>
+    <p>
+      <a href="${link}" style="display:inline-block;padding:12px 18px;border-radius:999px;background:#3558c6;color:#ffffff;text-decoration:none;font-weight:600;">
+        Open Project Area
+      </a>
+    </p>
+    <p><a href="${link}">${link}</a></p>
+    <p>— WPtoAI</p>
+  `;
+
+  await sendEmail(normalizedEmail, subject, html);
+  console.log("ACCESS_LINK_SENT", normalizedEmail, refreshedProject.id);
+
+  return {
+    email: normalizedEmail,
+    projectId: refreshedProject.id
+  };
+}
+
 module.exports = {
   getProjectAreaData,
   renameProjectAreaPage,
   saveProjectAreaPageOrder,
   updateProjectAreaPassword,
-  sendProjectAreaPasswordUpdateEmail
+  sendProjectAreaPasswordUpdateEmail,
+  requestProjectAreaAccessLink
 };

@@ -70,6 +70,23 @@
     </div>
 
     <div id="page-context-menu" class="page-context-menu" hidden></div>
+    <div id="access-modal" class="access-modal" hidden>
+      <div id="access-modal-backdrop" class="access-modal-backdrop"></div>
+      <div class="access-modal-card" role="dialog" aria-modal="true" aria-labelledby="access-modal-title">
+        <div class="access-modal-head">
+          <h2 id="access-modal-title" class="access-modal-title">Your secure link expired</h2>
+          <button id="access-modal-close" class="access-modal-close" type="button" aria-label="Close access modal">×</button>
+        </div>
+        <p class="access-modal-copy">Enter your email to continue.</p>
+        <label class="access-modal-label" for="access-email-input">Email</label>
+        <input id="access-email-input" class="access-modal-input" type="email" autocomplete="email" />
+        <p id="access-modal-status" class="access-modal-status" hidden></p>
+        <div class="access-modal-actions">
+          <button id="access-modal-back" class="access-modal-secondary" type="button">Back</button>
+          <button id="access-modal-submit" class="access-modal-primary" type="button">Send access link</button>
+        </div>
+      </div>
+    </div>
     <div id="password-modal" class="password-modal" hidden>
       <div id="password-modal-backdrop" class="password-modal-backdrop"></div>
       <div class="password-modal-card" role="dialog" aria-modal="true" aria-labelledby="password-modal-title">

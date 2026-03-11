@@ -104,9 +104,7 @@ function createProjectAreaPageController({ appRoot }) {
 
     try {
       const project = await projectService.getProjectById(projectId);
-      const isValid = projectService.isProjectAccessValid(project, accessToken);
-
-      if (!isValid) {
+      if (!project) {
         return res
           .status(401)
           .send("Session expired. Please check your email for your project access link.");

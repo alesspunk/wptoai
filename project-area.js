@@ -45,6 +45,13 @@
     contextMenu: document.querySelector("#page-context-menu"),
     updatePasswordBtn: document.querySelector("#update-password-btn"),
     passwordStatus: document.querySelector("#password-status"),
+    accessModal: document.querySelector("#access-modal"),
+    accessModalBackdrop: document.querySelector("#access-modal-backdrop"),
+    accessModalClose: document.querySelector("#access-modal-close"),
+    accessModalBack: document.querySelector("#access-modal-back"),
+    accessModalSubmit: document.querySelector("#access-modal-submit"),
+    accessModalStatus: document.querySelector("#access-modal-status"),
+    accessEmailInput: document.querySelector("#access-email-input"),
     passwordModal: document.querySelector("#password-modal"),
     passwordModalBackdrop: document.querySelector("#password-modal-backdrop"),
     passwordModalClose: document.querySelector("#password-modal-close"),
@@ -172,6 +179,13 @@
     refs.passwordStatus.hidden = !message;
     refs.passwordStatus.classList.toggle("is-error", Boolean(isError));
     refs.passwordStatus.textContent = message || "";
+  }
+
+  function showAccessModalStatus(message, isError) {
+    if (!refs.accessModalStatus) return;
+    refs.accessModalStatus.hidden = !message;
+    refs.accessModalStatus.classList.toggle("is-error", Boolean(isError));
+    refs.accessModalStatus.textContent = message || "";
   }
 
   function showPasswordModalStatus(message, isError) {
@@ -1046,7 +1060,11 @@
     var response = await fetch(url, { method: "GET", credentials: "same-origin" });
     var data = await response.json();
     if (!response.ok) {
-      throw new Error((data && data.error) || "Could not load Project Area data.");
+      var error = new Error((data && data.error) || "Could not load Project Area data.");
+      if (response.status === 401) {
+        error.code = "expired_access";
+      }
+      throw error;
     }
     return data;
   }
@@ -1067,6 +1085,33 @@
     window.requestAnimationFrame(function () {
       if (refs.newPasswordInput) refs.newPasswordInput.focus();
     });
+  }
+
+  function openAccessModal() {
+    showAccessModalStatus("", false);
+    if (refs.accessEmailInput && !refs.accessEmailInput.value && state.project && state.project.customerEmail) {
+      refs.accessEmailInput.value = String(state.project.customerEmail || "");
+    }
+    if (refs.accessModal) refs.accessModal.hidden = false;
+    window.requestAnimationFrame(function () {
+      if (refs.accessEmailInput) refs.accessEmailInput.focus();
+    });
+  }
+
+  function closeAccessModal() {
+    if (refs.accessModal) refs.accessModal.hidden = true;
+    if (refs.accessModalSubmit) refs.accessModalSubmit.disabled = false;
+    if (refs.accessModalBack) refs.accessModalBack.disabled = false;
+    if (refs.accessModalClose) refs.accessModalClose.disabled = false;
+    showAccessModalStatus("", false);
+  }
+
+  function exitAccessModal() {
+    if (state.project) {
+      closeAccessModal();
+      return;
+    }
+    window.location.href = "/";
   }
 
   function closePasswordModal() {
@@ -1093,6 +1138,39 @@
     renderProgress();
     renderTree();
     renderViewer();
+  }
+
+  async function handleAccessModalSubmit() {
+    showAccessModalStatus("", false);
+    var email = refs.accessEmailInput ? String(refs.accessEmailInput.value || "").trim() : "";
+
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showAccessModalStatus("Enter a valid email to continue.", true);
+      return;
+    }
+
+    if (refs.accessModalSubmit) refs.accessModalSubmit.disabled = true;
+    if (refs.accessModalBack) refs.accessModalBack.disabled = true;
+    if (refs.accessModalClose) refs.accessModalClose.disabled = true;
+
+    try {
+      var response = await fetch("/api/request-access-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email })
+      });
+      var payload = await response.json();
+      if (!response.ok) {
+        throw new Error((payload && payload.error) || "Could not send access link.");
+      }
+      showAccessModalStatus("Access link sent. Check your email.", false);
+    } catch (error) {
+      showAccessModalStatus(error && error.message ? error.message : "Could not send access link.", true);
+    } finally {
+      if (refs.accessModalSubmit) refs.accessModalSubmit.disabled = false;
+      if (refs.accessModalBack) refs.accessModalBack.disabled = false;
+      if (refs.accessModalClose) refs.accessModalClose.disabled = false;
+    }
   }
 
   async function handlePasswordModalSubmit() {
@@ -1149,6 +1227,7 @@
 
   async function init() {
     clearLegacyQuoteState();
+    closeAccessModal();
     closePasswordModal();
     showPasswordStatus("", false);
     var access = parseAccessFromUrl();
@@ -1179,6 +1258,10 @@
       renderAll();
       bootProcessingSimulation();
     } catch (error) {
+      if (error && error.code === "expired_access") {
+        openAccessModal();
+        return;
+      }
       setFatalMessage(error && error.message ? error.message : "Session expired. Please check your email for your project access link.");
     }
   }
@@ -1189,6 +1272,31 @@
 
   if (refs.updatePasswordBtn) {
     refs.updatePasswordBtn.addEventListener("click", openPasswordModal);
+  }
+
+  if (refs.accessModalBackdrop) {
+    refs.accessModalBackdrop.addEventListener("click", exitAccessModal);
+  }
+
+  if (refs.accessModalClose) {
+    refs.accessModalClose.addEventListener("click", exitAccessModal);
+  }
+
+  if (refs.accessModalBack) {
+    refs.accessModalBack.addEventListener("click", exitAccessModal);
+  }
+
+  if (refs.accessModalSubmit) {
+    refs.accessModalSubmit.addEventListener("click", handleAccessModalSubmit);
+  }
+
+  if (refs.accessEmailInput) {
+    refs.accessEmailInput.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleAccessModalSubmit();
+      }
+    });
   }
 
   if (refs.passwordModalBackdrop) {
@@ -1249,6 +1357,10 @@
   });
 
   document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && refs.accessModal && !refs.accessModal.hidden) {
+      exitAccessModal();
+      return;
+    }
     if (event.key === "Escape" && refs.passwordModal && !refs.passwordModal.hidden) {
       closePasswordModal();
     }

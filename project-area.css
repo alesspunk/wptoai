@@ -614,6 +614,7 @@ body {
   color: #ffc1c7;
 }
 
+.access-modal,
 .password-modal {
   position: fixed;
   inset: 0;
@@ -622,12 +623,14 @@ body {
   place-items: center;
 }
 
+.access-modal-backdrop,
 .password-modal-backdrop {
   position: absolute;
   inset: 0;
   background: rgba(15, 28, 54, 0.48);
 }
 
+.access-modal-card,
 .password-modal-card {
   position: relative;
   z-index: 1;
@@ -639,6 +642,7 @@ body {
   padding: 20px;
 }
 
+.access-modal-head,
 .password-modal-head {
   display: flex;
   align-items: center;
@@ -647,12 +651,14 @@ body {
   margin-bottom: 14px;
 }
 
+.access-modal-title,
 .password-modal-title {
   margin: 0;
   font-size: 20px;
   color: var(--wp-navy);
 }
 
+.access-modal-close,
 .password-modal-close {
   border: 0;
   background: none;
@@ -663,6 +669,13 @@ body {
   padding: 0;
 }
 
+.access-modal-copy {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: #4f5f86;
+}
+
+.access-modal-label,
 .password-modal-label {
   display: block;
   margin: 0 0 6px;
@@ -671,6 +684,7 @@ body {
   color: var(--wp-navy);
 }
 
+.access-modal-input,
 .password-modal-input {
   width: 100%;
   min-height: 44px;
@@ -683,16 +697,19 @@ body {
   margin-bottom: 12px;
 }
 
+.access-modal-status,
 .password-modal-status {
   margin: 2px 0 0;
   font-size: 13px;
   color: #48619f;
 }
 
+.access-modal-status.is-error,
 .password-modal-status.is-error {
   color: #c2464d;
 }
 
+.access-modal-actions,
 .password-modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -700,6 +717,8 @@ body {
   margin-top: 16px;
 }
 
+.access-modal-secondary,
+.access-modal-primary,
 .password-modal-secondary,
 .password-modal-primary {
   min-height: 40px;
@@ -710,18 +729,22 @@ body {
   padding: 0 18px;
 }
 
+.access-modal-secondary,
 .password-modal-secondary {
   border: 1px solid rgba(122, 146, 199, 0.38);
   background: #fff;
   color: var(--wp-navy);
 }
 
+.access-modal-primary,
 .password-modal-primary {
   border: 1px solid rgba(53, 88, 198, 0.32);
   background: rgba(53, 88, 198, 0.1);
   color: #2447b6;
 }
 
+.access-modal-primary:disabled,
+.access-modal-secondary:disabled,
 .password-modal-primary:disabled,
 .password-modal-secondary:disabled {
   opacity: 0.56;
