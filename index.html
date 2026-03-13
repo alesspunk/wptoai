@@ -2213,6 +2213,17 @@
         padding-top: 12px;
         padding-bottom: 12px;
       }
+      .quick-summary-row.total.quick-summary-row-estimate {
+        grid-template-columns: 1fr auto;
+        align-items: start;
+      }
+      .quick-summary-meta-stack {
+        display: grid;
+        gap: 3px;
+      }
+      .quick-summary-meta-stack .quick-summary-rate {
+        font-size: var(--text-sm);
+      }
       .quick-summary-row-engineers-qty {
         grid-template-columns: 1fr auto;
         row-gap: 6px;
@@ -4671,7 +4682,7 @@
                   <p id="hero-ready-info-title" class="hero-ready-info-title">WP to AI preview snapshot</p>
                   <div class="hero-ready-chip-row">
                     <p id="hero-ready-domain-chip" class="hero-domain-chip hero-url-chip">wptoai.com</p>
-                    <p id="hero-ready-pages-chip" class="hero-domain-chip hero-pages-chip" hidden>0 pages detected</p>
+                    <p id="hero-ready-pages-chip" class="hero-domain-chip hero-pages-chip" hidden>Site scan estimate: 0 credits</p>
                   </div>
                 </div>
               </div>
@@ -4694,9 +4705,11 @@
                   <span class="quick-card-title-text"><span class="quick-card-step" aria-hidden="true">1</span>SITE CONVERSION<span class="quick-card-icon" aria-hidden="true">🚀</span></span>
                   <button id="quick-site-toggle" class="quick-card-toggle" type="button" aria-expanded="true" aria-controls="quick-site-body">Hide</button>
                 </p>
-                <div class="quick-summary-row total">
-                  <span class="quick-summary-name">Estimated conversion price</span>
-                  <span class="quick-summary-rate"><span id="quick-site-rate">Starter tier</span> / one-time payment</span>
+                <div class="quick-summary-row total quick-summary-row-estimate">
+                  <span class="quick-summary-meta-stack">
+                    <span class="quick-summary-name">Estimated conversion price</span>
+                    <span class="quick-summary-rate"><span id="quick-site-rate">Starter tier</span> / one-time payment</span>
+                  </span>
                   <span id="quick-site-total" class="quick-summary-total">$0</span>
                 </div>
                 <div id="quick-site-body" class="quick-card-body">
@@ -6438,7 +6451,7 @@
           if (heroReadyPagesChip) {
             if (detectedPages > 0) {
               heroReadyPagesChip.hidden = false;
-              heroReadyPagesChip.textContent = detectedPages + (detectedPages === 1 ? ' page detected' : ' pages detected');
+              heroReadyPagesChip.textContent = 'Site scan estimate: ' + detectedPages + ' ' + (detectedPages === 1 ? 'credit' : 'credits');
             } else {
               heroReadyPagesChip.hidden = true;
               heroReadyPagesChip.textContent = '';
