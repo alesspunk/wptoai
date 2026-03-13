@@ -6783,6 +6783,10 @@
               });
               return true;
             }
+            if (stripeReturnInQuery && hasRestorableQuickQuoteState(readQuickQuoteState())) {
+              setHeroPreviewState('idle');
+              return false;
+            }
             startHeroScanFlow(normalizedUrl, domain);
             return true;
           }
@@ -6997,6 +7001,14 @@
           } catch (_error) {
             return null;
           }
+        }
+
+        function hasRestorableQuickQuoteState(state) {
+          if (!state || typeof state !== 'object') return false;
+          var websiteInput = typeof state.websiteInput === 'string'
+            ? sanitizeQuickInputValue(state.websiteInput)
+            : '';
+          return Boolean(extractUrl(websiteInput));
         }
 
         function applyQuickQuoteState(state) {
@@ -7914,6 +7926,10 @@
           }, { passive: true });
         }
         var restoredQuickQuoteState = readQuickQuoteState();
+        var shouldPreserveQuoteOnStripeReturn = Boolean(
+          stripeReturnInQuery &&
+          hasRestorableQuickQuoteState(restoredQuickQuoteState)
+        );
         applyQuickQuoteState(restoredQuickQuoteState);
         var restoredCheckoutEmail = readCheckoutEmailState();
         if (quickCheckoutEmailInput && restoredCheckoutEmail) {
@@ -7953,7 +7969,7 @@
         );
         siteMaintenanceTourEnabled = shouldRestoreConfiguredStep;
         siteDeliverablesTourEnabled = shouldRestoreConfiguredStep;
-        setSidebarCollapsed(!shouldRestoreConfiguredStep);
+        setSidebarCollapsed(!(shouldRestoreConfiguredStep || shouldPreserveQuoteOnStripeReturn));
         restoreCardsFromUsageOnStripeReturn();
         syncQuickSummary();
       })();
