@@ -50,7 +50,7 @@ function extractUrl(value) {
 function getQuoteRule(pages) {
   if (pages <= 10) return { label: "1-10 pages", first: 29, next: 8 };
   if (pages <= 25) return { label: "11-25 pages", first: 29, next: 7 };
-  return { label: "26-100 pages", first: 29, next: 5 };
+  return { label: "26-100 pages", first: 29, next: 6 };
 }
 
 function formatMoneyFromCents(cents) {
