@@ -4691,28 +4691,33 @@
             <div class="quick-summary-stack" aria-live="polite">
               <section id="quick-site-card" class="quick-summary quick-summary-card" aria-label="Site quote">
                 <p class="quick-summary-card-title">
-                  <span class="quick-card-title-text"><span class="quick-card-step" aria-hidden="true">1</span>SITE MIGRATION<span class="quick-card-icon" aria-hidden="true">🚀</span></span>
+                  <span class="quick-card-title-text"><span class="quick-card-step" aria-hidden="true">1</span>SITE CONVERSION<span class="quick-card-icon" aria-hidden="true">🚀</span></span>
                   <button id="quick-site-toggle" class="quick-card-toggle" type="button" aria-expanded="true" aria-controls="quick-site-body">Hide</button>
                 </p>
+                <div class="quick-summary-row total">
+                  <span class="quick-summary-name">Estimated conversion price</span>
+                  <span class="quick-summary-rate"><span id="quick-site-rate">Starter tier</span> / one-time payment</span>
+                  <span id="quick-site-total" class="quick-summary-total">$0</span>
+                </div>
                 <div id="quick-site-body" class="quick-card-body">
+                  <div class="quick-summary-row quick-summary-row-site-qty">
+                    <span class="quick-summary-name">Credits needed</span>
+                    <div class="quick-change-qty" role="group" aria-label="Credits needed">
+                      <button id="quick-sidebar-pages-minus" class="quick-change-btn" type="button" aria-label="Decrease credits">−</button>
+                      <input id="quick-sidebar-pages-input" class="quick-change-input" type="number" min="0" max="100" step="1" value="0" aria-label="Credits needed">
+                      <button id="quick-sidebar-pages-plus" class="quick-change-btn" type="button" aria-label="Increase credits">+</button>
+                    </div>
+                    <span id="quick-pages-max-hint" class="quick-summary-rate" hidden>(max 100)</span>
+                  </div>
                   <div class="quick-summary-row">
-                    <span class="quick-summary-name">Homepage</span>
+                    <span class="quick-summary-name">Homepage conversion</span>
                     <span id="quick-home-count" class="quick-summary-count">0</span>
                     <span id="quick-home-price" class="quick-summary-price">$0</span>
                   </div>
                   <div class="quick-summary-row">
-                    <span class="quick-summary-name">Innerpage</span>
+                    <span class="quick-summary-name">Additional pages</span>
                     <span id="quick-inner-count" class="quick-summary-count">0</span>
                     <span id="quick-inner-price" class="quick-summary-price">$0</span>
-                  </div>
-                  <div class="quick-summary-row quick-summary-row-site-qty">
-                    <span class="quick-summary-name">Pages <span class="quick-summary-rate">/ quantity</span></span>
-                    <div class="quick-change-qty" role="group" aria-label="Site pages quantity">
-                      <button id="quick-sidebar-pages-minus" class="quick-change-btn" type="button" aria-label="Decrease site pages">−</button>
-                      <input id="quick-sidebar-pages-input" class="quick-change-input" type="number" min="0" max="100" step="1" value="0" aria-label="Site pages quantity">
-                      <button id="quick-sidebar-pages-plus" class="quick-change-btn" type="button" aria-label="Increase site pages">+</button>
-                    </div>
-                    <span id="quick-pages-max-hint" class="quick-summary-rate" hidden>(max 100)</span>
                   </div>
                   <div id="quick-sidebar-url-row" class="quick-sidebar-url-row" hidden>
                     <label class="quick-sidebar-url-label" for="quick-sidebar-url-input">Add your WordPress URL</label>
@@ -4723,11 +4728,6 @@
                     </div>
                     <p id="quick-sidebar-url-error" class="quick-sidebar-url-error" aria-live="polite" hidden></p>
                   </div>
-                </div>
-                <div class="quick-summary-row total">
-                  <span class="quick-summary-name"><span id="quick-site-rate">1-3 pages rate</span> <span class="quick-summary-rate">/ one time payment</span></span>
-                  <span class="quick-summary-rate"></span>
-                  <span id="quick-site-total" class="quick-summary-total">$0</span>
                 </div>
               </section>
               <section class="quick-summary quick-summary-card quick-hide-subtotal-on-collapse" aria-label="Maintenance quote">
@@ -6888,6 +6888,13 @@
           return { label: "51-100 pages", first: 30, next: 20 };
         }
 
+        function getVisibleConversionTier(pages) {
+          var normalized = normalizePages(pages);
+          if (normalized <= 10) return "Starter tier";
+          if (normalized <= 25) return "Builder tier";
+          return "Agency tier";
+        }
+
         function formatMoney(value) {
           return "$" + value.toLocaleString("en-US");
         }
@@ -7100,7 +7107,7 @@
           if (quickAiPrice) quickAiPrice.textContent = (hasWebsiteInput && maintenanceEnabled) ? formatMoneyCents(aiEngineerBase) : formatMoneyCents(0);
           if (quickAddonsCount) quickAddonsCount.textContent = hasWebsiteInput ? String(addonsCount) : "0";
           if (quickAddonsTotal) quickAddonsTotal.textContent = formatMoney(addonsTotal);
-          quickSiteRate.textContent = rule.label + " rate";
+          quickSiteRate.textContent = getVisibleConversionTier(Math.max(pages, 1));
           quickSiteTotal.textContent = formatMoney(oneTimeTotal);
           if (quickOneTimeTotal) quickOneTimeTotal.textContent = formatMoney(oneTimeTotal);
           if (quickMaintenanceTotal) quickMaintenanceTotal.textContent = formatMoney(monthlyTotal);
