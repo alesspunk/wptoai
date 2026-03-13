@@ -2187,7 +2187,7 @@
       }
       .quick-maintenance-option {
         display: inline-flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 8px;
         color: #324b7c;
         font-size: var(--text-base);
@@ -2197,6 +2197,16 @@
       .quick-maintenance-option input {
         margin: 0;
         accent-color: #3558c6;
+      }
+      .quick-maintenance-option-copy {
+        display: grid;
+        gap: 4px;
+      }
+      .quick-maintenance-option-helper {
+        color: #5a6c96;
+        font-size: 0.82rem;
+        font-weight: 500;
+        line-height: 1.45;
       }
       .quick-summary-row {
         display: grid;
@@ -4755,12 +4765,15 @@
                   </label>
                   <label class="quick-maintenance-option">
                     <input id="quick-maintenance-on" type="radio" name="quick-maintenance-mode" value="on">
-                    <span>Include monthly maintenance</span>
+                    <span class="quick-maintenance-option-copy">
+                      <span>Maintain my site with AI</span>
+                      <span class="quick-maintenance-option-helper">15 site updates per month handled by AI. Edit text, replace images, add sections and more.</span>
+                    </span>
                   </label>
                 </div>
                 <div id="quick-maintenance-body" class="quick-card-body" hidden>
                   <div class="quick-summary-row">
-                    <span class="quick-summary-name">AI Engineers <span class="quick-summary-rate">/ How many?</span></span>
+                    <span class="quick-summary-name">AI engineers</span>
                     <span id="quick-engineers-count" class="quick-summary-count">0</span>
                     <span id="quick-ai-price" class="quick-summary-price">$0.00</span>
                   </div>
@@ -4782,7 +4795,7 @@
                           <span id="changes-tooltip-body" class="changes-tooltip-body">Replace or add photos, update H1 copy, swap in a new logo, tweak colors, edit sections, fix spacing, and other small content updates.</span>
                         </span>
                       </span>
-                      <span>Prompts <span class="quick-summary-rate">/ month</span></span>
+                      <span>Site updates <span class="quick-summary-rate">/ month</span></span>
                     </span>
                     <div class="quick-change-qty" role="group" aria-label="Prompts per month">
                       <button id="quick-changes-minus" class="quick-change-btn" type="button" aria-label="Decrease prompts">−</button>
@@ -4792,7 +4805,7 @@
                   </div>
                 </div>
                 <div class="quick-summary-row total">
-                  <span class="quick-summary-name">Monthly payment</span>
+                  <span class="quick-summary-name">Monthly total</span>
                   <span class="quick-summary-rate"></span>
                   <span id="quick-maintenance-total" class="quick-summary-total">$0</span>
                 </div>
