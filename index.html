@@ -2385,8 +2385,12 @@
       }
       .changes-label {
         display: inline-flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 6px;
+      }
+      .quick-maintenance-updates-copy {
+        display: grid;
+        gap: 4px;
       }
       .changes-tooltip-wrap {
         position: relative;
@@ -4737,7 +4741,7 @@
                 <div class="quick-summary-row total quick-summary-row-estimate">
                   <span class="quick-summary-meta-stack">
                     <span class="quick-summary-name">Estimated conversion price</span>
-                    <span class="quick-summary-rate"><span id="quick-site-rate">Starter tier</span> / one-time payment</span>
+                    <span class="quick-summary-rate"><span id="quick-site-rate">Starter site</span> / one-time payment</span>
                   </span>
                   <span id="quick-site-total" class="quick-summary-total">$0</span>
                 </div>
@@ -4776,7 +4780,7 @@
                 <p class="quick-summary-card-title">
                   <span class="quick-card-title-copy">
                     <span class="quick-card-title-text"><span class="quick-card-step" aria-hidden="true">2</span>SITE MAINTENANCE<span class="quick-card-icon" aria-hidden="true">🛠️</span></span>
-                    <span id="quick-maintenance-plan-label" class="quick-maintenance-plan-label">Starter plan</span>
+                    <span id="quick-maintenance-plan-label" class="quick-maintenance-plan-label">Starter site</span>
                   </span>
                   <button id="quick-maintenance-toggle" class="quick-card-toggle" type="button" aria-expanded="false" aria-controls="quick-maintenance-body" disabled>Off</button>
                 </p>
@@ -4790,8 +4794,8 @@
                     <span class="quick-maintenance-option-copy">
                       <span>Keep improving my site with AI</span>
                       <span id="quick-maintenance-option-helper" class="quick-maintenance-option-helper">
-                        <span>Site updates included with this site:</span>
-                        <span>Edit text, replace images, add sections and more.</span>
+                        <span>Includes site updates:</span>
+                        <span>Edit text, images, and sections.</span>
                       </span>
                     </span>
                   </label>
@@ -4820,10 +4824,12 @@
                           <span id="changes-tooltip-body" class="changes-tooltip-body">Replace or add photos, update H1 copy, swap in a new logo, tweak colors, edit sections, fix spacing, and other small content updates.</span>
                         </span>
                       </span>
-                      <span>Site updates <span class="quick-summary-rate">/ month</span></span>
-                      <span id="quick-maintenance-updates-note" class="quick-summary-rate quick-maintenance-updates-note">
-                        <span>Site updates included with this site:</span>
-                        <span>Edit text, replace images, add sections and more.</span>
+                      <span class="quick-maintenance-updates-copy">
+                        <span>Site updates <span class="quick-summary-rate">/ month</span></span>
+                        <span id="quick-maintenance-updates-note" class="quick-summary-rate quick-maintenance-updates-note">
+                          <span>Includes site updates:</span>
+                          <span>Edit text, images, and sections.</span>
+                        </span>
                       </span>
                     </span>
                     <div class="quick-change-qty" role="group" aria-label="Prompts per month">
@@ -6951,9 +6957,9 @@
 
         function getVisibleConversionTier(pages) {
           var normalized = normalizePages(pages);
-          if (normalized <= 10) return "Starter tier";
-          if (normalized <= 25) return "Builder tier";
-          return "Agency tier";
+          if (normalized <= 10) return "Starter site";
+          if (normalized <= 40) return "Growth site";
+          return "Extended site";
         }
 
         function getMaintenancePlanDetails(pages) {
@@ -7198,7 +7204,7 @@
           quickInnerCount.textContent = String(innerCount);
           if (quickEngineersCount) quickEngineersCount.textContent = maintenanceEnabled ? String(engineers) : "0";
           if (quickEngineersMaxHint) quickEngineersMaxHint.hidden = !maintenanceEnabled || engineers <= 5;
-          if (quickMaintenancePlanLabel) quickMaintenancePlanLabel.textContent = maintenancePlan.name;
+          if (quickMaintenancePlanLabel) quickMaintenancePlanLabel.textContent = getVisibleConversionTier(Math.max(pages, 1));
           quickHomePrice.textContent = formatMoney(homePrice);
           quickInnerPrice.textContent = formatMoney(innerPrice);
           if (quickAiPrice) quickAiPrice.textContent = (hasWebsiteInput && maintenanceEnabled) ? formatMoney(displayedMaintenanceTotal) : formatMoney(0);
