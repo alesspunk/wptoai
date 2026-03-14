@@ -2128,10 +2128,21 @@
         justify-content: space-between;
         gap: 8px;
       }
+      .quick-card-title-copy {
+        display: grid;
+        gap: 2px;
+      }
       .quick-card-title-text {
         display: inline-flex;
         align-items: center;
         gap: 6px;
+      }
+      .quick-maintenance-plan-label {
+        color: #5a6c96;
+        font-size: var(--text-2xs);
+        font-weight: 700;
+        letter-spacing: normal;
+        text-transform: none;
       }
       .quick-card-step {
         width: 18px;
@@ -2207,6 +2218,10 @@
         font-size: 0.82rem;
         font-weight: 500;
         line-height: 1.45;
+      }
+      .quick-maintenance-updates-note {
+        display: block;
+        margin-top: 4px;
       }
       .quick-summary-row {
         display: grid;
@@ -4755,7 +4770,10 @@
               </section>
               <section class="quick-summary quick-summary-card quick-hide-subtotal-on-collapse" aria-label="Maintenance quote">
                 <p class="quick-summary-card-title">
-                  <span class="quick-card-title-text"><span class="quick-card-step" aria-hidden="true">2</span>SITE MAINTENANCE<span class="quick-card-icon" aria-hidden="true">🛠️</span></span>
+                  <span class="quick-card-title-copy">
+                    <span class="quick-card-title-text"><span class="quick-card-step" aria-hidden="true">2</span>SITE MAINTENANCE<span class="quick-card-icon" aria-hidden="true">🛠️</span></span>
+                    <span id="quick-maintenance-plan-label" class="quick-maintenance-plan-label">Starter plan</span>
+                  </span>
                   <button id="quick-maintenance-toggle" class="quick-card-toggle" type="button" aria-expanded="false" aria-controls="quick-maintenance-body" disabled>Off</button>
                 </p>
                 <div class="quick-maintenance-switch" role="radiogroup" aria-label="Maintenance plan">
@@ -4767,7 +4785,7 @@
                     <input id="quick-maintenance-on" type="radio" name="quick-maintenance-mode" value="on">
                     <span class="quick-maintenance-option-copy">
                       <span>Maintain my site with AI</span>
-                      <span class="quick-maintenance-option-helper">15 site updates per month handled by AI. Edit text, replace images, add sections and more.</span>
+                      <span id="quick-maintenance-option-helper" class="quick-maintenance-option-helper">10 site updates per month handled by AI. Edit text, replace images, add sections and more.</span>
                     </span>
                   </label>
                 </div>
@@ -4796,6 +4814,7 @@
                         </span>
                       </span>
                       <span>Site updates <span class="quick-summary-rate">/ month</span></span>
+                      <span id="quick-maintenance-updates-note" class="quick-summary-rate quick-maintenance-updates-note">Included with this plan: 10 per AI engineer</span>
                     </span>
                     <div class="quick-change-qty" role="group" aria-label="Prompts per month">
                       <button id="quick-changes-minus" class="quick-change-btn" type="button" aria-label="Decrease prompts">−</button>
@@ -5669,6 +5688,9 @@
         var quickEngineersCount = document.querySelector('#quick-engineers-count');
         var quickEngineersMaxHint = document.querySelector('#quick-engineers-max-hint');
         var quickPagesMaxHint = document.querySelector('#quick-pages-max-hint');
+        var quickMaintenancePlanLabel = document.querySelector('#quick-maintenance-plan-label');
+        var quickMaintenanceOptionHelper = document.querySelector('#quick-maintenance-option-helper');
+        var quickMaintenanceUpdatesNote = document.querySelector('#quick-maintenance-updates-note');
         var quickHomePrice = document.querySelector('#quick-home-price');
         var quickInnerPrice = document.querySelector('#quick-inner-price');
         var quickAiPrice = document.querySelector('#quick-ai-price');
@@ -6923,6 +6945,17 @@
           return "Agency tier";
         }
 
+        function getMaintenancePlanDetails(pages) {
+          var normalized = normalizePages(pages);
+          if (normalized <= 10) {
+            return { name: 'Starter plan', engineerPrice: 39, includedUpdates: 10 };
+          }
+          if (normalized <= 25) {
+            return { name: 'Builder plan', engineerPrice: 69, includedUpdates: 20 };
+          }
+          return { name: 'Agency plan', engineerPrice: 99, includedUpdates: 40 };
+        }
+
         function formatMoney(value) {
           return "$" + value.toLocaleString("en-US");
         }
@@ -7106,6 +7139,7 @@
 
           var hasSiteMigration = pages > 0;
           var rule = getQuoteRule(Math.max(pages, 1));
+          var maintenancePlan = getMaintenancePlanDetails(Math.max(pages, 1));
           var homeCount = hasSiteMigration ? 1 : 0;
           var innerCount = hasSiteMigration ? Math.max(0, pages - 1) : 0;
           var homePrice = hasSiteMigration ? rule.first : 0;
@@ -7125,10 +7159,18 @@
           var addonsCount = addonCheckboxes.reduce(function (acc, checkbox) {
             return acc + (checkbox.checked ? 1 : 0);
           }, 0);
+          var displayedIncludedUpdates = maintenanceEnabled
+            ? engineers * maintenancePlan.includedUpdates
+            : 0;
+          var displayedMaintenanceTotal = maintenanceEnabled
+            ? engineers * maintenancePlan.engineerPrice
+            : 0;
           var monthlyTotal = maintenanceEnabled ? aiEngineerBase + overagePrice : 0;
           var total = oneTimeTotal + monthlyTotal + addonsTotal;
 
           if (!hasWebsiteInput) {
+            displayedIncludedUpdates = 0;
+            displayedMaintenanceTotal = 0;
             monthlyTotal = 0;
             addonsTotal = 0;
             total = 0;
@@ -7138,15 +7180,24 @@
           quickInnerCount.textContent = String(innerCount);
           if (quickEngineersCount) quickEngineersCount.textContent = maintenanceEnabled ? String(engineers) : "0";
           if (quickEngineersMaxHint) quickEngineersMaxHint.hidden = !maintenanceEnabled || engineers <= 5;
+          if (quickMaintenancePlanLabel) quickMaintenancePlanLabel.textContent = maintenancePlan.name;
+          if (quickMaintenanceOptionHelper) {
+            quickMaintenanceOptionHelper.textContent = maintenancePlan.includedUpdates + ' site updates per month handled by AI. Edit text, replace images, add sections and more.';
+          }
+          if (quickMaintenanceUpdatesNote) {
+            quickMaintenanceUpdatesNote.textContent = maintenanceEnabled && engineers > 0
+              ? 'Included with this plan: ' + displayedIncludedUpdates + ' total site updates'
+              : 'Included with this plan: ' + maintenancePlan.includedUpdates + ' per AI engineer';
+          }
           quickHomePrice.textContent = formatMoney(homePrice);
           quickInnerPrice.textContent = formatMoney(innerPrice);
-          if (quickAiPrice) quickAiPrice.textContent = (hasWebsiteInput && maintenanceEnabled) ? formatMoneyCents(aiEngineerBase) : formatMoneyCents(0);
+          if (quickAiPrice) quickAiPrice.textContent = (hasWebsiteInput && maintenanceEnabled) ? formatMoney(displayedMaintenanceTotal) : formatMoney(0);
           if (quickAddonsCount) quickAddonsCount.textContent = hasWebsiteInput ? String(addonsCount) : "0";
           if (quickAddonsTotal) quickAddonsTotal.textContent = formatMoney(addonsTotal);
           quickSiteRate.textContent = getVisibleConversionTier(Math.max(pages, 1));
           quickSiteTotal.textContent = formatMoney(oneTimeTotal);
           if (quickOneTimeTotal) quickOneTimeTotal.textContent = formatMoney(oneTimeTotal);
-          if (quickMaintenanceTotal) quickMaintenanceTotal.textContent = formatMoney(monthlyTotal);
+          if (quickMaintenanceTotal) quickMaintenanceTotal.textContent = (hasWebsiteInput && maintenanceEnabled) ? formatMoney(displayedMaintenanceTotal) : formatMoney(0);
           if (quickAddonsSubtotal) quickAddonsSubtotal.textContent = formatMoney(monthlyTotal + addonsTotal);
           quickTotal.textContent = formatMoney(total);
           if (quickSidebarFabTotal) quickSidebarFabTotal.textContent = formatMoney(total);
