@@ -4845,7 +4845,7 @@
                   <span id="quick-maintenance-total" class="quick-summary-total">$0</span>
                 </div>
               </section>
-              <section id="quick-addons-card" class="quick-summary quick-summary-card quick-addons quick-hide-subtotal-on-collapse" aria-label="Deliverables options">
+              <section id="quick-addons-card" class="quick-summary quick-summary-card quick-addons quick-hide-subtotal-on-collapse" aria-label="Deliverables options" hidden>
                 <p class="quick-summary-card-title">
                   <span class="quick-card-title-text"><span class="quick-card-step" aria-hidden="true">3</span>DELIVERABLES<span class="quick-card-icon" aria-hidden="true">📦</span></span>
                   <button id="quick-deliverables-toggle" class="quick-card-toggle" type="button" aria-expanded="false" aria-controls="quick-deliverables-body">Show more</button>
@@ -5748,6 +5748,7 @@
         var quickQuoteDraftStateKey = 'wptoai.quoteDraft.v1';
         var heroPreviewStateKey = 'wptoai.heroPreviewState.v1';
         var heroPreviewJourneyStateKey = 'wptoai.heroPreviewJourneyState.v1';
+        var showDeliverablesUi = false;
         var stripeReturnInQuery = (function () {
           try {
             var params = new URLSearchParams(window.location.search);
@@ -5772,6 +5773,13 @@
         var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         var allowPrivatePreviewHosts = Boolean(window.WPTOAI_ALLOW_PRIVATE_URLS);
         if (!quickForm || !quickInput || !quickPagesInput || !getStarted || !quickCheckoutEmailInput) return;
+        if (!showDeliverablesUi) {
+          if (quickAddonsCard) quickAddonsCard.hidden = true;
+          if (siteDeliverablesTour) {
+            siteDeliverablesTour.hidden = true;
+            siteDeliverablesTour.setAttribute('data-visible', 'false');
+          }
+        }
 
         var changesTooltipCopy = {
           primary: "Replace or add photos, update H1 copy, swap in a new logo, tweak colors, edit sections, fix spacing, and other small content updates.",
@@ -6252,6 +6260,7 @@
         }
 
         function showSiteDeliverablesTour() {
+          if (!showDeliverablesUi) return;
           if (!siteDeliverablesTour || siteDeliverablesTourDismissed || !siteDeliverablesTourEnabled) return;
           if (mobileSidebarMedia.matches) return;
           if (!quickSidebar || quickSidebar.classList.contains('is-collapsed')) return;
@@ -6271,6 +6280,7 @@
         }
 
         function scheduleSiteDeliverablesTour() {
+          if (!showDeliverablesUi) return;
           if (!siteDeliverablesTourEnabled || siteDeliverablesTourDismissed) return;
           if (mobileSidebarMedia.matches) return;
           if (!quickSidebar || quickSidebar.classList.contains('is-collapsed')) return;
@@ -6284,6 +6294,7 @@
         }
 
         function positionSiteDeliverablesTour() {
+          if (!showDeliverablesUi) return;
           if (!siteDeliverablesTour || !quickAddonsCard) return;
           var cardRect = quickAddonsCard.getBoundingClientRect();
           if (!cardRect || !cardRect.height) return;
@@ -6695,7 +6706,7 @@
           if (enableTours) {
             siteMigrationTourPrimed = true;
             siteMaintenanceTourEnabled = true;
-            siteDeliverablesTourEnabled = true;
+            siteDeliverablesTourEnabled = showDeliverablesUi;
           }
 
           setHeroPreviewJourneyStep('configure');
@@ -8052,7 +8063,7 @@
           heroPreviewState === 'ready'
         );
         siteMaintenanceTourEnabled = shouldRestoreConfiguredStep;
-        siteDeliverablesTourEnabled = shouldRestoreConfiguredStep;
+        siteDeliverablesTourEnabled = showDeliverablesUi && shouldRestoreConfiguredStep;
         setSidebarCollapsed(!(shouldRestoreConfiguredStep || shouldPreserveQuoteOnStripeReturn));
         restoreCardsFromUsageOnStripeReturn();
         syncQuickSummary();
