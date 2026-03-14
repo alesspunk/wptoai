@@ -6976,12 +6976,12 @@
         function getMaintenancePlanDetails(pages) {
           var normalized = normalizePages(pages);
           if (normalized <= 10) {
-            return { name: 'Starter plan', engineerPrice: 39, includedUpdates: 10 };
+            return { name: 'Starter site', engineerPrice: 39, includedUpdates: 10 };
           }
-          if (normalized <= 25) {
-            return { name: 'Builder plan', engineerPrice: 69, includedUpdates: 20 };
+          if (normalized <= 40) {
+            return { name: 'Growth site', engineerPrice: 69, includedUpdates: 20 };
           }
-          return { name: 'Agency plan', engineerPrice: 99, includedUpdates: 40 };
+          return { name: 'Extended site', engineerPrice: 99, includedUpdates: 40 };
         }
 
         function getDefaultMaintenanceUpdatesForPages(pages) {
@@ -7187,10 +7187,8 @@
           var homePrice = hasSiteMigration ? rule.first : 0;
           var innerPrice = innerCount * rule.next;
           var oneTimeTotal = homePrice + innerPrice;
-          var aiEngineerUnitPrice = 100;
-          var aiEngineerBase = engineers * aiEngineerUnitPrice;
           var maintenanceEnabled = quickMaintenanceOn ? quickMaintenanceOn.checked : true;
-          var includedChanges = 15;
+          var includedChanges = maintenancePlan.includedUpdates * Math.max(engineers, 1);
           var overageChanges = Math.max(0, changes - includedChanges);
           var overagePrice = overageChanges * 5;
           var addonsTotal = addonCheckboxes.reduce(function (acc, checkbox) {
@@ -7201,10 +7199,11 @@
           var addonsCount = addonCheckboxes.reduce(function (acc, checkbox) {
             return acc + (checkbox.checked ? 1 : 0);
           }, 0);
+          var maintenanceBase = engineers * maintenancePlan.engineerPrice;
           var displayedMaintenanceTotal = maintenanceEnabled
-            ? engineers * maintenancePlan.engineerPrice
+            ? maintenanceBase + overagePrice
             : 0;
-          var monthlyTotal = maintenanceEnabled ? aiEngineerBase + overagePrice : 0;
+          var monthlyTotal = maintenanceEnabled ? displayedMaintenanceTotal : 0;
           var total = oneTimeTotal + monthlyTotal + addonsTotal;
 
           if (!hasWebsiteInput) {

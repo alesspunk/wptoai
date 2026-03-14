@@ -53,6 +53,12 @@ function getQuoteRule(pages) {
   return { label: "26-100 pages", first: 29, next: 6 };
 }
 
+function getMaintenanceRule(pages) {
+  if (pages <= 10) return { engineerPrice: 39, includedUpdates: 10 };
+  if (pages <= 40) return { engineerPrice: 69, includedUpdates: 20 };
+  return { engineerPrice: 99, includedUpdates: 40 };
+}
+
 function formatMoneyFromCents(cents) {
   const normalizedCents = Number.isFinite(cents) ? cents : 0;
   return (normalizedCents / 100).toLocaleString("en-US", {
@@ -72,14 +78,15 @@ function buildQuote(payload) {
     : [];
 
   const rule = getQuoteRule(Math.max(pages, 1));
+  const maintenanceRule = getMaintenanceRule(Math.max(pages, 1));
   const homepageTotal = pages > 0 ? rule.first : 0;
   const innerCount = pages > 0 ? Math.max(0, pages - 1) : 0;
   const innerTotal = innerCount * rule.next;
   const oneTimeTotal = homepageTotal + innerTotal;
 
-  const includedPrompts = 15;
+  const includedPrompts = maintenanceRule.includedUpdates * Math.max(engineers, 1);
   const overagePrompts = Math.max(0, prompts - includedPrompts);
-  const maintenanceBase = engineers * 100;
+  const maintenanceBase = engineers * maintenanceRule.engineerPrice;
   const maintenanceOverage = overagePrompts * 5;
   const maintenanceTotal = maintenanceEnabled ? maintenanceBase + maintenanceOverage : 0;
 
