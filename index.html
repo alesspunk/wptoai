@@ -6985,7 +6985,10 @@
         }
 
         function getDefaultMaintenanceUpdatesForPages(pages) {
-          return getMaintenancePlanDetails(Math.max(normalizePages(pages), 1)).includedUpdates;
+          var normalized = Math.max(normalizePages(pages), 1);
+          if (normalized <= 10) return 10;
+          if (normalized <= 40) return 20;
+          return 40;
         }
 
         function formatMoney(value) {
