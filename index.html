@@ -2206,8 +2206,9 @@
         cursor: pointer;
       }
       .quick-maintenance-option input {
-        margin: 0;
+        margin: 2px 0 0;
         accent-color: #3558c6;
+        flex: 0 0 auto;
       }
       .quick-maintenance-option-copy {
         display: grid;
@@ -2218,9 +2219,12 @@
         font-size: 0.82rem;
         font-weight: 500;
         line-height: 1.45;
+        display: grid;
+        gap: 2px;
       }
       .quick-maintenance-updates-note {
-        display: block;
+        display: grid;
+        gap: 2px;
         margin-top: 4px;
       }
       .quick-summary-row {
@@ -4784,8 +4788,11 @@
                   <label class="quick-maintenance-option">
                     <input id="quick-maintenance-on" type="radio" name="quick-maintenance-mode" value="on">
                     <span class="quick-maintenance-option-copy">
-                      <span>Maintain my site with AI</span>
-                      <span id="quick-maintenance-option-helper" class="quick-maintenance-option-helper">10 site updates per month handled by AI. Edit text, replace images, add sections and more.</span>
+                      <span>Keep improving my site with AI</span>
+                      <span id="quick-maintenance-option-helper" class="quick-maintenance-option-helper">
+                        <span>Site updates included with this site:</span>
+                        <span>Edit text, replace images, add sections and more.</span>
+                      </span>
                     </span>
                   </label>
                 </div>
@@ -4814,11 +4821,14 @@
                         </span>
                       </span>
                       <span>Site updates <span class="quick-summary-rate">/ month</span></span>
-                      <span id="quick-maintenance-updates-note" class="quick-summary-rate quick-maintenance-updates-note">Included with this plan: 10 per AI engineer</span>
+                      <span id="quick-maintenance-updates-note" class="quick-summary-rate quick-maintenance-updates-note">
+                        <span>Site updates included with this site:</span>
+                        <span>Edit text, replace images, add sections and more.</span>
+                      </span>
                     </span>
                     <div class="quick-change-qty" role="group" aria-label="Prompts per month">
                       <button id="quick-changes-minus" class="quick-change-btn" type="button" aria-label="Decrease prompts">−</button>
-                      <input id="quick-changes-input" class="quick-change-input" type="number" min="0" max="120" step="1" value="15" aria-label="Prompts per month">
+                      <input id="quick-changes-input" class="quick-change-input" type="number" min="0" max="120" step="1" value="10" aria-label="Prompts per month">
                       <button id="quick-changes-plus" class="quick-change-btn" type="button" aria-label="Increase prompts">+</button>
                     </div>
                   </div>
@@ -5752,6 +5762,7 @@
         var heroLastDomain = '';
         var heroLastScanResult = null;
         var quickPagesUserEdited = false;
+        var quickChangesUserEdited = false;
         var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         var allowPrivatePreviewHosts = Boolean(window.WPTOAI_ALLOW_PRIVATE_URLS);
         if (!quickForm || !quickInput || !quickPagesInput || !getStarted || !quickCheckoutEmailInput) return;
@@ -6956,6 +6967,10 @@
           return { name: 'Agency plan', engineerPrice: 99, includedUpdates: 40 };
         }
 
+        function getDefaultMaintenanceUpdatesForPages(pages) {
+          return getMaintenancePlanDetails(Math.max(normalizePages(pages), 1)).includedUpdates;
+        }
+
         function formatMoney(value) {
           return "$" + value.toLocaleString("en-US");
         }
@@ -7082,9 +7097,12 @@
               : "0";
           }
           if (quickChangesInput) {
+            quickChangesUserEdited = Object.prototype.hasOwnProperty.call(state, 'prompts');
             quickChangesInput.value = shouldEnableMaintenance
               ? String(normalizeChanges(state.prompts))
               : String(normalizeChanges(state.prompts));
+          } else {
+            quickChangesUserEdited = false;
           }
 
           var selectedAddons = Array.isArray(state.selectedAddons) ? state.selectedAddons : [];
@@ -7117,12 +7135,12 @@
           if (!hasWebsiteInput) {
             pages = 0;
             quickPagesUserEdited = false;
+            quickChangesUserEdited = false;
             if (quickMaintenanceOff && quickMaintenanceOn) {
               quickMaintenanceOff.checked = true;
               quickMaintenanceOn.checked = false;
             }
             if (quickEngineersInput) quickEngineersInput.value = "0";
-            if (quickChangesInput) quickChangesInput.value = "15";
             resetDeliverableSelections();
             syncMaintenanceUI(false);
             resetQuickQuoteCardUsage();
@@ -7132,7 +7150,11 @@
           quickPagesInput.value = String(pages);
           if (quickSidebarPagesInput) quickSidebarPagesInput.value = String(pages);
           if (quickPagesMaxHint) quickPagesMaxHint.hidden = pages <= 99;
-          var changes = quickChangesInput ? normalizeChanges(quickChangesInput.value) : 15;
+          var defaultMaintenanceUpdates = getDefaultMaintenanceUpdatesForPages(pages);
+          if (quickChangesInput && !quickChangesUserEdited) {
+            quickChangesInput.value = String(defaultMaintenanceUpdates);
+          }
+          var changes = quickChangesInput ? normalizeChanges(quickChangesInput.value) : defaultMaintenanceUpdates;
           if (quickChangesInput) quickChangesInput.value = String(changes);
           var engineers = quickEngineersInput ? normalizeEngineers(quickEngineersInput.value) : 0;
           if (quickEngineersInput) quickEngineersInput.value = String(engineers);
@@ -7159,9 +7181,6 @@
           var addonsCount = addonCheckboxes.reduce(function (acc, checkbox) {
             return acc + (checkbox.checked ? 1 : 0);
           }, 0);
-          var displayedIncludedUpdates = maintenanceEnabled
-            ? engineers * maintenancePlan.includedUpdates
-            : 0;
           var displayedMaintenanceTotal = maintenanceEnabled
             ? engineers * maintenancePlan.engineerPrice
             : 0;
@@ -7169,7 +7188,6 @@
           var total = oneTimeTotal + monthlyTotal + addonsTotal;
 
           if (!hasWebsiteInput) {
-            displayedIncludedUpdates = 0;
             displayedMaintenanceTotal = 0;
             monthlyTotal = 0;
             addonsTotal = 0;
@@ -7181,14 +7199,6 @@
           if (quickEngineersCount) quickEngineersCount.textContent = maintenanceEnabled ? String(engineers) : "0";
           if (quickEngineersMaxHint) quickEngineersMaxHint.hidden = !maintenanceEnabled || engineers <= 5;
           if (quickMaintenancePlanLabel) quickMaintenancePlanLabel.textContent = maintenancePlan.name;
-          if (quickMaintenanceOptionHelper) {
-            quickMaintenanceOptionHelper.textContent = maintenancePlan.includedUpdates + ' site updates per month handled by AI. Edit text, replace images, add sections and more.';
-          }
-          if (quickMaintenanceUpdatesNote) {
-            quickMaintenanceUpdatesNote.textContent = maintenanceEnabled && engineers > 0
-              ? 'Included with this plan: ' + displayedIncludedUpdates + ' total site updates'
-              : 'Included with this plan: ' + maintenancePlan.includedUpdates + ' per AI engineer';
-          }
           quickHomePrice.textContent = formatMoney(homePrice);
           quickInnerPrice.textContent = formatMoney(innerPrice);
           if (quickAiPrice) quickAiPrice.textContent = (hasWebsiteInput && maintenanceEnabled) ? formatMoney(displayedMaintenanceTotal) : formatMoney(0);
@@ -7495,6 +7505,7 @@
         if (quickChangesMinusBtn && quickChangesInput) {
           quickChangesMinusBtn.addEventListener('click', function () {
             markQuickQuoteCardUsage('maintenance');
+            quickChangesUserEdited = true;
             var current = normalizeChanges(quickChangesInput.value);
             quickChangesInput.value = String(Math.max(0, current - 1));
             syncQuickSummary();
@@ -7504,6 +7515,7 @@
         if (quickChangesPlusBtn && quickChangesInput) {
           quickChangesPlusBtn.addEventListener('click', function () {
             markQuickQuoteCardUsage('maintenance');
+            quickChangesUserEdited = true;
             var current = normalizeChanges(quickChangesInput.value);
             quickChangesInput.value = String(Math.min(120, current + 1));
             syncQuickSummary();
@@ -7874,10 +7886,12 @@
         if (quickChangesInput) {
           quickChangesInput.addEventListener('change', function () {
             markQuickQuoteCardUsage('maintenance');
+            quickChangesUserEdited = true;
             syncQuickSummary();
           });
           quickChangesInput.addEventListener('input', function () {
             markQuickQuoteCardUsage('maintenance');
+            quickChangesUserEdited = true;
             syncQuickSummary();
           });
         }
