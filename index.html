@@ -2268,6 +2268,12 @@
         grid-template-columns: 1fr auto;
         row-gap: 6px;
       }
+      .quick-summary-row-ai-worker {
+        grid-template-columns: 1fr auto;
+      }
+      .quick-summary-row-ai-worker .quick-summary-count {
+        display: none;
+      }
       .quick-summary-row-changes {
         grid-template-columns: 1fr auto;
       }
@@ -4789,7 +4795,7 @@
                     <span class="quick-card-title-text"><span class="quick-card-step" aria-hidden="true">2</span>SITE MAINTENANCE<span class="quick-card-icon" aria-hidden="true">🛠️</span></span>
                     <span id="quick-maintenance-plan-label" class="quick-maintenance-plan-label">Starter site</span>
                   </span>
-                  <button id="quick-maintenance-toggle" class="quick-card-toggle" type="button" aria-expanded="false" aria-controls="quick-maintenance-body" disabled>Turn on</button>
+                  <button id="quick-maintenance-toggle" class="quick-card-toggle" type="button" aria-expanded="false" aria-controls="quick-maintenance-body">Turn on</button>
                 </p>
                 <div class="quick-maintenance-switch" role="radiogroup" aria-label="Maintenance plan">
                   <label class="quick-maintenance-option">
@@ -4807,7 +4813,7 @@
                   </label>
                 </div>
                 <div id="quick-maintenance-body" class="quick-card-body" hidden>
-                  <div class="quick-summary-row">
+                  <div class="quick-summary-row quick-summary-row-ai-worker">
                     <span class="quick-summary-name">AI worker</span>
                     <span id="quick-engineers-count" class="quick-summary-count">0</span>
                     <span id="quick-ai-price" class="quick-summary-price">$0.00</span>
@@ -6959,14 +6965,17 @@
         function syncMaintenanceUI(shouldOpenOnEnable) {
           if (!quickMaintenanceBody || !quickMaintenanceToggle) return false;
           var enabled = quickMaintenanceOn ? quickMaintenanceOn.checked : true;
-          quickMaintenanceToggle.disabled = !enabled;
 
           if (!enabled) {
+            quickMaintenanceToggle.disabled = true;
             setCardOpen(quickMaintenanceBody, quickMaintenanceToggle, false);
+            quickMaintenanceToggle.disabled = false;
             quickMaintenanceToggle.textContent = 'Turn on';
           } else if (shouldOpenOnEnable || quickMaintenanceBody.hidden) {
+            quickMaintenanceToggle.disabled = false;
             setCardOpen(quickMaintenanceBody, quickMaintenanceToggle, true);
           } else {
+            quickMaintenanceToggle.disabled = false;
             setCardOpen(quickMaintenanceBody, quickMaintenanceToggle, !quickMaintenanceBody.hidden);
           }
 
@@ -7647,7 +7656,12 @@
         if (quickMaintenanceToggle && quickMaintenanceBody) {
           syncMaintenanceUI(false);
           quickMaintenanceToggle.addEventListener('click', function () {
-            if (quickMaintenanceToggle.disabled) return;
+            if (quickMaintenanceOn && quickMaintenanceOff && !quickMaintenanceOn.checked) {
+              quickMaintenanceOn.checked = true;
+              quickMaintenanceOff.checked = false;
+              quickMaintenanceOn.dispatchEvent(new Event('change', { bubbles: true }));
+              return;
+            }
             setCardOpen(quickMaintenanceBody, quickMaintenanceToggle, quickMaintenanceBody.hidden);
           });
         }
