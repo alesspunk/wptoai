@@ -45,6 +45,7 @@ async function uploadBuildArtifacts(project, buildJob, buildResult) {
     const pathname = `${prefix}/${relativePath}`;
     const result = await put(pathname, String(file.content || ""), {
       access: "public",
+      allowOverwrite: true,
       addRandomSuffix: false,
       contentType: file.contentType || "text/plain; charset=utf-8"
     });
