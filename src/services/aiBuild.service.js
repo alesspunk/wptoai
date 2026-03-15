@@ -1219,6 +1219,7 @@ function buildAiInstructions(validatedBundle, outputPlan) {
     "Create a shared stylesheet at css/site.css.",
     "Only create JavaScript files when they are genuinely necessary, and keep them in js/.",
     "Only create text-based assets such as SVG, JSON, or TXT in assets/. Do not emit binary image data.",
+    "Do not emit files under assets/screenshots/. Those screenshot paths are existing package references, not generated build assets.",
     "Do not invent extra pages, routes, navigation items, sections, screenshots, or branding elements.",
     "Do not add WordPress runtime dependencies, React, Next.js, or heavy libraries.",
     "Respect the approved hierarchy, screenshot mappings, golden prompt, and implementation rules.",
@@ -1351,6 +1352,13 @@ function buildFilesFromAiOutput(aiOutput, context, outputPlan, warnings) {
 
   (Array.isArray(aiOutput.assets) ? aiOutput.assets : []).forEach((entry) => {
     const normalizedPath = assertSafeBuildPath(entry && entry.path, "assets/");
+    if (normalizedPath.indexOf("assets/screenshots/") === 0) {
+      warnings.push({
+        code: "ignored_source_screenshot_asset",
+        message: `Ignored AI asset output for "${normalizedPath}" because screenshots are source references from the package.`
+      });
+      return;
+    }
     if (RESERVED_BUILD_ASSET_PATHS.has(normalizedPath)) {
       throw new Error(`OpenAI cannot overwrite the reserved asset path "${normalizedPath}".`);
     }
