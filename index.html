@@ -1764,10 +1764,7 @@
         align-items: center;
         gap: 8px;
       }
-      .quick-sidebar-helper {
-        color: #6b7a9d;
-        font-size: var(--text-2xs);
-        font-weight: 700;
+      .quick-sidebar-title-cart {
         letter-spacing: normal;
         text-transform: none;
       }
@@ -4734,7 +4731,7 @@
 
           <aside class="quick-summary-sidebar" aria-label="Quote summary">
             <div class="quick-sidebar-head">
-              <p class="quick-sidebar-title">Site Setup <span class="quick-sidebar-helper">Shopping cart</span></p>
+              <p class="quick-sidebar-title quick-sidebar-title-cart">Shopping cart</p>
               <button id="quick-sidebar-collapse" class="quick-sidebar-collapse-btn" type="button" aria-label="Collapse order summary sidebar" aria-expanded="true">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <rect x="3.5" y="3.5" width="17" height="17" rx="3" ry="3" fill="none" stroke="currentColor" stroke-width="1.6"></rect>
@@ -4792,7 +4789,7 @@
                     <span class="quick-card-title-text"><span class="quick-card-step" aria-hidden="true">2</span>SITE MAINTENANCE<span class="quick-card-icon" aria-hidden="true">🛠️</span></span>
                     <span id="quick-maintenance-plan-label" class="quick-maintenance-plan-label">Starter site</span>
                   </span>
-                  <button id="quick-maintenance-toggle" class="quick-card-toggle" type="button" aria-expanded="false" aria-controls="quick-maintenance-body" disabled>Off</button>
+                  <button id="quick-maintenance-toggle" class="quick-card-toggle" type="button" aria-expanded="false" aria-controls="quick-maintenance-body" disabled>Turn on</button>
                 </p>
                 <div class="quick-maintenance-switch" role="radiogroup" aria-label="Maintenance plan">
                   <label class="quick-maintenance-option">
@@ -4851,6 +4848,13 @@
                   <span class="quick-summary-name">Monthly total</span>
                   <span class="quick-summary-rate"></span>
                   <span id="quick-maintenance-total" class="quick-summary-total">$0</span>
+                </div>
+              </section>
+              <section class="quick-summary quick-summary-card" aria-label="Total credits summary">
+                <div class="quick-summary-row total">
+                  <span class="quick-summary-name">Total credits selected</span>
+                  <span class="quick-summary-rate"></span>
+                  <span id="quick-total-credits-selected" class="quick-summary-total">0</span>
                 </div>
               </section>
               <section id="quick-addons-card" class="quick-summary quick-summary-card quick-addons quick-hide-subtotal-on-collapse" aria-label="Deliverables options" hidden>
@@ -5724,6 +5728,7 @@
         var quickSiteRate = document.querySelector('#quick-site-rate');
         var quickSiteTotal = document.querySelector('#quick-site-total');
         var quickMaintenanceTotal = document.querySelector('#quick-maintenance-total');
+        var quickTotalCreditsSelected = document.querySelector('#quick-total-credits-selected');
         var quickAddonsSubtotal = document.querySelector('#quick-addons-subtotal');
         var quickTotal = document.querySelector('#quick-total');
         var quickSidebarFabTotal = document.querySelector('#quick-sidebar-fab-total');
@@ -6958,7 +6963,7 @@
 
           if (!enabled) {
             setCardOpen(quickMaintenanceBody, quickMaintenanceToggle, false);
-            quickMaintenanceToggle.textContent = 'Off';
+            quickMaintenanceToggle.textContent = 'Turn on';
           } else if (shouldOpenOnEnable || quickMaintenanceBody.hidden) {
             setCardOpen(quickMaintenanceBody, quickMaintenanceToggle, true);
           } else {
@@ -7196,6 +7201,7 @@
           var innerPrice = innerCount * rule.next;
           var oneTimeTotal = homePrice + innerPrice;
           var maintenanceEnabled = quickMaintenanceOn ? quickMaintenanceOn.checked : true;
+          var maintenanceCreditsSelected = maintenanceEnabled ? changes : 0;
           var includedChanges = maintenancePlan.includedUpdates * Math.max(engineers, 1);
           var overageChanges = Math.max(0, changes - includedChanges);
           var overagePrice = overageChanges * 5;
@@ -7235,6 +7241,7 @@
           quickSiteTotal.textContent = formatMoney(oneTimeTotal);
           if (quickOneTimeTotal) quickOneTimeTotal.textContent = formatMoney(oneTimeTotal);
           if (quickMaintenanceTotal) quickMaintenanceTotal.textContent = (hasWebsiteInput && maintenanceEnabled) ? formatMoney(displayedMaintenanceTotal) : formatMoney(0);
+          if (quickTotalCreditsSelected) quickTotalCreditsSelected.textContent = String(pages + maintenanceCreditsSelected);
           if (quickAddonsSubtotal) quickAddonsSubtotal.textContent = formatMoney(monthlyTotal + addonsTotal);
           quickTotal.textContent = formatMoney(total);
           if (quickSidebarFabTotal) quickSidebarFabTotal.textContent = formatMoney(total);
