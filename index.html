@@ -1764,6 +1764,16 @@
         align-items: center;
         gap: 8px;
       }
+      .quick-sidebar-helper {
+        color: #6b7a9d;
+        font-size: var(--text-2xs);
+        font-weight: 700;
+        letter-spacing: normal;
+        text-transform: none;
+      }
+      .quick-copy-hidden {
+        display: none !important;
+      }
       .quick-sidebar-collapse-btn {
         width: 36px;
         height: 36px;
@@ -4687,7 +4697,7 @@
               </div>
 
               <div id="hero-ready-content" class="hero-state hero-state-ready" hidden>
-                <button id="hero-ready-close" class="hero-ready-close" type="button" aria-label="Close preview">Close</button>
+                <button id="hero-ready-close" class="hero-ready-close" type="button" aria-label="Close preview">×</button>
                 <div class="hero-ready-head">
                   <div class="hero-ready-meta">
                     <p class="hero-scan-kicker">Migration Preview Ready</p>
@@ -4715,7 +4725,7 @@
                   <p id="hero-ready-info-title" class="hero-ready-info-title">WP to AI preview snapshot</p>
                   <div class="hero-ready-chip-row">
                     <p id="hero-ready-domain-chip" class="hero-domain-chip hero-url-chip">wptoai.com</p>
-                    <p id="hero-ready-pages-chip" class="hero-domain-chip hero-pages-chip" hidden>Site scan estimate: 0 credits</p>
+                    <p id="hero-ready-pages-chip" class="hero-domain-chip hero-pages-chip" hidden>Site scan estimate: 0 pages</p>
                   </div>
                 </div>
               </div>
@@ -4724,7 +4734,7 @@
 
           <aside class="quick-summary-sidebar" aria-label="Quote summary">
             <div class="quick-sidebar-head">
-              <p class="quick-sidebar-title">Site Setup</p>
+              <p class="quick-sidebar-title">Site Setup <span class="quick-sidebar-helper">Shopping cart</span></p>
               <button id="quick-sidebar-collapse" class="quick-sidebar-collapse-btn" type="button" aria-label="Collapse order summary sidebar" aria-expanded="true">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <rect x="3.5" y="3.5" width="17" height="17" rx="3" ry="3" fill="none" stroke="currentColor" stroke-width="1.6"></rect>
@@ -4755,12 +4765,12 @@
                     </div>
                     <span id="quick-pages-max-hint" class="quick-summary-rate" hidden>(max 100)</span>
                   </div>
-                  <div class="quick-summary-row">
+                  <div class="quick-summary-row quick-copy-hidden">
                     <span class="quick-summary-name">Homepage conversion</span>
                     <span id="quick-home-count" class="quick-summary-count">0</span>
                     <span id="quick-home-price" class="quick-summary-price">$0</span>
                   </div>
-                  <div class="quick-summary-row">
+                  <div class="quick-summary-row quick-copy-hidden">
                     <span class="quick-summary-name">Additional pages</span>
                     <span id="quick-inner-count" class="quick-summary-count">0</span>
                     <span id="quick-inner-price" class="quick-summary-price">$0</span>
@@ -4794,19 +4804,18 @@
                     <span class="quick-maintenance-option-copy">
                       <span>Keep improving my site with AI</span>
                       <span id="quick-maintenance-option-helper" class="quick-maintenance-option-helper">
-                        <span>Includes site updates:</span>
-                        <span>Edit text, images, and sections.</span>
+                        <span>Includes credits: Edit text, images, and sections.</span>
                       </span>
                     </span>
                   </label>
                 </div>
                 <div id="quick-maintenance-body" class="quick-card-body" hidden>
                   <div class="quick-summary-row">
-                    <span class="quick-summary-name">AI engineers</span>
+                    <span class="quick-summary-name">AI worker</span>
                     <span id="quick-engineers-count" class="quick-summary-count">0</span>
                     <span id="quick-ai-price" class="quick-summary-price">$0.00</span>
                   </div>
-                  <div class="quick-summary-row quick-summary-row-engineers-qty">
+                  <div class="quick-summary-row quick-summary-row-engineers-qty quick-copy-hidden">
                     <span class="quick-summary-name">Engineers <span class="quick-summary-rate">/ quantity</span></span>
                     <div class="quick-change-qty" role="group" aria-label="AI engineers">
                       <button id="quick-engineers-minus" class="quick-change-btn" type="button" aria-label="Decrease AI engineers">−</button>
@@ -4825,10 +4834,9 @@
                         </span>
                       </span>
                       <span class="quick-maintenance-updates-copy">
-                        <span>Site updates <span class="quick-summary-rate">/ month</span></span>
+                        <span>Credits <span class="quick-summary-rate">/ month</span></span>
                         <span id="quick-maintenance-updates-note" class="quick-summary-rate quick-maintenance-updates-note">
-                          <span>Includes site updates:</span>
-                          <span>Edit text, images, and sections.</span>
+                          <span>Includes credits: Edit text, images, and sections.</span>
                         </span>
                       </span>
                     </span>
@@ -4917,7 +4925,7 @@
               <div class="quick-rail-email-block">
                 <label class="quick-rail-email-label" for="quick-checkout-email">Where should we send your AI site preview?</label>
                 <input id="quick-checkout-email" class="quick-rail-email-input" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com" required>
-                <p class="quick-rail-email-helper">We'll also send your migration summary.</p>
+                <p class="quick-rail-email-helper quick-copy-hidden">We'll also send your migration summary.</p>
                 <p id="quick-checkout-email-error" class="quick-rail-email-error" hidden>Add a valid email to continue checkout.</p>
               </div>
               <p class="quick-rail-one-time-row">
@@ -4992,8 +5000,8 @@
           <path class="site-migration-tour-arrow" d="M224 10L238 20L224 30"></path>
         </svg>
         <div class="site-migration-tour-copy">
-          <p class="site-migration-tour-title">Set up your migration</p>
-          <p class="site-migration-tour-desc">Adjust pages and options before checkout.</p>
+          <p class="site-migration-tour-title">Review your setup</p>
+          <p class="site-migration-tour-desc">Review options before checkout.</p>
         </div>
         <span class="site-migration-tour-dot" aria-hidden="true"></span>
       </div>
@@ -5004,7 +5012,7 @@
         </svg>
         <div class="site-migration-tour-copy">
           <p class="site-migration-tour-title">Need ongoing updates?</p>
-          <p class="site-migration-tour-desc">Enable monthly maintenance to keep improving your site with AI engineers.</p>
+          <p class="site-migration-tour-desc">Enable monthly maintenance to keep improving your site with an AI worker.</p>
         </div>
         <span class="site-migration-tour-dot" aria-hidden="true"></span>
       </div>
@@ -6514,7 +6522,7 @@
           if (heroReadyPagesChip) {
             if (detectedPages > 0) {
               heroReadyPagesChip.hidden = false;
-              heroReadyPagesChip.textContent = 'Site scan estimate: ' + detectedPages + ' ' + (detectedPages === 1 ? 'credit' : 'credits');
+              heroReadyPagesChip.textContent = 'Site scan estimate: ' + detectedPages + ' ' + (detectedPages === 1 ? 'page' : 'pages');
             } else {
               heroReadyPagesChip.hidden = true;
               heroReadyPagesChip.textContent = '';
