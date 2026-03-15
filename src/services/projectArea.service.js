@@ -185,6 +185,37 @@ function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function isProjectEditingLocked(project) {
+  return projectService.isProjectPublishLocked(project);
+}
+
+function assertProjectEditingAllowed(project) {
+  if (!isProjectEditingLocked(project)) return;
+  const publishStatus = projectService.getProjectPublishStatus(project);
+  if (publishStatus === "submitted") {
+    throw new Error("This project has already been submitted successfully and is now locked for edits.");
+  }
+  if (publishStatus === "package_assembled") {
+    throw new Error("This approved snapshot is already frozen. Retry Convert to AI to finish submission.");
+  }
+  if (publishStatus === "failed_validation") {
+    throw new Error("This approved snapshot is locked because package validation failed. Retry Convert to AI to submit it again.");
+  }
+  if (publishStatus === "publishing") {
+    throw new Error("This project is locked while the AI package is being prepared.");
+  }
+  if (publishStatus === "publish_failed") {
+    throw new Error("This approved snapshot is locked. Retry Convert to AI to finish submission.");
+  }
+  if (publishStatus === "build_failed") {
+    throw new Error("This project is locked because the background build failed. Please contact support to retry the worker.");
+  }
+  if (publishStatus === "build_ready_for_publish") {
+    throw new Error("This project build is ready for publish and remains locked for edits.");
+  }
+  throw new Error("This project is locked for edits.");
+}
+
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
 }
@@ -240,6 +271,7 @@ function toSummary({ project, quote, pages }) {
   const homepage = realPages.find((item) => item.type === "homepage");
   const innerPages = realPages.filter((item) => item.type === "page");
   const preparedInnerPages = innerPages.filter((item) => isPreparedProjectPage(item)).length;
+  const publishLocked = isProjectEditingLocked(project);
   let migrationProgress = 0;
   if (homepage && isPreparedProjectPage(homepage)) {
     migrationProgress += 20;
@@ -259,7 +291,16 @@ function toSummary({ project, quote, pages }) {
     status: project.status || "queued",
     wordpressUrl: project.wordpressUrl || "",
     customerEmail: project.customerEmail || "",
-    queueActive: projectQueueService.hasProjectQueueWork(pages),
+    queueActive: publishLocked ? false : projectQueueService.hasProjectQueueWork(pages),
+    publishStatus: projectService.getProjectPublishStatus(project),
+    publishLocked,
+    frozenAt: project && project.frozenAt ? project.frozenAt : null,
+    publishStartedAt: project && project.publishStartedAt ? project.publishStartedAt : null,
+    packageAssembledAt: project && project.packageAssembledAt ? project.packageAssembledAt : null,
+    submittedAt: project && project.submittedAt ? project.submittedAt : null,
+    packageVersion: project && project.packageVersion ? project.packageVersion : null,
+    packageSchemaVersion: project && project.packageSchemaVersion ? project.packageSchemaVersion : null,
+    buildJobId: project && project.buildJobId ? project.buildJobId : null,
     migrationProgress,
     detectedPages: totalRealPageCount,
     purchasedPages,
@@ -313,6 +354,7 @@ async function renameProjectAreaPage(project, pageId, title, url) {
   if (!project || !project.id) {
     throw new Error("Project not found.");
   }
+  assertProjectEditingAllowed(project);
 
   const page = await projectPageRepository.findProjectPageById(project.id, pageId);
   if (!page) {
@@ -344,6 +386,7 @@ async function saveProjectAreaPageOrder(project, updates) {
   if (!project || !project.id) {
     throw new Error("Project not found.");
   }
+  assertProjectEditingAllowed(project);
   if (!Array.isArray(updates) || !updates.length) {
     throw new Error("No page updates provided.");
   }
@@ -416,6 +459,7 @@ async function createProjectAreaPage(project, parentId) {
   if (!project || !project.id) {
     throw new Error("Project not found.");
   }
+  assertProjectEditingAllowed(project);
 
   const quote = await loadProjectQuote(project);
   const pages = await getOrSeedProjectPages(project, quote);
@@ -476,6 +520,7 @@ async function deleteProjectAreaPage(project, pageId) {
   if (!project || !project.id) {
     throw new Error("Project not found.");
   }
+  assertProjectEditingAllowed(project);
 
   const normalizedPageId = String(pageId || "").trim();
   if (!normalizedPageId) {
@@ -510,6 +555,7 @@ async function processProjectAreaPage(project, pageId, requestedUrl) {
   if (!project || !project.id) {
     throw new Error("Project not found.");
   }
+  assertProjectEditingAllowed(project);
 
   const quote = await loadProjectQuote(project);
   await getOrSeedProjectPages(project, quote);

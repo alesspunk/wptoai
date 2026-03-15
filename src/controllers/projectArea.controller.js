@@ -1,5 +1,6 @@
 const projectService = require("../services/project.service");
 const projectAreaService = require("../services/projectArea.service");
+const projectPublishService = require("../services/projectPublish.service");
 
 const EXPIRED_MESSAGE = "Session expired. Please check your email for your project access link.";
 
@@ -187,6 +188,39 @@ async function saveProjectAreaPageOrderController(req, res) {
   }
 }
 
+async function publishProjectAreaController(req, res) {
+  const body = req && req.body ? req.body : {};
+  const projectId = String(body.project || "").trim();
+  const token = String(body.token || "").trim();
+
+  try {
+    const project = await resolveAuthorizedProject(projectId, token);
+    if (!project) {
+      return res.status(401).json({ error: EXPIRED_MESSAGE });
+    }
+
+    const result = await projectPublishService.submitProjectForBuild(project);
+    const projectArea = await projectAreaService.getProjectAreaData(result.project, null);
+    return res.json({
+      ok: true,
+      projectArea,
+      package: result.packageSummary,
+      buildJob: result.buildJob ? {
+        id: result.buildJob.id,
+        status: result.buildJob.status,
+        provider: result.buildJob.provider,
+        target: result.buildJob.target
+      } : null,
+      reusedExistingPackage: Boolean(result.reusedExistingPackage)
+    });
+  } catch (error) {
+    const statusCode = Number(error && error.statusCode ? error.statusCode : 500);
+    return res.status(statusCode).json({
+      error: error && error.message ? error.message : "Could not assemble the project package."
+    });
+  }
+}
+
 async function updateProjectAreaPasswordController(req, res) {
   const body = req && req.body ? req.body : {};
   const projectId = String(body.project || "").trim();
@@ -270,6 +304,7 @@ module.exports = {
   processProjectAreaPageController,
   renameProjectAreaPageController,
   saveProjectAreaPageOrderController,
+  publishProjectAreaController,
   updateProjectAreaPasswordController,
   sendProjectAreaPasswordResetController,
   requestAccessLinkController,

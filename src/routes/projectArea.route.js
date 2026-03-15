@@ -6,6 +6,7 @@ const {
   processProjectAreaPageController,
   renameProjectAreaPageController,
   saveProjectAreaPageOrderController,
+  publishProjectAreaController,
   updateProjectAreaPasswordController,
   sendProjectAreaPasswordResetController,
   requestAccessLinkController,
@@ -21,6 +22,7 @@ router.post("/project-area-page-delete", deleteProjectAreaPageController);
 router.post("/project-area-page-scan", processProjectAreaPageController);
 router.post("/project-area-page-order", saveProjectAreaPageOrderController);
 router.post("/project-area-page-rename", renameProjectAreaPageController);
+router.post("/project-area-publish", publishProjectAreaController);
 router.post("/project-area-password", updateProjectAreaPasswordController);
 router.post("/project-area-password-reset", sendProjectAreaPasswordResetController);
 router.post("/request-access-link", requestAccessLinkController);

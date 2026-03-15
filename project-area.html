@@ -74,6 +74,7 @@
           <img src="/images/wptoai-logo-blackandwhite.png" alt="WPtoAI logo" class="project-logo" />
           <button id="convert-ai-btn" class="convert-ai-btn" type="button">Convert to AI</button>
         </header>
+        <p id="publish-status-note" class="publish-status-note" hidden></p>
 
         <section class="project-preview-card">
           <div class="project-preview-head">
@@ -125,6 +126,21 @@
         <div class="access-modal-actions">
           <button id="email-update-cancel" class="access-modal-secondary" type="button">Cancel</button>
           <button id="email-update-submit" class="access-modal-primary" type="button">Send Verification Link</button>
+        </div>
+      </div>
+    </div>
+    <div id="publish-modal" class="access-modal" hidden>
+      <div id="publish-modal-backdrop" class="access-modal-backdrop"></div>
+      <div class="access-modal-card publish-modal-card" role="dialog" aria-modal="true" aria-labelledby="publish-modal-title">
+        <div class="access-modal-head">
+          <h2 id="publish-modal-title" class="access-modal-title">Convert to AI</h2>
+          <button id="publish-modal-close" class="access-modal-close" type="button" aria-label="Close publish modal">×</button>
+        </div>
+        <div id="publish-modal-body" class="publish-modal-body"></div>
+        <p id="publish-modal-status" class="access-modal-status" hidden></p>
+        <div class="access-modal-actions">
+          <button id="publish-modal-cancel" class="access-modal-secondary" type="button">Cancel</button>
+          <button id="publish-modal-submit" class="access-modal-primary" type="button">Convert to AI</button>
         </div>
       </div>
     </div>

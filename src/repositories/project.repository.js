@@ -18,6 +18,14 @@ function toProject(row) {
     customerEmail: row.customer_email,
     wordpressUrl: row.wordpress_url,
     status: row.status,
+    publishStatus: row.publish_status || 'ready_to_publish',
+    frozenAt: row.frozen_at || null,
+    publishStartedAt: row.publish_started_at || null,
+    packageAssembledAt: row.package_assembled_at || null,
+    submittedAt: row.submitted_at || null,
+    packageVersion: row.package_version || null,
+    packageSchemaVersion: row.package_schema_version || null,
+    buildJobId: row.build_job_id || null,
     accessToken: row.access_token || null,
     accessTokenExpiresAt: row.access_token_expires_at || null,
     vercelDeploymentUrl: row.vercel_deployment_url,
@@ -234,6 +242,153 @@ async function releaseProjectQueue(projectId) {
   return toProject(result.rows[0]);
 }
 
+async function updateProjectStatus(projectId, status) {
+  if (!projectId || !status) return null;
+  await ensureSchema();
+  const params = [String(projectId), String(status)];
+  logQuery('updateProjectStatus', params);
+
+  const result = await query(
+    `UPDATE projects
+        SET status = $2,
+            updated_at = NOW()
+      WHERE id = $1
+      RETURNING *`,
+    params
+  );
+
+  return toProject(result.rows[0]);
+}
+
+async function updateProjectPublishState(projectId, patch) {
+  if (!projectId) return null;
+  await ensureSchema();
+
+  const params = [
+    String(projectId),
+    patch && patch.publishStatus ? String(patch.publishStatus) : null,
+    Boolean(patch && patch.freezeProject),
+    Boolean(patch && patch.touchPublishStartedAt),
+    patch && patch.packageAssembledAt ? patch.packageAssembledAt : null,
+    patch && patch.packageVersion ? String(patch.packageVersion) : null,
+    patch && patch.packageSchemaVersion ? String(patch.packageSchemaVersion) : null,
+    patch && patch.submittedAt ? patch.submittedAt : null,
+    patch && patch.buildJobId ? String(patch.buildJobId) : null
+  ];
+  logQuery('updateProjectPublishState', params);
+
+  const result = await query(
+    `UPDATE projects
+        SET publish_status = COALESCE($2, publish_status),
+            frozen_at = CASE WHEN $3::boolean THEN COALESCE(frozen_at, NOW()) ELSE frozen_at END,
+            publish_started_at = CASE WHEN $4::boolean THEN COALESCE(publish_started_at, NOW()) ELSE publish_started_at END,
+            package_assembled_at = COALESCE($5, package_assembled_at),
+            package_version = COALESCE($6, package_version),
+            package_schema_version = COALESCE($7, package_schema_version),
+            submitted_at = COALESCE($8, submitted_at),
+            build_job_id = COALESCE($9, build_job_id),
+            updated_at = NOW()
+      WHERE id = $1
+      RETURNING *`,
+    params
+  );
+
+  return toProject(result.rows[0]);
+}
+
+async function markProjectPublishing(projectId, packageVersion, packageSchemaVersion) {
+  return updateProjectPublishState(projectId, {
+    publishStatus: 'publishing',
+    freezeProject: true,
+    touchPublishStartedAt: true,
+    packageVersion,
+    packageSchemaVersion
+  });
+}
+
+async function markProjectPackageAssembled(projectId, packageVersion, packageSchemaVersion, packageAssembledAt) {
+  return updateProjectPublishState(projectId, {
+    publishStatus: 'package_assembled',
+    freezeProject: true,
+    touchPublishStartedAt: true,
+    packageAssembledAt: packageAssembledAt || new Date().toISOString(),
+    packageVersion,
+    packageSchemaVersion
+  });
+}
+
+async function markProjectPublishFailed(projectId, packageVersion, packageSchemaVersion) {
+  return updateProjectPublishState(projectId, {
+    publishStatus: 'publish_failed',
+    freezeProject: true,
+    touchPublishStartedAt: true,
+    packageVersion,
+    packageSchemaVersion
+  });
+}
+
+async function markProjectValidationFailed(projectId, packageVersion, packageSchemaVersion) {
+  return updateProjectPublishState(projectId, {
+    publishStatus: 'failed_validation',
+    freezeProject: true,
+    touchPublishStartedAt: true,
+    packageVersion,
+    packageSchemaVersion
+  });
+}
+
+async function markProjectSubmitted(projectId, buildJobId, packageVersion, packageSchemaVersion, packageAssembledAt, submittedAt) {
+  return updateProjectPublishState(projectId, {
+    publishStatus: 'submitted',
+    freezeProject: true,
+    touchPublishStartedAt: true,
+    packageAssembledAt: packageAssembledAt || new Date().toISOString(),
+    packageVersion,
+    packageSchemaVersion,
+    submittedAt: submittedAt || new Date().toISOString(),
+    buildJobId
+  });
+}
+
+async function markProjectBuildInProgress(projectId, buildJobId, packageVersion, packageSchemaVersion) {
+  const project = await updateProjectStatus(projectId, 'building');
+  if (!project) return null;
+  return updateProjectPublishState(projectId, {
+    publishStatus: 'submitted',
+    freezeProject: true,
+    touchPublishStartedAt: true,
+    packageVersion,
+    packageSchemaVersion,
+    buildJobId
+  });
+}
+
+async function markProjectBuildReadyForPublish(projectId, buildJobId, packageVersion, packageSchemaVersion) {
+  const project = await updateProjectStatus(projectId, 'building');
+  if (!project) return null;
+  return updateProjectPublishState(projectId, {
+    publishStatus: 'submitted',
+    freezeProject: true,
+    touchPublishStartedAt: true,
+    packageVersion,
+    packageSchemaVersion,
+    buildJobId
+  });
+}
+
+async function markProjectBuildFailed(projectId, buildJobId, packageVersion, packageSchemaVersion) {
+  const project = await updateProjectStatus(projectId, 'failed');
+  if (!project) return null;
+  return updateProjectPublishState(projectId, {
+    publishStatus: 'build_failed',
+    freezeProject: true,
+    touchPublishStartedAt: true,
+    packageVersion,
+    packageSchemaVersion,
+    buildJobId
+  });
+}
+
 module.exports = {
   createProject,
   saveProjectAccessToken,
@@ -244,5 +399,15 @@ module.exports = {
   updateProjectCustomerEmail,
   tryAcquireProjectQueue,
   touchProjectQueue,
-  releaseProjectQueue
+  releaseProjectQueue,
+  updateProjectStatus,
+  updateProjectPublishState,
+  markProjectPublishing,
+  markProjectPackageAssembled,
+  markProjectPublishFailed,
+  markProjectValidationFailed,
+  markProjectSubmitted,
+  markProjectBuildInProgress,
+  markProjectBuildReadyForPublish,
+  markProjectBuildFailed
 };

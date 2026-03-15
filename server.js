@@ -8,6 +8,7 @@ const { createCheckoutRoutes } = require("./src/routes/checkoutRoutes");
 const siteScanRoutes = require("./src/routes/siteScan.route");
 const leadRoutes = require("./src/routes/lead.route");
 const projectAreaRoutes = require("./src/routes/projectArea.route");
+const buildWorkerRoutes = require("./src/routes/buildWorker.route");
 const { createClientAccessRoutes } = require("./src/routes/clientAccess.route");
 const quoteService = require("./src/services/quoteService");
 const { formatMoneyFromCents } = require("./src/services/quotePricingService");
@@ -117,6 +118,7 @@ app.use("/api", createCheckoutRoutes({ stripe }));
 app.use("/api", siteScanRoutes);
 app.use("/api", leadRoutes);
 app.use("/api", projectAreaRoutes);
+app.use("/api", buildWorkerRoutes);
 app.use("/", createClientAccessRoutes({ stripe, appRoot: __dirname }));
 
 function extractCustomerEmailFromSession(session) {

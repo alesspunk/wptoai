@@ -56,6 +56,27 @@ async function refreshProjectAccessToken(project) {
   return projectRepository.saveProjectAccessToken(project.id, accessToken, accessTokenExpiresAt);
 }
 
+function getProjectPublishStatus(project) {
+  return String(project && project.publishStatus ? project.publishStatus : 'ready_to_publish');
+}
+
+function isProjectPublishLocked(project) {
+  const publishStatus = getProjectPublishStatus(project);
+  return Boolean(
+    project &&
+    (
+      project.frozenAt ||
+      publishStatus === 'publishing' ||
+      publishStatus === 'package_assembled' ||
+      publishStatus === 'failed_validation' ||
+      publishStatus === 'submitted' ||
+      publishStatus === 'publish_failed' ||
+      publishStatus === 'build_ready_for_publish' ||
+      publishStatus === 'build_failed'
+    )
+  );
+}
+
 function isProjectAccessValid(project, token) {
   if (!project || !token) return false;
   const expected = String(project.accessToken || '');
@@ -72,5 +93,7 @@ module.exports = {
   getProjectById,
   ensureProjectAccessToken,
   refreshProjectAccessToken,
+  getProjectPublishStatus,
+  isProjectPublishLocked,
   isProjectAccessValid
 };

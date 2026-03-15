@@ -26,6 +26,9 @@
     dropTarget: null,
     savingTree: false,
     processingPageRequest: false,
+    publishRequestInFlight: false,
+    publishModalMode: "confirm",
+    publishResult: null,
     pollTimer: 0,
     pollInFlight: false,
     manualScanDrafts: {},
@@ -44,6 +47,7 @@
     tree: document.querySelector("#page-tree"),
     treeStatus: document.querySelector("#tree-status"),
     convertAiBtn: document.querySelector("#convert-ai-btn"),
+    publishStatusNote: document.querySelector("#publish-status-note"),
     selectedTitle: document.querySelector("#selected-title"),
     selectedStatusPill: document.querySelector("#selected-status-pill"),
     selectedUrlPill: document.querySelector("#selected-url-pill"),
@@ -71,7 +75,15 @@
     emailUpdateSubmit: document.querySelector("#email-update-submit"),
     emailUpdateStatus: document.querySelector("#email-update-status"),
     newEmailInput: document.querySelector("#new-email-input"),
-    confirmEmailInput: document.querySelector("#confirm-email-input")
+    confirmEmailInput: document.querySelector("#confirm-email-input"),
+    publishModal: document.querySelector("#publish-modal"),
+    publishModalBackdrop: document.querySelector("#publish-modal-backdrop"),
+    publishModalClose: document.querySelector("#publish-modal-close"),
+    publishModalTitle: document.querySelector("#publish-modal-title"),
+    publishModalBody: document.querySelector("#publish-modal-body"),
+    publishModalStatus: document.querySelector("#publish-modal-status"),
+    publishModalCancel: document.querySelector("#publish-modal-cancel"),
+    publishModalSubmit: document.querySelector("#publish-modal-submit")
   };
 
   function clearLegacyQuoteState() {
@@ -209,6 +221,68 @@
     return { used: used, purchased: purchased, remaining: remaining };
   }
 
+  function getPublishStatus() {
+    return String(
+      state.project && state.project.publishStatus
+        ? state.project.publishStatus
+        : "ready_to_publish"
+    ).toLowerCase();
+  }
+
+  function isProjectFrozen() {
+    return Boolean(
+      state.project &&
+      (
+        state.project.publishLocked ||
+        state.project.frozenAt ||
+        getPublishStatus() === "publishing" ||
+        getPublishStatus() === "failed_validation" ||
+        getPublishStatus() === "submitted" ||
+        getPublishStatus() === "package_assembled" ||
+        getPublishStatus() === "publish_failed" ||
+        getPublishStatus() === "build_failed" ||
+        getPublishStatus() === "build_ready_for_publish"
+      )
+    );
+  }
+
+  function canSubmitProject() {
+    var publishStatus = getPublishStatus();
+    return !state.publishRequestInFlight &&
+      (
+        publishStatus === "ready_to_publish" ||
+        publishStatus === "package_assembled" ||
+        publishStatus === "publish_failed" ||
+        publishStatus === "failed_validation"
+      );
+  }
+
+  function getProjectLockMessage() {
+    var publishStatus = getPublishStatus();
+    if (publishStatus === "submitted") {
+      return "This project has been submitted successfully and is locked for edits.";
+    }
+    if (publishStatus === "failed_validation") {
+      return "This approved snapshot is locked because package validation failed. Retry Convert to AI to submit it again.";
+    }
+    if (publishStatus === "package_assembled") {
+      return "This approved snapshot is already frozen. Retry Convert to AI to finish submission.";
+    }
+    if (publishStatus === "publishing") {
+      return "This approved snapshot is locked while the AI package is being prepared.";
+    }
+    if (publishStatus === "publish_failed") {
+      return "This approved snapshot is locked. Retry Convert to AI to finish submission.";
+    }
+    if (publishStatus === "build_failed") {
+      return "This project is locked because the background build failed. Please contact support to retry the worker.";
+    }
+    if (publishStatus === "build_ready_for_publish") {
+      return "This project build is ready for the next publish step and remains locked for edits.";
+    }
+    return "This project is locked for edits.";
+  }
+
   function inferProgress() {
     var realPages = state.pages.filter(function (page) {
       return isRealPageType(page.type);
@@ -254,6 +328,22 @@
   }
 
   function hasQueueActivity(project, pages) {
+    if (
+      project &&
+      (
+        project.publishLocked ||
+        project.frozenAt ||
+        String(project.publishStatus || "").toLowerCase() === "publishing" ||
+        String(project.publishStatus || "").toLowerCase() === "failed_validation" ||
+        String(project.publishStatus || "").toLowerCase() === "submitted" ||
+        String(project.publishStatus || "").toLowerCase() === "package_assembled" ||
+        String(project.publishStatus || "").toLowerCase() === "publish_failed" ||
+        String(project.publishStatus || "").toLowerCase() === "build_failed" ||
+        String(project.publishStatus || "").toLowerCase() === "build_ready_for_publish"
+      )
+    ) {
+      return false;
+    }
     if (project && typeof project.queueActive === "boolean") {
       return project.queueActive;
     }
@@ -339,7 +429,7 @@
     row.setAttribute("data-id", page.id);
     row.setAttribute("data-type", page.type);
     row.setAttribute("aria-selected", state.selectedId === page.id ? "true" : "false");
-    if (page.type === "page") {
+    if (page.type === "page" && !isProjectFrozen()) {
       row.draggable = true;
     }
 
@@ -405,7 +495,7 @@
     right.className = "tree-row-right";
     right.insertAdjacentHTML("beforeend", renderStatusIcon(page));
 
-    if (page.type !== "homepage") {
+    if (page.type !== "homepage" && !isProjectFrozen()) {
       var moreBtn = document.createElement("button");
       moreBtn.type = "button";
       moreBtn.className = "tree-more-btn";
@@ -430,7 +520,7 @@
 
     if (page.type === "page") {
       row.addEventListener("dragstart", function (event) {
-        if (state.renamingId || state.savingTree) {
+        if (state.renamingId || state.savingTree || isProjectFrozen()) {
           event.preventDefault();
           return;
         }
@@ -513,7 +603,7 @@
     if (refs.purchasedPages) refs.purchasedPages.textContent = String(usage.purchased);
     if (refs.usedPages) refs.usedPages.textContent = String(usage.used);
     if (refs.remainingPages) refs.remainingPages.textContent = String(usage.remaining);
-    if (refs.addPageBtn) refs.addPageBtn.disabled = usage.remaining <= 0;
+    if (refs.addPageBtn) refs.addPageBtn.disabled = usage.remaining <= 0 || isProjectFrozen();
   }
 
   function statusPillLabel(status) {
@@ -565,6 +655,21 @@
       (canLoadPreview
         ? '<div class="viewer-form-actions"><button id="viewer-load-preview-btn" class="viewer-scan-btn" type="button">Load page</button></div>'
         : "") +
+      "</div>"
+    );
+  }
+
+  function renderFrozenPendingPageState(page) {
+    var urlText = page && page.url
+      ? escapeHtml(page.url)
+      : escapeHtml((state.project && state.project.wordpressUrl) || "No URL saved for this page yet.");
+    return (
+      '<div class="viewer-placeholder is-locked">' +
+      '<div>' +
+      "<p style=\"margin:0 0 8px;\"><strong>This snapshot is locked for the AI build handoff.</strong></p>" +
+      "<p style=\"margin:0 0 12px;\">No more page loading or structural edits can be made in this version. The worker will use the saved hierarchy and the visual references already captured.</p>" +
+      "<p style=\"margin:0;\"><strong>Current page URL:</strong> " + urlText + "</p>" +
+      "</div>" +
       "</div>"
     );
   }
@@ -649,6 +754,9 @@
   }
 
   function renderPreviewForPage(page) {
+    if (isProjectFrozen() && !page.screenshotUrl && page.type !== "section") {
+      return renderFrozenPendingPageState(page);
+    }
     if (shouldShowManualScan(page)) {
       return renderManualScanState(page);
     }
@@ -686,11 +794,13 @@
 
   function bindViewerInteractions(selected) {
     if (!selected || !refs.viewerContent) return;
+    var frozen = isProjectFrozen();
     var urlInput = refs.viewerContent.querySelector("#manual-page-url-input");
     var scanButton = refs.viewerContent.querySelector("#manual-page-scan-btn");
     var retryButton = refs.viewerContent.querySelector("#viewer-retry-scan-btn");
     var loadPreviewButton = refs.viewerContent.querySelector("#viewer-load-preview-btn");
     if (urlInput) {
+      urlInput.disabled = frozen;
       urlInput.addEventListener("input", function (event) {
         state.manualScanDrafts[selected.id] = event.target.value;
       });
@@ -702,19 +812,19 @@
       });
     }
     if (scanButton) {
-      scanButton.disabled = selected.status === "processing";
+      scanButton.disabled = frozen || selected.status === "processing";
       scanButton.addEventListener("click", function () {
         handleManualPageScan(selected.id);
       });
     }
     if (retryButton) {
-      retryButton.disabled = selected.status === "processing";
+      retryButton.disabled = frozen || selected.status === "processing";
       retryButton.addEventListener("click", function () {
         handleManualPageScan(selected.id);
       });
     }
     if (loadPreviewButton) {
-      loadPreviewButton.disabled = selected.status === "processing";
+      loadPreviewButton.disabled = frozen || selected.status === "processing";
       loadPreviewButton.addEventListener("click", function () {
         handleManualPageScan(selected.id);
       });
@@ -833,6 +943,14 @@
   }
 
   async function persistTreeOrder(previousPages) {
+    if (isProjectFrozen()) {
+      if (previousPages) {
+        restorePages(previousPages);
+        renderAll();
+      }
+      showTreeStatus(getProjectLockMessage(), true);
+      return false;
+    }
     var pages = buildTreeOrderPayload();
     if (!pages.length || state.savingTree) return true;
 
@@ -867,6 +985,14 @@
   async function persistRename(pageId, nextTitle, previousTitle) {
     var page = getById(pageId);
     if (!page || state.renameSavingId === pageId) return;
+    if (isProjectFrozen()) {
+      state.renamingId = "";
+      state.renameDraft = "";
+      state.renameOriginal = "";
+      showTreeStatus(getProjectLockMessage(), true);
+      renderAll();
+      return;
+    }
 
     var normalizedTitle = normalizeEditableTitle(nextTitle);
     var nextUrl = buildRenamedPageUrl(page, normalizedTitle);
@@ -940,6 +1066,10 @@
   function startRename(pageId) {
     var page = getById(pageId);
     if (!page || page.type === "homepage") return;
+    if (isProjectFrozen()) {
+      showTreeStatus(getProjectLockMessage(), true);
+      return;
+    }
     state.renamingId = pageId;
     state.renameDraft = page.title || "";
     state.renameOriginal = page.title || "";
@@ -1074,6 +1204,125 @@
     });
   }
 
+  function showPublishModalStatus(message, isError) {
+    if (!refs.publishModalStatus) return;
+    refs.publishModalStatus.hidden = !message;
+    refs.publishModalStatus.classList.toggle("is-error", Boolean(isError));
+    refs.publishModalStatus.textContent = message || "";
+  }
+
+  function buildPublishWorkerHtml() {
+    return (
+      '<div class="publish-worker">' +
+      '<div class="publish-worker-visual" aria-hidden="true">' +
+      '<span class="publish-worker-ring"></span>' +
+      '<span class="publish-worker-core"></span>' +
+      '<span class="publish-worker-dot dot-a"></span>' +
+      '<span class="publish-worker-dot dot-b"></span>' +
+      '<span class="publish-worker-dot dot-c"></span>' +
+      "</div>" +
+      '<p class="publish-worker-label">The AI handoff package is being assembled in the background.</p>' +
+      "</div>"
+    );
+  }
+
+  function renderPublishModal() {
+    if (!refs.publishModalBody || !refs.publishModalTitle || !refs.publishModalSubmit || !refs.publishModalCancel) {
+      return;
+    }
+
+    var packageResult = state.publishResult || null;
+    var publishStatus = getPublishStatus();
+    var isRetry = publishStatus === "publish_failed" || publishStatus === "failed_validation";
+
+    refs.publishModalCancel.hidden = false;
+    refs.publishModalSubmit.hidden = false;
+    refs.publishModalClose.disabled = false;
+    refs.publishModalCancel.disabled = false;
+    refs.publishModalSubmit.disabled = false;
+
+    if (state.publishModalMode === "working") {
+      refs.publishModalTitle.textContent = "Preparing your AI package";
+      refs.publishModalBody.innerHTML =
+        '<p class="access-modal-copy">Your approved website is being frozen and prepared for the AI worker.</p>' +
+        '<p class="access-modal-copy">We are capturing the final structure, screenshots, and package metadata now.</p>' +
+        buildPublishWorkerHtml();
+      refs.publishModalCancel.hidden = true;
+      refs.publishModalSubmit.hidden = true;
+      refs.publishModalClose.disabled = true;
+      return;
+    }
+
+    if (state.publishModalMode === "success") {
+      refs.publishModalTitle.textContent = "Project submitted";
+      refs.publishModalBody.innerHTML =
+        '<p class="access-modal-copy">Project submitted successfully. Your AI build is now in progress, and we will email you when your preview is ready.</p>' +
+        '<p class="access-modal-copy">This project is now locked so the assembled package stays stable.</p>' +
+        (packageResult
+          ? '<p class="access-modal-copy"><strong>' +
+            escapeHtml(String(packageResult.approvedPageCount || 0)) + " approved pages</strong> • <strong>" +
+            escapeHtml(String(packageResult.screenshotCount || 0)) + " screenshot references</strong></p>"
+          : "");
+      refs.publishModalCancel.hidden = true;
+      refs.publishModalSubmit.textContent = "Close";
+      return;
+    }
+
+    if (state.publishModalMode === "error") {
+      refs.publishModalTitle.textContent = publishStatus === "failed_validation"
+        ? "Package validation needs attention"
+        : "Submission needs attention";
+      refs.publishModalBody.innerHTML =
+        '<p class="access-modal-copy">The approved snapshot is locked, but the build handoff is not complete yet.</p>' +
+        '<p class="access-modal-copy">Retry when you are ready. We will reuse the same frozen project state.</p>';
+      refs.publishModalCancel.textContent = "Close";
+      refs.publishModalSubmit.textContent = "Retry Convert to AI";
+      return;
+    }
+
+    if (publishStatus === "package_assembled") {
+      refs.publishModalTitle.textContent = "Finish submission";
+      refs.publishModalBody.innerHTML =
+        '<p class="access-modal-copy">Your approved snapshot is already frozen. We will validate the package, upload it to storage, and queue the AI build job.</p>' +
+        '<p class="access-modal-copy">We will send you an email when your preview is ready for review.</p>';
+      refs.publishModalCancel.textContent = "Cancel";
+      refs.publishModalSubmit.textContent = "Submit project";
+      return;
+    }
+
+    refs.publishModalTitle.textContent = isRetry ? "Retry Convert to AI" : "Convert to AI";
+    refs.publishModalBody.innerHTML =
+      '<p class="access-modal-copy">Your approved website will be sent to an AI worker. We will send you an email when it is ready for review.</p>' +
+      '<p class="access-modal-copy">Click Convert to AI only when this project reflects the approved version you want us to build.</p>' +
+      '<p class="access-modal-copy">Once confirmed, this project snapshot will be locked while we prepare the delivery package.</p>';
+    refs.publishModalCancel.textContent = "Cancel";
+    refs.publishModalSubmit.textContent = isRetry ? "Retry Convert to AI" : "Convert to AI";
+  }
+
+  function openPublishModal() {
+    if (!refs.publishModal) return;
+    closeContextMenu();
+    closeAccountMenu();
+    state.publishModalMode =
+      (getPublishStatus() === "publish_failed" || getPublishStatus() === "failed_validation")
+        ? "error"
+        : "confirm";
+    state.publishResult = null;
+    showPublishModalStatus("", false);
+    refs.publishModal.hidden = false;
+    renderPublishModal();
+  }
+
+  function closePublishModal(forceClose) {
+    if (state.publishRequestInFlight && !forceClose) return;
+    if (refs.publishModal) refs.publishModal.hidden = true;
+    showPublishModalStatus("", false);
+    state.publishModalMode = "confirm";
+    if (!forceClose) {
+      state.publishResult = null;
+    }
+  }
+
   function renderAccount() {
     if (!refs.accountEmail) return;
     refs.accountEmail.textContent = String(
@@ -1083,6 +1332,86 @@
     if (refs.accountMenuToggle) {
       refs.accountMenuToggle.title = refs.accountEmail.textContent;
     }
+  }
+
+  function formatDateTime(value) {
+    if (!value) return "";
+    var date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    try {
+      return new Intl.DateTimeFormat(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit"
+      }).format(date);
+    } catch (_error) {
+      return date.toLocaleString();
+    }
+  }
+
+  function renderPublishControls() {
+    if (refs.convertAiBtn) {
+      refs.convertAiBtn.classList.remove("is-loading", "is-submitted");
+      refs.convertAiBtn.disabled = false;
+      refs.convertAiBtn.textContent = "Convert to AI";
+
+      if (!state.project) {
+        refs.convertAiBtn.disabled = true;
+      } else if (state.publishRequestInFlight || getPublishStatus() === "publishing") {
+        refs.convertAiBtn.disabled = true;
+        refs.convertAiBtn.classList.add("is-loading");
+        refs.convertAiBtn.textContent = "Preparing package...";
+      } else if (getPublishStatus() === "submitted") {
+        refs.convertAiBtn.disabled = true;
+        refs.convertAiBtn.classList.add("is-submitted");
+        refs.convertAiBtn.textContent = "Submitted";
+      } else if (
+        getPublishStatus() === "build_failed" ||
+        getPublishStatus() === "build_ready_for_publish"
+      ) {
+        refs.convertAiBtn.disabled = true;
+        refs.convertAiBtn.classList.add("is-submitted");
+        refs.convertAiBtn.textContent = "Submitted";
+      } else if (
+        getPublishStatus() === "package_assembled" ||
+        getPublishStatus() === "publish_failed" ||
+        getPublishStatus() === "failed_validation"
+      ) {
+        refs.convertAiBtn.textContent = "Retry Convert to AI";
+      }
+    }
+
+    if (!refs.publishStatusNote) return;
+
+    var message = "";
+    if (getPublishStatus() === "publishing") {
+      message = "Your approved snapshot is locked while we prepare the AI delivery package.";
+    } else if (getPublishStatus() === "submitted") {
+      message = "Project submitted successfully" +
+        (state.project && state.project.submittedAt
+          ? " on " + formatDateTime(state.project.submittedAt)
+          : "") +
+        ". Your AI build is now in progress, and we will email you when the preview is ready.";
+    } else if (getPublishStatus() === "failed_validation") {
+      message = "Package validation failed for this frozen snapshot. Review the error and retry Convert to AI.";
+    } else if (getPublishStatus() === "package_assembled") {
+      message = "Package assembled" +
+        (state.project && state.project.packageAssembledAt
+          ? " on " + formatDateTime(state.project.packageAssembledAt)
+          : "") +
+        ". Finish submission to upload the package and queue the build job.";
+    } else if (getPublishStatus() === "publish_failed") {
+      message = "The approved snapshot is locked. Retry Convert to AI to finish submission.";
+    } else if (getPublishStatus() === "build_failed") {
+      message = "The background build failed after submission. The approved snapshot is still preserved while we review the worker failure.";
+    } else if (getPublishStatus() === "build_ready_for_publish") {
+      message = "The generated build is ready for the next publish step. This project remains locked while we prepare deployment.";
+    }
+
+    refs.publishStatusNote.hidden = !message;
+    refs.publishStatusNote.textContent = message;
   }
 
   function scheduleReadyIndicatorClear(pageId, duration) {
@@ -1162,6 +1491,10 @@
   }
 
   async function applyTreeMove(pageId, targetId, mode) {
+    if (isProjectFrozen()) {
+      showTreeStatus(getProjectLockMessage(), true);
+      return;
+    }
     if (state.savingTree) return;
     var previousPages = snapshotPages();
     if (!movePageToTarget(pageId, targetId, mode)) {
@@ -1296,6 +1629,7 @@
   }
 
   async function processProjectQueueStep() {
+    if (state.publishRequestInFlight || isProjectFrozen()) return;
     if (state.processingPageRequest) return;
     if (!hasQueueActivity(state.project, state.pages)) return;
 
@@ -1318,6 +1652,10 @@
   }
 
   function startProjectPollingIfNeeded() {
+    if (state.publishRequestInFlight || isProjectFrozen()) {
+      stopProjectPolling();
+      return;
+    }
     if (hasQueueActivity(state.project, state.pages)) {
       processProjectQueueStep();
       scheduleProjectPolling(3000);
@@ -1329,6 +1667,7 @@
   async function refreshProjectAreaDataPreservingUi() {
     if (state.pollInFlight) return;
     if (!state.projectId || !state.token) return;
+    if (state.publishRequestInFlight) return;
     if (state.draggingId || state.renamingId || state.renameSavingId || state.savingTree) {
       if (hasQueueActivity(state.project, state.pages)) {
         scheduleProjectPolling(3000);
@@ -1365,6 +1704,11 @@
   async function handleManualPageScan(pageId) {
     var page = getById(pageId);
     if (!page || !isRealPageType(page.type) || state.processingPageRequest) return;
+    if (isProjectFrozen()) {
+      setManualScanStatus(pageId, getProjectLockMessage(), true);
+      renderViewer();
+      return;
+    }
 
     var nextUrl = String(getManualScanDraft(page) || page.url || "").trim();
     if (!/^https?:\/\/.+/i.test(nextUrl)) {
@@ -1404,6 +1748,10 @@
   }
 
   async function addPage() {
+    if (isProjectFrozen()) {
+      showTreeStatus(getProjectLockMessage(), true);
+      return;
+    }
     var usage = getUsage();
     if (usage.remaining <= 0) {
       showTreeStatus("No remaining purchased pages. Delete a page to free one slot.", true);
@@ -1475,6 +1823,10 @@
   async function deleteNode(targetId) {
     var target = getById(targetId);
     if (!target || target.type === "homepage") return;
+    if (isProjectFrozen()) {
+      showTreeStatus(getProjectLockMessage(), true);
+      return;
+    }
 
     if (target.persisted === false) {
       deleteNodeLocal(targetId);
@@ -1523,6 +1875,10 @@
   }
 
   async function convertPageToSection(targetId) {
+    if (isProjectFrozen()) {
+      showTreeStatus(getProjectLockMessage(), true);
+      return;
+    }
     if (state.savingTree) return;
     var page = getById(targetId);
     if (!page || page.type !== "page") return;
@@ -1548,6 +1904,7 @@
 
   function openContextMenu(pageId, anchor) {
     if (!refs.contextMenu) return;
+    if (isProjectFrozen()) return;
     var target = getById(pageId);
     if (!target) return;
 
@@ -1657,6 +2014,7 @@
   function renderAll() {
     renderProgress();
     renderAccount();
+    renderPublishControls();
     renderTree();
     renderViewer();
   }
@@ -1669,6 +2027,7 @@
     closeAccountMenu();
     closeAccessModal();
     closeEmailUpdateModal();
+    closePublishModal(true);
     state.projectId = "";
     state.token = "";
     state.project = null;
@@ -1715,6 +2074,26 @@
     var payload = await response.json();
     if (!response.ok) {
       throw new Error((payload && payload.error) || "Could not request email update.");
+    }
+    return payload;
+  }
+
+  async function requestProjectPublish() {
+    var response = await fetch("/api/project-area-publish", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        project: state.projectId,
+        token: state.token
+      })
+    });
+    var payload = await response.json();
+    if (!response.ok) {
+      var error = new Error((payload && payload.error) || "Could not assemble the project package.");
+      if (response.status === 401) {
+        error.code = "expired_access";
+      }
+      throw error;
     }
     return payload;
   }
@@ -1801,7 +2180,65 @@
   }
 
   function handleConvertAiClick() {
+    if (!canSubmitProject()) return;
     console.log("CONVERT_TO_AI_CLICKED");
+    openPublishModal();
+  }
+
+  async function handlePublishModalSubmit() {
+    if (state.publishModalMode === "success") {
+      closePublishModal();
+      return;
+    }
+
+    if (state.publishRequestInFlight) return;
+
+    state.publishRequestInFlight = true;
+    state.publishModalMode = "working";
+    showPublishModalStatus("", false);
+    stopProjectPolling();
+    renderPublishControls();
+    renderPublishModal();
+
+    try {
+      var payload = await requestProjectPublish();
+      if (payload && payload.projectArea) {
+        applyIncomingProjectAreaData(payload.projectArea);
+      }
+      state.publishResult = payload && payload.package ? payload.package : null;
+      state.publishModalMode = "success";
+      stopProjectPolling();
+      renderPublishControls();
+      renderPublishModal();
+    } catch (error) {
+      state.publishModalMode = "error";
+      renderPublishControls();
+      renderPublishModal();
+      if (error && error.code === "expired_access") {
+        closePublishModal(true);
+        openAccessModal();
+        return;
+      }
+      try {
+        var latestProjectData = await loadProjectAreaData();
+        applyIncomingProjectAreaData(latestProjectData);
+      } catch (_refreshError) {
+        // keep the existing UI state if the follow-up refresh fails
+      }
+      showPublishModalStatus(
+        error && error.message ? error.message : "Could not assemble the project package.",
+        true
+      );
+    } finally {
+      state.publishRequestInFlight = false;
+      renderPublishControls();
+      if (!refs.publishModal.hidden) {
+        renderPublishModal();
+      }
+      if (!isProjectFrozen()) {
+        startProjectPollingIfNeeded();
+      }
+    }
   }
 
   function escapeHtml(value) {
@@ -1819,6 +2256,7 @@
     closeAccountMenu();
     closeAccessModal();
     closeEmailUpdateModal();
+    closePublishModal(true);
     showAccountStatus("", false);
     var access = parseAccessFromUrl();
     state.projectId = access.project;
@@ -1888,6 +2326,30 @@
     });
   }
 
+  if (refs.publishModalBackdrop) {
+    refs.publishModalBackdrop.addEventListener("click", function () {
+      closePublishModal();
+    });
+  }
+
+  if (refs.publishModalClose) {
+    refs.publishModalClose.addEventListener("click", function () {
+      closePublishModal();
+    });
+  }
+
+  if (refs.publishModalCancel) {
+    refs.publishModalCancel.addEventListener("click", function () {
+      closePublishModal();
+    });
+  }
+
+  if (refs.publishModalSubmit) {
+    refs.publishModalSubmit.addEventListener("click", function () {
+      handlePublishModalSubmit();
+    });
+  }
+
   if (refs.accessModalBackdrop) {
     refs.accessModalBackdrop.addEventListener("click", exitAccessModal);
   }
@@ -1949,7 +2411,7 @@
 
   if (refs.tree) {
     refs.tree.addEventListener("dragover", function (event) {
-      if (!state.draggingId) return;
+      if (!state.draggingId || isProjectFrozen()) return;
       var row = event.target && event.target.closest ? event.target.closest(".tree-row") : null;
       if (row) return;
       event.preventDefault();
@@ -1960,7 +2422,7 @@
     });
 
     refs.tree.addEventListener("drop", function (event) {
-      if (!state.draggingId) return;
+      if (!state.draggingId || isProjectFrozen()) return;
       var row = event.target && event.target.closest ? event.target.closest(".tree-row") : null;
       if (row) return;
       event.preventDefault();
@@ -1985,6 +2447,10 @@
   });
 
   document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && refs.publishModal && !refs.publishModal.hidden) {
+      closePublishModal();
+      return;
+    }
     if (event.key === "Escape" && refs.emailUpdateModal && !refs.emailUpdateModal.hidden) {
       closeEmailUpdateModal();
       return;

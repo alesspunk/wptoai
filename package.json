@@ -5,7 +5,8 @@
   "description": "WP to AI marketing site with Stripe Checkout integration",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "worker:build": "node src/scripts/runBuildWorker.js"
   },
   "dependencies": {
     "@sparticuz/chromium": "^143.0.4",
