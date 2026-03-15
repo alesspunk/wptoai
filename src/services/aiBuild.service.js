@@ -1,4 +1,5 @@
 const path = require("path");
+const OpenAI = require("openai");
 
 const WORKER_REQUIRED_PACKAGE_FILES = [
   "manifest.json",
@@ -15,6 +16,69 @@ const WORKER_REQUIRED_PACKAGE_FILES = [
   "golden-prompt.md",
   "implementation-rules.md"
 ];
+
+const AI_BUILD_MODEL = "gpt-4.1";
+const RESERVED_BUILD_ASSET_PATHS = new Set([
+  "assets/visual-reference-map.json"
+]);
+const AI_BUILD_RESPONSE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["pages", "css", "js", "assets"],
+  properties: {
+    pages: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["path", "html"],
+        properties: {
+          path: { type: "string" },
+          html: { type: "string" }
+        }
+      }
+    },
+    css: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["path", "content"],
+        properties: {
+          path: { type: "string" },
+          content: { type: "string" }
+        }
+      }
+    },
+    js: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["path", "content"],
+        properties: {
+          path: { type: "string" },
+          content: { type: "string" }
+        }
+      }
+    },
+    assets: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["path", "content", "contentType"],
+        properties: {
+          path: { type: "string" },
+          content: { type: "string" },
+          contentType: { type: "string" }
+        }
+      }
+    }
+  }
+};
+
+let openaiClient = null;
 
 function normalizeWhitespace(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
@@ -49,6 +113,11 @@ function createJsonFile(filePath, value) {
   return createTextFile(filePath, "application/json", JSON.stringify(value, null, 2));
 }
 
+function readTextFile(files, fileName) {
+  const file = files && files[fileName] ? files[fileName] : null;
+  return String(file && file.content ? file.content : "");
+}
+
 function parseJsonFile(files, fileName, errors) {
   const file = files && files[fileName] ? files[fileName] : null;
   if (!file || !String(file.content || "").trim()) {
@@ -70,6 +139,87 @@ function parseJsonFile(files, fileName, errors) {
     });
     return null;
   }
+}
+
+function getOpenAIClient() {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY missing");
+  }
+
+  if (!openaiClient) {
+    openaiClient = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
+  }
+
+  return openaiClient;
+}
+
+function stripJsonCodeFence(value) {
+  const text = String(value || "").trim();
+  if (!text.startsWith("```")) return text;
+  return text
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "")
+    .trim();
+}
+
+function normalizeBuildPath(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\\/g, "/")
+    .replace(/^build\/+/, "")
+    .replace(/^\.\/+/, "")
+    .replace(/^\/+/, "");
+}
+
+function assertSafeBuildPath(filePath, expectedPrefix) {
+  const normalizedPath = normalizeBuildPath(filePath);
+  if (!normalizedPath) {
+    throw new Error("AI build output contained an empty file path.");
+  }
+  if (normalizedPath.indexOf("..") >= 0) {
+    throw new Error(`AI build output path "${normalizedPath}" is not allowed.`);
+  }
+  if (expectedPrefix && !normalizedPath.startsWith(expectedPrefix)) {
+    throw new Error(`AI build output path "${normalizedPath}" must be inside ${expectedPrefix}.`);
+  }
+  return normalizedPath;
+}
+
+function getContentTypeForPath(filePath) {
+  const normalizedPath = normalizeBuildPath(filePath).toLowerCase();
+  if (normalizedPath.endsWith(".html")) return "text/html; charset=utf-8";
+  if (normalizedPath.endsWith(".css")) return "text/css; charset=utf-8";
+  if (normalizedPath.endsWith(".js")) return "application/javascript; charset=utf-8";
+  if (normalizedPath.endsWith(".json")) return "application/json";
+  if (normalizedPath.endsWith(".svg")) return "image/svg+xml";
+  if (normalizedPath.endsWith(".md")) return "text/markdown; charset=utf-8";
+  if (normalizedPath.endsWith(".txt")) return "text/plain; charset=utf-8";
+  return "text/plain; charset=utf-8";
+}
+
+function extractResponseText(response) {
+  if (response && typeof response.output_text === "string" && response.output_text.trim()) {
+    return response.output_text;
+  }
+
+  if (!response || !Array.isArray(response.output)) {
+    return "";
+  }
+
+  const chunks = [];
+  response.output.forEach((item) => {
+    if (!item || !Array.isArray(item.content)) return;
+    item.content.forEach((content) => {
+      if (!content) return;
+      if (typeof content.text === "string" && content.text.trim()) {
+        chunks.push(content.text);
+      }
+    });
+  });
+
+  return chunks.join("\n").trim();
 }
 
 function traverseTree(nodes, visitor) {
@@ -838,6 +988,10 @@ function validateWorkerPackageBundle(bundle) {
   const pageMap = parseJsonFile(files, "page-map.json", errors);
   const sitemapReadable = parseJsonFile(files, "sitemap-readable.json", errors);
   const brandContext = parseJsonFile(files, "brand-context.json", errors);
+  const sitemapXml = readTextFile(files, "sitemap.xml");
+  const readme = readTextFile(files, "README.md");
+  const goldenPrompt = readTextFile(files, "golden-prompt.md");
+  const implementationRules = readTextFile(files, "implementation-rules.md");
 
   const approvedPages = approvedPagesPayload && Array.isArray(approvedPagesPayload.pages)
     ? approvedPagesPayload.pages
@@ -869,8 +1023,7 @@ function validateWorkerPackageBundle(bundle) {
     });
   }
 
-  const sitemapXml = files["sitemap.xml"] ? String(files["sitemap.xml"].content || "").trim() : "";
-  if (!sitemapXml || sitemapXml.indexOf("<urlset") === -1) {
+  if (!String(sitemapXml || "").trim() || sitemapXml.indexOf("<urlset") === -1) {
     errors.push({
       code: "invalid_sitemap",
       file: "sitemap.xml",
@@ -951,28 +1104,17 @@ function validateWorkerPackageBundle(bundle) {
     approvedPages,
     pageMap: pageMap || { pageMappings: [] },
     sitemapReadable: sitemapReadable || { tree: [] },
-    brandContext
+    brandContext,
+    sitemapXml,
+    readme,
+    goldenPrompt,
+    implementationRules
   };
 }
 
-function createStaticSiteBuildFromPackage(validatedBundle, options) {
-  if (!validatedBundle || validatedBundle.validationStatus !== "valid") {
-    const error = new Error("The package bundle failed worker validation.");
-    error.validation = validatedBundle;
-    throw error;
-  }
-
-  const context = buildContextFromValidatedPackage(validatedBundle);
-  const theme = buildTheme(context.brandContext);
-  const files = {};
-  const warnings = (validatedBundle.warnings || []).slice();
-  const builtPages = [];
-
-  context.orderedPages.forEach((page) => {
+function buildAiOutputPlan(context) {
+  return context.orderedPages.map((page) => {
     const currentFilePath = context.outputPaths.get(page.id);
-    if (!currentFilePath) return;
-    const isHomepage = page.id === context.homePageId;
-
     const pageMap = context.pageMapById.get(page.id) || null;
     const sectionTitles = Array.isArray(pageMap && pageMap.sectionAncestorIds)
       ? pageMap.sectionAncestorIds
@@ -983,86 +1125,261 @@ function createStaticSiteBuildFromPackage(validatedBundle, options) {
     const asset = pageMap && pageMap.screenshotAssetPath
       ? context.assetsByLogicalPath.get(pageMap.screenshotAssetPath) || null
       : (context.assetsByPageId.get(page.id) || null);
+    const isHomepage = page.id === context.homePageId;
     const pageType = isHomepage
       ? "homepage"
       : (context.pageTypesById.get(page.id) || page.type || "other");
-    const pageSummary = inferPageSummary(
-      { ...page, pageType },
-      context.siteTitle,
-      sectionTitles
-    );
 
-    if (!asset) {
-      warnings.push({
-        code: "missing_visual_reference",
-        pageId: page.id,
-        message: `No screenshot asset was available for "${page.title}".`
-      });
+    return {
+      pageId: page.id,
+      title: page.title || "Untitled",
+      pageType,
+      path: currentFilePath,
+      isHomepage,
+      parentId: page.parentId || null,
+      orderIndex: Number(page.orderIndex || 0),
+      priority: String(page.priority || "normal"),
+      sectionTitles,
+      status: String(page.status || ""),
+      summary: inferPageSummary(
+        { ...page, pageType },
+        context.siteTitle,
+        sectionTitles
+      ),
+      screenshot: asset ? {
+        logicalPath: asset.logicalPath || "",
+        sourceUrl: asset.sourceUrl || "",
+        sourceRef: asset.sourceRef || null
+      } : null
+    };
+  }).filter((page) => page.path);
+}
+
+function buildPageLinkPlan(outputPlan) {
+  return outputPlan.map((page) => ({
+    pageId: page.pageId,
+    currentPath: page.path,
+    homeHref: toRelativeHref(page.path, "index.html"),
+    links: outputPlan.map((target) => ({
+      pageId: target.pageId,
+      title: target.title,
+      path: target.path,
+      href: toRelativeHref(page.path, target.path)
+    }))
+  }));
+}
+
+function buildAiPromptContext(validatedBundle, context, outputPlan) {
+  return {
+    sourceOfTruth: {
+      pages: "approved-pages.json",
+      hierarchy: "sitemap-readable.json and sitemap.xml",
+      pageScreenshotMapping: "page-map.json",
+      branding: "brand-context.json",
+      assets: "assets-manifest.json",
+      buildInstructions: "golden-prompt.md",
+      implementationRules: "implementation-rules.md"
+    },
+    manifest: validatedBundle.manifest,
+    buildConfig: validatedBundle.buildConfig,
+    projectSummary: validatedBundle.projectSummary,
+    approvedPages: validatedBundle.approvedPages,
+    sitemapReadable: validatedBundle.sitemapReadable,
+    sitemapXml: validatedBundle.sitemapXml,
+    pageMap: validatedBundle.pageMap,
+    brandContext: validatedBundle.brandContext || {},
+    assetsManifest: validatedBundle.assetsManifest,
+    readme: validatedBundle.readme,
+    goldenPrompt: validatedBundle.goldenPrompt,
+    implementationRules: validatedBundle.implementationRules,
+    siteContext: {
+      siteTitle: context.siteTitle,
+      siteDescription: context.siteDescription,
+      navigation: context.navigation,
+      orderedPageIds: outputPlan.map((page) => page.pageId)
+    },
+    outputPlan: {
+      pages: outputPlan,
+      cssFiles: ["css/site.css"],
+      jsDirectory: "js/",
+      assetsDirectory: "assets/",
+      pageLinks: buildPageLinkPlan(outputPlan)
+    }
+  };
+}
+
+function buildAiInstructions(validatedBundle, outputPlan) {
+  const expectedPaths = outputPlan.map((page) => page.path).join(", ");
+  return [
+    "You are generating a WPtoAI static preview build.",
+    "Return JSON only and make it match the provided schema exactly.",
+    "Use the package files as the sole source of truth for pages, hierarchy, navigation, branding, and assets.",
+    "Generate one complete HTML document for each page path in outputPlan.pages.",
+    "Use semantic HTML, accessible headings, and relative links based on outputPlan.pageLinks.",
+    "Create a shared stylesheet at css/site.css.",
+    "Only create JavaScript files when they are genuinely necessary, and keep them in js/.",
+    "Only create text-based assets such as SVG, JSON, or TXT in assets/. Do not emit binary image data.",
+    "Do not invent extra pages, routes, navigation items, sections, screenshots, or branding elements.",
+    "Do not add WordPress runtime dependencies, React, Next.js, or heavy libraries.",
+    "Respect the approved hierarchy, screenshot mappings, golden prompt, and implementation rules.",
+    `Expected page paths: ${expectedPaths || "index.html"}`,
+    "",
+    "golden-prompt.md:",
+    String(validatedBundle.goldenPrompt || "").trim() || "(empty)",
+    "",
+    "implementation-rules.md:",
+    String(validatedBundle.implementationRules || "").trim() || "(empty)"
+  ].join("\n");
+}
+
+function parseAiBuildOutput(response) {
+  const outputText = stripJsonCodeFence(extractResponseText(response));
+  if (!outputText) {
+    throw new Error("OpenAI returned an empty build response.");
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(outputText);
+  } catch (_error) {
+    throw new Error("OpenAI returned invalid JSON for the build output.");
+  }
+
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("OpenAI returned an invalid build payload.");
+  }
+
+  return {
+    pages: Array.isArray(parsed.pages) ? parsed.pages : [],
+    css: Array.isArray(parsed.css) ? parsed.css : [],
+    js: Array.isArray(parsed.js) ? parsed.js : [],
+    assets: Array.isArray(parsed.assets) ? parsed.assets : []
+  };
+}
+
+function buildFilesFromAiOutput(aiOutput, context, outputPlan, warnings) {
+  const files = {};
+  const builtPages = [];
+  const expectedPagePaths = new Set(outputPlan.map((page) => page.path));
+  const pageEntriesByPath = new Map();
+  const seenPaths = new Set();
+
+  (Array.isArray(aiOutput.pages) ? aiOutput.pages : []).forEach((entry) => {
+    const normalizedPath = assertSafeBuildPath(entry && entry.path);
+    if (seenPaths.has(`page:${normalizedPath}`)) {
+      throw new Error(`OpenAI returned duplicate HTML for "${normalizedPath}".`);
+    }
+    seenPaths.add(`page:${normalizedPath}`);
+    pageEntriesByPath.set(normalizedPath, entry);
+  });
+
+  const unexpectedPagePaths = Array.from(pageEntriesByPath.keys())
+    .filter((pagePath) => !expectedPagePaths.has(pagePath));
+  if (unexpectedPagePaths.length) {
+    throw new Error(`OpenAI returned unexpected page paths: ${unexpectedPagePaths.join(", ")}.`);
+  }
+
+  outputPlan.forEach((pagePlan) => {
+    const pageEntry = pageEntriesByPath.get(pagePlan.path);
+    const html = String(pageEntry && pageEntry.html ? pageEntry.html : "").trim();
+    if (!html) {
+      throw new Error(`OpenAI did not return HTML for "${pagePlan.path}".`);
+    }
+    if (!/<html[\s>]/i.test(html)) {
+      throw new Error(`OpenAI returned an incomplete HTML document for "${pagePlan.path}".`);
     }
 
-    const relatedPages = context.orderedPages
-      .filter((candidate) => (
-        candidate.id !== page.id &&
-        candidate.id !== context.homePageId &&
-        candidate.type !== "homepage"
-      ))
-      .filter((candidate) => {
-        const candidateMap = context.pageMapById.get(candidate.id) || null;
-        const candidateSections = Array.isArray(candidateMap && candidateMap.sectionAncestorIds)
-          ? candidateMap.sectionAncestorIds
-          : [];
-        if (sectionTitles.length) {
-          return candidateSections.some((sectionId) => sectionTitles.includes(
-            (context.approvedPagesById.get(sectionId) || {}).title
-          ));
-        }
-        return !candidate.parentId;
-      })
-      .slice(0, 4)
-      .map((candidate) => ({
-        title: candidate.title,
-        summary: inferPageSummary(
-          { ...candidate, pageType: context.pageTypesById.get(candidate.id) || candidate.type || "other" },
-          context.siteTitle,
-          []
-        ),
-        href: context.outputPaths.get(candidate.id)
-      }));
-
-    const documentTitle = isHomepage
-      ? `${context.siteTitle}`
-      : `${page.title} | ${context.siteTitle}`;
-    const metaDescription = isHomepage
-      ? context.siteDescription || pageSummary
-      : pageSummary;
-
-    const html = buildHtmlDocument({
-      context,
-      page,
-      asset,
-      navigation: context.navigation,
-      sectionTitles,
-      currentFilePath,
-      isHomepage,
-      siteTitle: context.siteTitle,
-      documentTitle,
-      metaDescription,
-      pageSummary,
-      relatedPages,
-      footerText: `${context.orderedPages.length} approved page${context.orderedPages.length === 1 ? "" : "s"} in this build.`
-    });
-
-    const buildPath = `build/${currentFilePath}`;
+    const buildPath = `build/${pagePlan.path}`;
     files[buildPath] = createTextFile(buildPath, "text/html; charset=utf-8", html);
     builtPages.push({
-      id: page.id,
-      title: page.title,
+      id: pagePlan.pageId,
+      title: pagePlan.title,
       outputPath: buildPath,
-      href: currentFilePath
+      href: pagePlan.path
     });
   });
 
-  const referenceMap = {
+  const cssEntries = Array.isArray(aiOutput.css) ? aiOutput.css : [];
+  let hasSiteCss = false;
+  cssEntries.forEach((entry) => {
+    const normalizedPath = assertSafeBuildPath(entry && entry.path, "css/");
+    if (seenPaths.has(`file:${normalizedPath}`)) {
+      throw new Error(`OpenAI returned duplicate file content for "${normalizedPath}".`);
+    }
+    seenPaths.add(`file:${normalizedPath}`);
+
+    const content = String(entry && entry.content ? entry.content : "");
+    if (!content.trim()) {
+      throw new Error(`OpenAI returned empty CSS for "${normalizedPath}".`);
+    }
+
+    if (normalizedPath === "css/site.css") {
+      hasSiteCss = true;
+    }
+
+    const buildPath = `build/${normalizedPath}`;
+    files[buildPath] = createTextFile(buildPath, "text/css; charset=utf-8", content);
+  });
+
+  if (!hasSiteCss) {
+    warnings.push({
+      code: "missing_generated_css",
+      message: "OpenAI did not return css/site.css, so the worker applied the fallback stylesheet."
+    });
+    files["build/css/site.css"] = createTextFile(
+      "build/css/site.css",
+      "text/css; charset=utf-8",
+      buildCss(buildTheme(context.brandContext))
+    );
+  }
+
+  (Array.isArray(aiOutput.js) ? aiOutput.js : []).forEach((entry) => {
+    const normalizedPath = assertSafeBuildPath(entry && entry.path, "js/");
+    if (seenPaths.has(`file:${normalizedPath}`)) {
+      throw new Error(`OpenAI returned duplicate file content for "${normalizedPath}".`);
+    }
+    seenPaths.add(`file:${normalizedPath}`);
+
+    const content = String(entry && entry.content ? entry.content : "");
+    if (!content.trim()) {
+      throw new Error(`OpenAI returned empty JavaScript for "${normalizedPath}".`);
+    }
+
+    const buildPath = `build/${normalizedPath}`;
+    files[buildPath] = createTextFile(buildPath, "application/javascript; charset=utf-8", content);
+  });
+
+  (Array.isArray(aiOutput.assets) ? aiOutput.assets : []).forEach((entry) => {
+    const normalizedPath = assertSafeBuildPath(entry && entry.path, "assets/");
+    if (RESERVED_BUILD_ASSET_PATHS.has(normalizedPath)) {
+      throw new Error(`OpenAI cannot overwrite the reserved asset path "${normalizedPath}".`);
+    }
+    if (seenPaths.has(`file:${normalizedPath}`)) {
+      throw new Error(`OpenAI returned duplicate file content for "${normalizedPath}".`);
+    }
+    seenPaths.add(`file:${normalizedPath}`);
+
+    const content = String(entry && entry.content ? entry.content : "");
+    if (!content.trim()) {
+      throw new Error(`OpenAI returned empty asset content for "${normalizedPath}".`);
+    }
+
+    const buildPath = `build/${normalizedPath}`;
+    files[buildPath] = createTextFile(
+      buildPath,
+      String(entry && entry.contentType ? entry.contentType : "") || getContentTypeForPath(normalizedPath),
+      content
+    );
+  });
+
+  return {
+    files,
+    builtPages
+  };
+}
+
+function buildVisualReferenceMap(context, builtPages) {
+  return {
     generatedAt: new Date().toISOString(),
     pages: builtPages.map((page) => {
       const pageMap = context.pageMapById.get(page.id) || null;
@@ -1079,6 +1396,59 @@ function createStaticSiteBuildFromPackage(validatedBundle, options) {
       };
     })
   };
+}
+
+async function requestAiBuildOutput(validatedBundle, context, outputPlan, options) {
+  const jobId = options && options.buildJob ? options.buildJob.id : "";
+  const projectId = options && options.project ? options.project.id : context.projectId;
+  const client = getOpenAIClient();
+  const promptContext = buildAiPromptContext(validatedBundle, context, outputPlan);
+
+  console.log("AI_BUILD_STARTED", jobId, projectId, outputPlan.length);
+  console.log("OPENAI_REQUEST_SENT", jobId, projectId, AI_BUILD_MODEL);
+
+  const response = await client.responses.create({
+    model: AI_BUILD_MODEL,
+    instructions: buildAiInstructions(validatedBundle, outputPlan),
+    input: JSON.stringify(promptContext, null, 2),
+    store: false,
+    text: {
+      format: {
+        type: "json_schema",
+        name: "wptoai_static_site_build",
+        strict: true,
+        schema: AI_BUILD_RESPONSE_SCHEMA
+      }
+    }
+  });
+
+  const parsed = parseAiBuildOutput(response);
+  console.log(
+    "OPENAI_RESPONSE_RECEIVED",
+    jobId,
+    projectId,
+    response && response.id ? response.id : "",
+    parsed.pages.length
+  );
+
+  return parsed;
+}
+
+async function createStaticSiteBuildFromPackage(validatedBundle, options) {
+  if (!validatedBundle || validatedBundle.validationStatus !== "valid") {
+    const error = new Error("The package bundle failed worker validation.");
+    error.validation = validatedBundle;
+    throw error;
+  }
+
+  const context = buildContextFromValidatedPackage(validatedBundle);
+  const outputPlan = buildAiOutputPlan(context);
+  const warnings = (validatedBundle.warnings || []).slice();
+  const aiOutput = await requestAiBuildOutput(validatedBundle, context, outputPlan, options);
+  const generated = buildFilesFromAiOutput(aiOutput, context, outputPlan, warnings);
+  const files = generated.files;
+  const builtPages = generated.builtPages;
+  const referenceMap = buildVisualReferenceMap(context, builtPages);
 
   const buildLog = {
     jobId: options && options.buildJob ? options.buildJob.id : "",
@@ -1094,7 +1464,6 @@ function createStaticSiteBuildFromPackage(validatedBundle, options) {
     outputUrl: ""
   };
 
-  files["build/css/site.css"] = createTextFile("build/css/site.css", "text/css; charset=utf-8", buildCss(theme));
   files["build/assets/visual-reference-map.json"] = createJsonFile("build/assets/visual-reference-map.json", referenceMap);
   files["build/README-build.md"] = createTextFile(
     "build/README-build.md",
@@ -1102,6 +1471,8 @@ function createStaticSiteBuildFromPackage(validatedBundle, options) {
     buildReadmeBuild(context, buildLog)
   );
   files["build/build-log.json"] = createJsonFile("build/build-log.json", buildLog);
+
+  console.log("AI_BUILD_FILES_WRITTEN", buildLog.jobId, context.projectId, builtPages.length, Object.keys(files).length);
 
   return {
     context,

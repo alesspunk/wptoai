@@ -116,7 +116,7 @@ async function processClaimedBuildJob(buildJob) {
     }
 
     const buildStartedAt = buildJob.buildStartedAt || new Date().toISOString();
-    const buildResult = createStaticSiteBuildFromPackage(validation, {
+    const buildResult = await createStaticSiteBuildFromPackage(validation, {
       project,
       buildJob,
       provider: buildJob.provider || "openai",
