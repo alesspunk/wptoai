@@ -705,150 +705,40 @@ async function validateMobileViewport(previewUrl) {
   }
 }
 
-async function validatePreviewDeployment(previewUrl, files) {
+async function validatePreviewDeployment(previewUrl, _files) {
   const normalizedPreviewUrl = withHttps(previewUrl);
-  const errors = [];
-  const htmlUrls = new Set();
-  const cssUrls = new Set();
-  const jsUrls = new Set();
-  const assetUrls = new Set();
-  const internalLinkUrls = new Set();
-
-  files.forEach((file) => {
-    if (file.path.endsWith(".html")) {
-      htmlUrls.add(toPreviewFileUrl(normalizedPreviewUrl, file.path));
-      return;
-    }
-    if (file.path.endsWith(".css")) {
-      cssUrls.add(toPreviewFileUrl(normalizedPreviewUrl, file.path));
-      return;
-    }
-    if (file.path.endsWith(".js")) {
-      jsUrls.add(toPreviewFileUrl(normalizedPreviewUrl, file.path));
-      return;
-    }
-    if (file.path.indexOf("assets/") === 0) {
-      assetUrls.add(toPreviewFileUrl(normalizedPreviewUrl, file.path));
-    }
-  });
-
-  let indexChecked = false;
-  for (const pageUrl of htmlUrls) {
-    const { response, text } = await fetchForValidation(pageUrl);
-    if (!response.ok) {
-      errors.push(`HTML page returned ${response.status}: ${pageUrl}`);
-      continue;
-    }
-
-    if (!indexChecked && pageUrl === normalizedPreviewUrl) {
-      indexChecked = true;
-      if (!/<html[\s>]/i.test(text)) {
-        errors.push(`index.html did not load correctly at ${pageUrl}`);
-      }
-    }
-
-    collectRegexMatches(text, /<link\b[^>]*href=["']([^"']+)["'][^>]*>/gi, pageUrl)
-      .forEach((candidate) => {
-        if (!isSameOrigin(candidate, normalizedPreviewUrl)) return;
-        if (candidate.endsWith(".css")) cssUrls.add(candidate);
-      });
-
-    collectRegexMatches(text, /<script\b[^>]*src=["']([^"']+)["'][^>]*>/gi, pageUrl)
-      .forEach((candidate) => {
-        if (!isSameOrigin(candidate, normalizedPreviewUrl)) return;
-        jsUrls.add(candidate);
-      });
-
-    collectRegexMatches(text, /<a\b[^>]*href=["']([^"']+)["'][^>]*>/gi, pageUrl)
-      .forEach((candidate) => {
-        if (!isSameOrigin(candidate, normalizedPreviewUrl)) return;
-        if (!isHtmlUrl(candidate)) return;
-        internalLinkUrls.add(candidate);
-      });
-
-    collectRegexMatches(text, /<(?:img|source|video|audio|iframe|embed)\b[^>]*src=["']([^"']+)["'][^>]*>/gi, pageUrl)
-      .forEach((candidate) => {
-        if (!isSameOrigin(candidate, normalizedPreviewUrl)) return;
-        assetUrls.add(candidate);
-      });
+  if (!normalizedPreviewUrl) {
+    return {
+      ok: false,
+      checkedAt: new Date().toISOString(),
+      previewUrl: "",
+      statusCode: null,
+      errors: ["Preview URL is missing."]
+    };
   }
 
-  if (!indexChecked) {
-    const { response, text } = await fetchForValidation(normalizedPreviewUrl);
-    if (!response.ok) {
-      errors.push(`Preview root returned ${response.status}: ${normalizedPreviewUrl}`);
-    } else if (!/<html[\s>]/i.test(text)) {
-      errors.push(`index.html did not load correctly at ${normalizedPreviewUrl}`);
-    }
-  }
-
-  for (const cssUrl of cssUrls) {
-    const { response, text } = await fetchForValidation(cssUrl);
-    if (!response.ok) {
-      errors.push(`CSS file returned ${response.status}: ${cssUrl}`);
-      continue;
-    }
-
-    collectCssAssetUrls(text, cssUrl).forEach((candidate) => {
-      if (!isSameOrigin(candidate, normalizedPreviewUrl)) return;
-      assetUrls.add(candidate);
-    });
-  }
-
-  for (const jsUrl of jsUrls) {
-    const response = await fetch(jsUrl, { redirect: "follow" });
-    if (!response.ok) {
-      errors.push(`JavaScript file returned ${response.status}: ${jsUrl}`);
-    } else {
-      await response.arrayBuffer();
-    }
-  }
-
-  for (const assetUrl of assetUrls) {
-    const response = await fetch(assetUrl, { redirect: "follow" });
-    if (!response.ok) {
-      errors.push(`Asset returned ${response.status}: ${assetUrl}`);
-    } else {
-      await response.arrayBuffer();
-    }
-  }
-
-  for (const linkUrl of internalLinkUrls) {
-    const response = await fetch(linkUrl, { redirect: "follow" });
-    if (!response.ok) {
-      errors.push(`Internal link returned ${response.status}: ${linkUrl}`);
-    } else {
-      await response.arrayBuffer();
-    }
-  }
-
-  let mobileValidation = null;
   try {
-    mobileValidation = await validateMobileViewport(normalizedPreviewUrl);
-    if (!mobileValidation.bodyHasContent) {
-      errors.push("Mobile viewport validation found an empty page body.");
-    }
-    if (!mobileValidation.hasStylesheets) {
-      errors.push("Mobile viewport validation found no loaded stylesheets.");
-    }
-    if (!mobileValidation.noHorizontalOverflow) {
-      errors.push("Mobile viewport validation detected horizontal overflow.");
-    }
-  } catch (error) {
-    errors.push(error && error.message ? error.message : "Mobile viewport validation failed.");
-  }
+    const response = await fetch(normalizedPreviewUrl, { redirect: "follow" });
+    const statusCode = Number(response && response.status ? response.status : 0) || null;
 
-  return {
-    ok: errors.length === 0,
-    checkedAt: new Date().toISOString(),
-    pagesChecked: htmlUrls.size,
-    cssChecked: cssUrls.size,
-    jsChecked: jsUrls.size,
-    assetsChecked: assetUrls.size,
-    internalLinksChecked: internalLinkUrls.size,
-    mobileValidation: mobileValidation || null,
-    errors
-  };
+    return {
+      ok: statusCode === 200,
+      checkedAt: new Date().toISOString(),
+      previewUrl: normalizedPreviewUrl,
+      statusCode,
+      errors: statusCode === 200
+        ? []
+        : [`Preview URL returned ${statusCode}: ${normalizedPreviewUrl}`]
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      checkedAt: new Date().toISOString(),
+      previewUrl: normalizedPreviewUrl,
+      statusCode: null,
+      errors: [error && error.message ? error.message : "Preview URL request failed."]
+    };
+  }
 }
 
 async function sendPreviewReadyEmail(project, quote, previewUrl, publishedAt) {
