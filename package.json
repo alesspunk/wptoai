@@ -6,7 +6,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "worker:build": "node src/scripts/runBuildWorker.js"
+    "worker:build": "node src/scripts/runBuildWorker.js",
+    "worker:preview-publish": "node src/scripts/runPreviewPublishWorker.js"
   },
   "dependencies": {
     "@sparticuz/chromium": "^143.0.4",

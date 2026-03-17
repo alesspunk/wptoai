@@ -1,4 +1,5 @@
 const buildWorkerService = require("../services/buildWorker.service");
+const previewPublishService = require("../services/previewPublish.service");
 
 function getWorkerTokenFromRequest(req) {
   const headerToken = String(req.headers["x-worker-token"] || "").trim();
@@ -58,6 +59,50 @@ async function runNextBuildJobController(req, res) {
   }
 }
 
+async function runNextPreviewPublishController(req, res) {
+  if (!isAuthorizedWorkerRequest(req)) {
+    return res.status(401).json({
+      error: "Unauthorized worker request."
+    });
+  }
+
+  try {
+    const result = await previewPublishService.runNextPreviewPublishJob();
+    if (!result.processed) {
+      return res.json({
+        ok: true,
+        processed: false
+      });
+    }
+
+    return res.json({
+      ok: true,
+      processed: true,
+      buildJob: result.buildJob ? {
+        id: result.buildJob.id,
+        projectId: result.buildJob.projectId,
+        status: result.buildJob.status
+      } : null,
+      buildOutput: result.buildOutput ? {
+        id: result.buildOutput.id,
+        status: result.buildOutput.status,
+        previewUrl: result.buildOutput.previewUrl || null,
+        deploymentId: result.buildOutput.deploymentId || null,
+        repositoryUrl: result.buildOutput.repositoryUrl || null,
+        repositoryName: result.buildOutput.repositoryName || null,
+        vercelProjectId: result.buildOutput.vercelProjectId || null,
+        publishedAt: result.buildOutput.publishedAt || null
+      } : null
+    });
+  } catch (error) {
+    const statusCode = Number(error && error.statusCode ? error.statusCode : 500);
+    return res.status(statusCode).json({
+      error: error && error.message ? error.message : "Preview publish worker execution failed."
+    });
+  }
+}
+
 module.exports = {
-  runNextBuildJobController
+  runNextBuildJobController,
+  runNextPreviewPublishController
 };

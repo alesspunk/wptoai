@@ -189,12 +189,27 @@ CREATE TABLE IF NOT EXISTS build_outputs (
   status TEXT NOT NULL DEFAULT 'building',
   output_key TEXT,
   output_url TEXT,
+  preview_url TEXT,
+  deployment_id TEXT,
+  repository_url TEXT,
+  repository_name TEXT,
+  vercel_project_id TEXT,
+  package_version TEXT,
+  published_at TIMESTAMPTZ,
   page_count_built INTEGER NOT NULL DEFAULT 0,
   files_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   build_log_json JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE build_outputs ADD COLUMN IF NOT EXISTS preview_url TEXT;
+ALTER TABLE build_outputs ADD COLUMN IF NOT EXISTS deployment_id TEXT;
+ALTER TABLE build_outputs ADD COLUMN IF NOT EXISTS repository_url TEXT;
+ALTER TABLE build_outputs ADD COLUMN IF NOT EXISTS repository_name TEXT;
+ALTER TABLE build_outputs ADD COLUMN IF NOT EXISTS vercel_project_id TEXT;
+ALTER TABLE build_outputs ADD COLUMN IF NOT EXISTS package_version TEXT;
+ALTER TABLE build_outputs ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_build_outputs_build_job_id ON build_outputs(build_job_id);
 CREATE INDEX IF NOT EXISTS idx_build_outputs_project_id ON build_outputs(project_id);

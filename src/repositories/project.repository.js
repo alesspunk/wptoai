@@ -260,6 +260,36 @@ async function updateProjectStatus(projectId, status) {
   return toProject(result.rows[0]);
 }
 
+async function updateProjectDeployment(projectId, patch) {
+  if (!projectId) return null;
+  await ensureSchema();
+  const params = [
+    String(projectId),
+    patch && patch.status ? String(patch.status) : null,
+    patch && Object.prototype.hasOwnProperty.call(patch, 'vercelDeploymentUrl')
+      ? (patch.vercelDeploymentUrl ? String(patch.vercelDeploymentUrl) : null)
+      : undefined
+  ];
+  logQuery('updateProjectDeployment', params);
+
+  const hasDeploymentUrlPatch = patch && Object.prototype.hasOwnProperty.call(patch, 'vercelDeploymentUrl');
+  const sql = hasDeploymentUrlPatch
+    ? `UPDATE projects
+        SET status = COALESCE($2, status),
+            vercel_deployment_url = $3,
+            updated_at = NOW()
+      WHERE id = $1
+      RETURNING *`
+    : `UPDATE projects
+        SET status = COALESCE($2, status),
+            updated_at = NOW()
+      WHERE id = $1
+      RETURNING *`;
+
+  const result = await query(sql, hasDeploymentUrlPatch ? params : params.slice(0, 2));
+  return toProject(result.rows[0]);
+}
+
 async function updateProjectPublishState(projectId, patch) {
   if (!projectId) return null;
   await ensureSchema();
@@ -401,6 +431,7 @@ module.exports = {
   touchProjectQueue,
   releaseProjectQueue,
   updateProjectStatus,
+  updateProjectDeployment,
   updateProjectPublishState,
   markProjectPublishing,
   markProjectPackageAssembled,
