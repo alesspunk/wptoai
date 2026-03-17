@@ -4748,19 +4748,22 @@
             <div class="quick-summary-stack" aria-live="polite">
               <section id="quick-site-card" class="quick-summary quick-summary-card" aria-label="Site quote">
                 <p class="quick-summary-card-title">
-                  <span class="quick-card-title-text"><span class="quick-card-step" aria-hidden="true">1</span>SITE CONVERSION<span class="quick-card-icon" aria-hidden="true">🚀</span></span>
+                  <span class="quick-card-title-text"><span class="quick-card-step" aria-hidden="true">1</span>AI Site Setup<span class="quick-card-icon" aria-hidden="true">🚀</span></span>
                   <button id="quick-site-toggle" class="quick-card-toggle" type="button" aria-expanded="true" aria-controls="quick-site-body">Hide</button>
                 </p>
                 <div class="quick-summary-row total quick-summary-row-estimate">
                   <span class="quick-summary-meta-stack">
-                    <span class="quick-summary-name">Estimated conversion price</span>
-                    <span class="quick-summary-rate"><span id="quick-site-rate">Starter site</span> / one-time payment</span>
+                    <span class="quick-summary-name">One-time setup</span>
+                    <span class="quick-summary-rate">
+                      We convert your site and make it AI-editable
+                      <span id="quick-site-rate" class="quick-copy-hidden" aria-hidden="true">Starter site</span>
+                    </span>
                   </span>
                   <span id="quick-site-total" class="quick-summary-total">$0</span>
                 </div>
                 <div id="quick-site-body" class="quick-card-body">
                   <div class="quick-summary-row quick-summary-row-site-qty">
-                    <span class="quick-summary-name">Credits needed</span>
+                    <span class="quick-summary-name">Site size (pages)</span>
                     <div class="quick-change-qty" role="group" aria-label="Credits needed">
                       <button id="quick-sidebar-pages-minus" class="quick-change-btn" type="button" aria-label="Decrease credits">−</button>
                       <input id="quick-sidebar-pages-input" class="quick-change-input" type="number" min="0" max="100" step="1" value="0" aria-label="Credits needed">
@@ -4792,7 +4795,7 @@
               <section class="quick-summary quick-summary-card quick-hide-subtotal-on-collapse" aria-label="Maintenance quote">
                 <p class="quick-summary-card-title">
                   <span class="quick-card-title-copy">
-                    <span class="quick-card-title-text"><span class="quick-card-step" aria-hidden="true">2</span>SITE MAINTENANCE<span class="quick-card-icon" aria-hidden="true">🛠️</span></span>
+                    <span class="quick-card-title-text"><span class="quick-card-step" aria-hidden="true">2</span>Keep your site evolving<span class="quick-card-icon" aria-hidden="true">🛠️</span></span>
                     <span id="quick-maintenance-plan-label" class="quick-maintenance-plan-label">Starter site</span>
                   </span>
                   <button id="quick-maintenance-toggle" class="quick-card-toggle" type="button" aria-expanded="false" aria-controls="quick-maintenance-body">Turn on</button>
@@ -4805,7 +4808,7 @@
                   <label class="quick-maintenance-option">
                     <input id="quick-maintenance-on" type="radio" name="quick-maintenance-mode" value="on">
                     <span class="quick-maintenance-option-copy">
-                      <span>Keep improving my site with AI</span>
+                      <span>Edit your site by chat anytime</span>
                       <span id="quick-maintenance-option-helper" class="quick-maintenance-option-helper">
                         <span>Includes credits: Edit text, images, and sections.</span>
                       </span>
@@ -4814,7 +4817,7 @@
                 </div>
                 <div id="quick-maintenance-body" class="quick-card-body" hidden>
                   <div class="quick-summary-row quick-summary-row-ai-worker">
-                    <span class="quick-summary-name">AI worker</span>
+                    <span class="quick-summary-name">Plan recommendation</span>
                     <span id="quick-engineers-count" class="quick-summary-count">0</span>
                     <span id="quick-ai-price" class="quick-summary-price">$0.00</span>
                   </div>
@@ -4837,9 +4840,9 @@
                         </span>
                       </span>
                       <span class="quick-maintenance-updates-copy">
-                        <span>Credits <span class="quick-summary-rate">/ month</span></span>
+                        <span>Site edits <span class="quick-summary-rate">/ month</span></span>
                         <span id="quick-maintenance-updates-note" class="quick-summary-rate quick-maintenance-updates-note">
-                          <span>Includes credits: Edit text, images, and sections.</span>
+                          <span>Includes: text & image updates, layout adjustments, and safe deploy.</span>
                         </span>
                       </span>
                     </span>
@@ -4854,13 +4857,6 @@
                   <span class="quick-summary-name">Monthly total</span>
                   <span class="quick-summary-rate"></span>
                   <span id="quick-maintenance-total" class="quick-summary-total">$0</span>
-                </div>
-              </section>
-              <section class="quick-summary quick-summary-card" aria-label="Total credits summary">
-                <div class="quick-summary-row total">
-                  <span class="quick-summary-name">Total credits selected</span>
-                  <span class="quick-summary-rate"></span>
-                  <span id="quick-total-credits-selected" class="quick-summary-total">0</span>
                 </div>
               </section>
               <section id="quick-addons-card" class="quick-summary quick-summary-card quick-addons quick-hide-subtotal-on-collapse" aria-label="Deliverables options" hidden>
@@ -4933,24 +4929,21 @@
             </div>
             <div class="quick-rail-head">
               <div class="quick-rail-email-block">
-                <label class="quick-rail-email-label" for="quick-checkout-email">Where should we send your AI site preview?</label>
+                <label class="quick-rail-email-label" for="quick-checkout-email">Where should we send your AI site?</label>
                 <input id="quick-checkout-email" class="quick-rail-email-input" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com" required>
                 <p class="quick-rail-email-helper quick-copy-hidden">We'll also send your migration summary.</p>
                 <p id="quick-checkout-email-error" class="quick-rail-email-error" hidden>Add a valid email to continue checkout.</p>
               </div>
               <p class="quick-rail-one-time-row">
-                <span class="quick-rail-one-time-label">One time payment total</span>
+                <span class="quick-rail-one-time-label">Today - One-time setup</span>
                 <span id="quick-one-time-total" class="quick-rail-one-time-value">$0</span>
               </p>
               <p class="quick-rail-monthly-row">
-                <span class="quick-rail-monthly-label">Monthly payment total</span>
+                <span class="quick-rail-monthly-label">Then a monthly payment of</span>
                 <span id="quick-addons-subtotal" class="quick-rail-monthly-value">$0</span>
               </p>
-              <p class="quick-rail-total-row">
-                <span class="quick-rail-total-label">Total</span>
-                <span id="quick-total" class="quick-summary-total">$0</span>
-              </p>
-              <a class="quick-rail-btn is-disabled" href="#get-started" aria-disabled="true">Continue to Checkout</a>
+              <span id="quick-total" class="quick-copy-hidden" aria-hidden="true">$0</span>
+              <a class="quick-rail-btn is-disabled" href="#get-started" aria-disabled="true">Start setup</a>
             </div>
           </aside>
         </div>
@@ -5010,8 +5003,8 @@
           <path class="site-migration-tour-arrow" d="M224 10L238 20L224 30"></path>
         </svg>
         <div class="site-migration-tour-copy">
-          <p class="site-migration-tour-title">Review your setup</p>
-          <p class="site-migration-tour-desc">Review options before checkout.</p>
+          <p class="site-migration-tour-title">Review before launch</p>
+          <p class="site-migration-tour-desc">Everything looks good? Confirm and launch your site</p>
         </div>
         <span class="site-migration-tour-dot" aria-hidden="true"></span>
       </div>
