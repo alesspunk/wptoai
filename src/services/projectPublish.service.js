@@ -466,11 +466,29 @@ function buildImplementationRules() {
   ].join("\n");
 }
 
+function extractStructuredDataFromQuote(quote) {
+  const detectedPagesData = Array.isArray(quote && quote.detectedPagesData)
+    ? quote.detectedPagesData
+    : [];
+
+  const homepageEntry = detectedPagesData.find((page) => String(page && page.type ? page.type : "").toLowerCase() === "homepage");
+  const structuredData = homepageEntry && homepageEntry.structuredData && typeof homepageEntry.structuredData === "object"
+    ? homepageEntry.structuredData
+    : null;
+
+  if (!structuredData || Array.isArray(structuredData) || !Object.keys(structuredData).length) {
+    return null;
+  }
+
+  return structuredData;
+}
+
 function buildSnapshot({ project, quote, pages }) {
   const generatedAt = new Date().toISOString();
   const { sourceUrl, sourceDomain } = buildProjectSource(project, quote);
   const siteTitle = getSiteTitle(project, quote, sourceDomain);
   const siteDescription = normalizeWhitespace(quote && quote.siteDescription);
+  const structuredData = extractStructuredDataFromQuote(quote);
   const sortedPages = sortPages(pages).map((page) => ({
     id: page.id,
     title: normalizeWhitespace(page.title || "Untitled"),
@@ -712,6 +730,11 @@ function buildSnapshot({ project, quote, pages }) {
     "implementation-rules.md": createTextFile("implementation-rules.md", "text/markdown", buildImplementationRules()),
     "build-log.json": createJsonFile("build-log.json", buildLog)
   };
+
+  if (structuredData) {
+    files["structured-data.json"] = createJsonFile("structured-data.json", structuredData);
+    console.log("PROJECT_PUBLISH_STRUCTURED_DATA_ADDED", project.id);
+  }
 
   return {
     generatedAt,

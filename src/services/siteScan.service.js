@@ -1024,6 +1024,10 @@ async function scanSite(inputUrl) {
 
     const discoveredPages = await discoverSitePages(browser, rootUrl, metadata);
     const detectedPages = Math.max(1, discoveredPages.length);
+    const persistedStructuredData = structuredData && typeof structuredData === "object"
+      ? structuredData
+      : {};
+    const hasStructuredData = Object.keys(persistedStructuredData).length > 0;
 
     const result = {
       siteUrl: normalizedUrl,
@@ -1036,11 +1040,15 @@ async function scanSite(inputUrl) {
         title: normalizeDetectedTitle(item.title, item.url, index === 0),
         type: index === 0 ? "homepage" : "page",
         orderIndex: index,
-        predictedSections: Array.isArray(item.predictedSections) ? item.predictedSections : []
+        predictedSections: Array.isArray(item.predictedSections) ? item.predictedSections : [],
+        ...(index === 0 && hasStructuredData ? { structuredData: persistedStructuredData } : {})
       })),
       scanStatus: "completed",
-      structuredData: structuredData && typeof structuredData === "object" ? structuredData : {}
+      structuredData: persistedStructuredData
     };
+    if (hasStructuredData) {
+      console.log("SITE_SCAN_STRUCTURED_DATA_PERSIST_READY");
+    }
     console.log("SITE_SCAN_DONE", JSON.stringify({
       siteUrl: result.siteUrl,
       detectedPages: result.detectedPages,
