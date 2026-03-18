@@ -1170,11 +1170,40 @@ function buildPageLinkPlan(outputPlan) {
 }
 
 function buildAiPromptContext(validatedBundle, context, outputPlan) {
+  const files = validatedBundle && validatedBundle.bundle && validatedBundle.bundle.files && typeof validatedBundle.bundle.files === "object"
+    ? validatedBundle.bundle.files
+    : {};
+  const structuredDataFile = files["structured-data.json"] || files["structuredData.json"] || null;
+  let structuredData = {};
+
+  if (structuredDataFile && String(structuredDataFile.content || "").trim()) {
+    try {
+      const parsed = JSON.parse(String(structuredDataFile.content || ""));
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        structuredData = parsed;
+      }
+    } catch (_error) {
+      structuredData = {};
+    }
+  }
+
   return {
+    sourcePriority: [
+      "approved-pages.json and the user-curated project/page tree",
+      "page-map.json and the user-approved screenshot-to-page mappings",
+      "implementation-rules.md",
+      "golden-prompt.md",
+      "structured-data.json when present",
+      "brand-context.json",
+      "assets-manifest.json",
+      "screenshots as visual reference only",
+      "residual automatic inference as a final fallback only"
+    ],
     sourceOfTruth: {
       pages: "approved-pages.json",
       hierarchy: "sitemap-readable.json and sitemap.xml",
       pageScreenshotMapping: "page-map.json",
+      structuredData: "structured-data.json when present",
       branding: "brand-context.json",
       assets: "assets-manifest.json",
       buildInstructions: "golden-prompt.md",
@@ -1187,6 +1216,7 @@ function buildAiPromptContext(validatedBundle, context, outputPlan) {
     sitemapReadable: validatedBundle.sitemapReadable,
     sitemapXml: validatedBundle.sitemapXml,
     pageMap: validatedBundle.pageMap,
+    structuredData,
     brandContext: validatedBundle.brandContext || {},
     assetsManifest: validatedBundle.assetsManifest,
     readme: validatedBundle.readme,
@@ -1212,23 +1242,46 @@ function buildAiInstructions(validatedBundle, outputPlan) {
   const expectedPaths = outputPlan.map((page) => page.path).join(", ");
   return [
     "You are a senior frontend engineer specialized in reconstructing production websites from visual and structural inputs.",
-    "Your task is to rebuild a website using page structure data, extracted content, screenshots (visual reference), and assets (images, logos if available).",
+    "Your task is to rebuild a website using the approved user-curated page tree, screenshot mappings, structured page signals when available, and real assets.",
     "IMPORTANT: You are NOT designing a new site. You are reconstructing an existing one with high fidelity.",
     "",
     "PRIMARY GOAL",
     "Recreate the layout, structure, and visual hierarchy of the original site as accurately as possible using static HTML + CSS.",
+    "",
+    "SOURCE-OF-TRUTH PRIORITY (NON-NEGOTIABLE)",
+    "Follow this order strictly: 1. approved-pages.json and the user-curated project/page tree, 2. page-map.json and user-assigned screenshot mappings, 3. implementation-rules.md, 4. golden-prompt.md, 5. structuredData when present, 6. brand-context.json, 7. assets-manifest.json, 8. screenshots as visual reference only, 9. residual automatic inference as a last fallback.",
+    "Automatic scan heuristics must never override the user-curated page tree, approved page ordering, page naming, parent/child hierarchy, or screenshot/page pairing chosen by the user.",
+    "",
+    "PER-PAGE BUILD ORDER",
+    "For each page: first determine page purpose and hierarchy from the approved user-curated tree, then determine the intended visual reference from the assigned screenshot mapping, then use structuredData.pageStructure, structuredData.sectionContent, structuredData.visualTokens, structuredData.assets, and structuredData.layoutHints when present, then use real assets and brand context, and only then use screenshots to refine layout, spacing, hierarchy, and visual composition.",
+    "Do not start from the screenshot. Start from the approved website page and reconstruct real sections.",
     "",
     "VISUAL FIDELITY RULES (CRITICAL)",
     "1. Match layout before aesthetics: respect section order exactly, preserve spacing relationships, and do not reorganize content.",
     "2. Recreate hierarchy exactly: headings must reflect original importance and content must not be promoted or demoted arbitrarily.",
     "3. Preserve spacing and alignment: maintain visual spacing proportions, alignment, column structure, and grouping.",
     "4. Sections must match the screenshot structure: hero, features, content blocks, CTA sections, footer. Do not omit sections.",
+    "5. Respect original density and alignment. Do not automatically modernize, center everything, or transform dense practical layouts into generic minimal landing pages.",
+    "",
+    "USER-CURATED TREE RULES",
+    "Treat the approved page tree as human-guided intent, not optional metadata. Respect the exact approved page list, page ordering, parent/child hierarchy, approved page names, and screenshot/page pairing.",
+    "Do not invent extra pages, collapse multiple curated pages into one generic page, omit important approved pages, or ignore the user's page-level visual references.",
+    "",
+    "STRUCTURED DATA RULES",
+    "If structuredData exists, prioritize it over generic screenshot guessing.",
+    "Priority inside structuredData: 1. pageStructure, 2. sectionContent, 3. visualTokens, 4. assets, 5. layoutHints.",
+    "Use pageStructure to build layout, sectionContent to place exact copy, visualTokens and layoutHints to guide styling and spacing, and structuredData.assets only when they represent real site assets.",
+    "If structuredData is incomplete or missing, use what exists, do not fail, and do not fall back to screenshot embedding or generic template output.",
     "",
     "CONTENT RULES",
     "Use the exact provided text when available. Do not rewrite content, do not generate new marketing copy, and preserve tone and structure.",
+    "Use EXACT text from structured sectionContent when available.",
+    "If copy is missing, generate the smallest neutral structural placeholder needed to preserve layout. Do not generate customer-facing copy that explains the rebuild process.",
     "",
     "IMAGES & ASSETS",
-    "Use provided assets when available. If something is missing, use a placeholder only to preserve layout. Do not invent random images, and keep image placement consistent with the screenshots.",
+    "Use real approved assets when available. Prefer approved real assets first, then structuredData.assets when present, then assets-manifest.json.",
+    "Use provided assets when available. If something is missing, use a placeholder only to preserve layout. Do not invent random images, and keep image placement consistent with the approved page references.",
+    "Use logo assets in the header, heroImages only when they are real site assets, and icons only when they are real useful assets.",
     "",
     "SCREENSHOT REFERENCES",
     "Screenshots are visual reference inputs only. Use them to understand layout, spacing, hierarchy, and styling.",
@@ -1241,18 +1294,22 @@ function buildAiInstructions(validatedBundle, outputPlan) {
     "Do not produce pages whose main visible content is a screenshot frame, image placeholder, reference card, or explanatory artifact.",
     "Reconstruct real page sections such as header/navigation, hero, content sections, grids, CTAs, and footer whenever they are visible in the screenshots or implied by the approved page structure.",
     "Prefer a simple but real section-by-section rebuild over any screenshot-based placeholder composition.",
+    "The final page must resemble a production website a customer could review, not an internal approval artifact or screenshot viewer.",
     "",
     "TYPOGRAPHY",
     "Use system fonts such as Arial, sans-serif. Approximate font sizes visually, preserve hierarchy contrast, and do not import external fonts.",
     "",
     "COLORS",
     "Approximate colors from the screenshots, prioritize contrast and readability, and keep color usage consistent across sections.",
+    "When visualTokens or layoutHints are available, use them to drive background colors, text colors, accent colors, font hierarchy, spacing rhythm, border radius, container width, and centered versus non-centered layout.",
     "",
     "CSS STRUCTURE",
     "Create a single shared stylesheet at css/site.css. Use clean readable class names, prefer simple flexbox/grid layouts, and avoid over-engineering.",
     "",
     "HTML STRUCTURE",
     "Use semantic HTML such as header, section, and footer. Keep each section clearly separated and maintain logical grouping of elements.",
+    "Convert section types into real website sections: headers into real navigation, heroes into real hero sections, grids into real multi-column sections, generic sections into real content blocks, and footers into real footer structures.",
+    "Build navigation from the approved user page tree first, then refine with sitemap-readable.json, sitemap.xml, page-map.json, and outputPlan.pageLinks.",
     "",
     "JAVASCRIPT",
     "Do not include JavaScript unless strictly necessary. No frameworks and no unnecessary interactivity.",
@@ -1262,6 +1319,7 @@ function buildAiInstructions(validatedBundle, outputPlan) {
     "",
     "STRICT PROHIBITIONS",
     "Do not redesign the site, improve UX, change layout, remove sections, add sections, use React or Next.js, or add animations and unnecessary effects.",
+    "Do not generate generic modern landing page shells, fake SaaS blocks, decorative filler sections, fake trust sections, exaggerated whitespace, or trendy placeholder compositions unrelated to the approved input.",
     "",
     "SUCCESS DEFINITION",
     "The output should visually resemble the original layout, preserve structure and content, remain clean and readable, and be deployable as static HTML.",
@@ -1279,7 +1337,7 @@ function buildAiInstructions(validatedBundle, outputPlan) {
     "Do not emit final HTML that behaves like a screenshot viewer, approval artifact, visual-reference card, or mock preview instead of a real reconstructed website.",
     "Do not invent extra pages, routes, navigation items, sections, screenshots, or branding elements.",
     "Do not add WordPress runtime dependencies, React, Next.js, or heavy libraries.",
-    "Respect the approved hierarchy, screenshot mappings, golden prompt, and implementation rules.",
+    "Respect the approved hierarchy, user-curated tree, screenshot mappings, structuredData when present, golden prompt, and implementation rules.",
     "Remember: you are not a designer. You are reconstructing a real website with discipline and precision.",
     `Expected page paths: ${expectedPaths || "index.html"}`,
     "",
