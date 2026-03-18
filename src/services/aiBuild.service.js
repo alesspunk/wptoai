@@ -141,6 +141,63 @@ function parseJsonFile(files, fileName, errors) {
   }
 }
 
+function getStructuredDataValidationError(code, details) {
+  return {
+    code,
+    file: "structured-data.json",
+    message: "Missing or unusable structured-data.json; build blocked to avoid low-fidelity output",
+    ...(details ? { details } : {})
+  };
+}
+
+function validateStructuredDataBuildContext(files, errors) {
+  const structuredDataFile = files && (files["structured-data.json"] || files["structuredData.json"] || null);
+  if (!structuredDataFile || !String(structuredDataFile.content || "").trim()) {
+    console.error("AI_BUILD_STRUCTURED_DATA_MISSING");
+    console.error("AI_BUILD_BLOCKED_LOW_CONTEXT");
+    errors.push(getStructuredDataValidationError("missing_structured_data"));
+    return null;
+  }
+
+  let structuredData = null;
+  try {
+    structuredData = JSON.parse(String(structuredDataFile.content || ""));
+  } catch (_error) {
+    console.error("AI_BUILD_STRUCTURED_DATA_INVALID", "invalid_json");
+    console.error("AI_BUILD_BLOCKED_LOW_CONTEXT");
+    errors.push(getStructuredDataValidationError("invalid_structured_data"));
+    return null;
+  }
+
+  if (!structuredData || typeof structuredData !== "object" || Array.isArray(structuredData)) {
+    console.error("AI_BUILD_STRUCTURED_DATA_INVALID", "invalid_shape");
+    console.error("AI_BUILD_BLOCKED_LOW_CONTEXT");
+    errors.push(getStructuredDataValidationError("invalid_structured_data_shape"));
+    return null;
+  }
+
+  if (!Object.keys(structuredData).length) {
+    console.error("AI_BUILD_STRUCTURED_DATA_INVALID", "empty_object");
+    console.error("AI_BUILD_BLOCKED_LOW_CONTEXT");
+    errors.push(getStructuredDataValidationError("empty_structured_data"));
+    return null;
+  }
+
+  const pageStructure = Array.isArray(structuredData.pageStructure) ? structuredData.pageStructure : [];
+  const sectionContent = structuredData.sectionContent && typeof structuredData.sectionContent === "object" && !Array.isArray(structuredData.sectionContent)
+    ? structuredData.sectionContent
+    : null;
+
+  if (!pageStructure.length || !sectionContent || !Object.keys(sectionContent).length) {
+    console.error("AI_BUILD_STRUCTURED_DATA_INVALID", "missing_required_sections");
+    console.error("AI_BUILD_BLOCKED_LOW_CONTEXT");
+    errors.push(getStructuredDataValidationError("unusable_structured_data"));
+    return null;
+  }
+
+  return structuredData;
+}
+
 function getOpenAIClient() {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY missing");
@@ -967,6 +1024,7 @@ function validateWorkerPackageBundle(bundle) {
   const errors = [];
   const warnings = [];
   const files = bundle && bundle.files && typeof bundle.files === "object" ? bundle.files : {};
+  validateStructuredDataBuildContext(files, errors);
 
   WORKER_REQUIRED_PACKAGE_FILES.forEach((fileName) => {
     const file = files[fileName];
@@ -1262,6 +1320,17 @@ function buildAiInstructions(validatedBundle, outputPlan) {
     "3. Preserve spacing and alignment: maintain visual spacing proportions, alignment, column structure, and grouping.",
     "4. Sections must match the screenshot structure: hero, features, content blocks, CTA sections, footer. Do not omit sections.",
     "5. Respect original density and alignment. Do not automatically modernize, center everything, or transform dense practical layouts into generic minimal landing pages.",
+    "",
+    "HOMEPAGE DENSITY AND COMMERCE PRESERVATION",
+    "The homepage is not a generic welcome page. Reconstruct it as the primary brand, navigation, and browsing surface of the site.",
+    "Do not reduce a dense homepage to a simple intro + cards + CTA composition unless the structured input clearly indicates that simplicity.",
+    "Do not collapse dense pages into simplified layouts. If the inputs indicate multiple top bands, strong navigation density, commerce modules, promotional modules, editorial blocks, or category browsing surfaces, preserve that density in the final HTML.",
+    "If the homepage appears commerce-oriented or retail-oriented, preserve the feel of a real storefront or merchandising homepage with richer navigation, stronger hero presence, category or product browsing modules, promotional sections, and content density when the inputs support them.",
+    "Do not replace a commerce homepage with a generic informational landing page, starter template, placeholder welcome screen, or generic SaaS-style composition.",
+    "If the inputs indicate separate top regions such as an announcement bar, a utility/account/search/cart region, and primary navigation, do not collapse them into one minimal header unless the structured data clearly indicates only one band.",
+    "If the hero is visually dominant in the inputs, preserve that dominance. Do not shrink a strong retail or editorial hero into a small generic text block.",
+    "If the inputs indicate category strips, product modules, promotional tiles, featured collections, or editorial grids, preserve them as distinct sections instead of compressing them into a few generic cards unless the structured data explicitly describes a minimal grid.",
+    "If the structured data genuinely describes a simple site, simple output is still allowed. Preserve real complexity only when the inputs support it.",
     "",
     "USER-CURATED TREE RULES",
     "Treat the approved page tree as human-guided intent, not optional metadata. Respect the exact approved page list, page ordering, parent/child hierarchy, approved page names, and screenshot/page pairing.",

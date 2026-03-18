@@ -270,7 +270,18 @@ async function extractStructuredData(page) {
         if (!node || !isElementVisible(node)) return false;
         const rect = getRect(node);
         const tagName = String(node.tagName || "").toLowerCase();
-        const minimumHeight = /^(header|nav)$/i.test(tagName) ? 72 : 120;
+        const textPreview = normalizeText(node.innerText || "", 160);
+        const isTopBand = rect.top <= viewport.height * 0.28;
+        const hasCompactTopBandContent = isTopBand &&
+          rect.height >= 36 &&
+          rect.height <= 110 &&
+          (
+            textPreview.length >= 4 ||
+            Boolean(node.querySelector("a[href], button, input, [role='button'], img, svg"))
+          );
+        const minimumHeight = /^(header|nav)$/i.test(tagName)
+          ? 72
+          : (hasCompactTopBandContent ? 36 : 120);
         if (rect.height < minimumHeight || rect.width < 180) return false;
         if (!hasRenderableContent(node)) return false;
         return true;
@@ -309,7 +320,16 @@ async function extractStructuredData(page) {
           output.push(node);
         }
 
-        return output.slice(0, MAX_SECTIONS);
+        return output
+          .sort((leftNode, rightNode) => {
+            const leftRect = getRect(leftNode);
+            const rightRect = getRect(rightNode);
+            if (Math.abs(leftRect.top - rightRect.top) > 16) {
+              return leftRect.top - rightRect.top;
+            }
+            return leftRect.left - rightRect.left;
+          })
+          .slice(0, MAX_SECTIONS);
       }
 
       function queryVisible(node, selector, limit, predicate) {
@@ -358,6 +378,35 @@ async function extractStructuredData(page) {
           if (text) return text;
         }
         return "";
+      }
+
+      function collectVisibleLabels(node, limit) {
+        const matches = queryVisible(
+          node,
+          "a[href], button, [role='button'], h3, h4, h5, li",
+          Math.max(6, limit * 2),
+          (match) => {
+            const text = normalizeText(
+              match.innerText || match.textContent || match.getAttribute("aria-label") || "",
+              80
+            );
+            return text.length >= 2 && text.length <= 60;
+          }
+        );
+        const labels = [];
+        const seen = new Set();
+        matches.forEach((match) => {
+          if (labels.length >= limit) return;
+          const text = normalizeText(
+            match.innerText || match.textContent || match.getAttribute("aria-label") || "",
+            80
+          );
+          const key = text.toLowerCase();
+          if (!text || seen.has(key)) return;
+          seen.add(key);
+          labels.push(text);
+        });
+        return labels;
       }
 
       function inferColumns(node) {
@@ -415,15 +464,62 @@ async function extractStructuredData(page) {
         return queryVisible(node, "a[href]", 12, (match) => normalizeText(match.innerText || "", 80)).length;
       }
 
-      function classifySection(node, index, total, sectionInfo) {
-        const tag = String(node.tagName || "").toLowerCase();
+      function buildSectionSignals(node, sectionInfo) {
         const clueText = normalizeText([
           node.id || "",
           typeof node.className === "string" ? node.className : "",
           node.getAttribute("role") || "",
           node.getAttribute("aria-label") || ""
-        ].join(" "), 200).toLowerCase();
-        const linkCount = countVisibleLinks(node);
+        ].join(" "), 260).toLowerCase();
+        const textSample = normalizeText(node.innerText || "", 600);
+        const labels = collectVisibleLabels(node, 6);
+        const textBlob = [clueText, textSample, labels.join(" ")].join(" ").toLowerCase();
+        const mediaNodes = queryVisible(node, "img, svg", 10, () => true);
+        let imageCount = 0;
+        let iconLikeCount = 0;
+        mediaNodes.forEach((mediaNode) => {
+          const rect = getRect(mediaNode);
+          if (rect.width >= 48 || rect.height >= 48) imageCount += 1;
+          if (rect.width <= 72 && rect.height <= 72) iconLikeCount += 1;
+        });
+
+        const hasSearch = Boolean(queryVisible(
+          node,
+          "input, form, [role='search']",
+          4,
+          (match) => {
+            const role = String(match.getAttribute("role") || "").toLowerCase();
+            const type = String(match.getAttribute("type") || "").toLowerCase();
+            const placeholder = normalizeText(match.getAttribute("placeholder") || "", 40).toLowerCase();
+            return role === "search" || type === "search" || placeholder.includes("search");
+          }
+        ).length);
+
+        return {
+          clueText,
+          textSample,
+          labels,
+          imageCount,
+          iconLikeCount,
+          hasSearch,
+          hasAnnouncementKeywords: /\b(free shipping|shipping|limited time|promo(?:tion)?|sale|save|off|returns|new arrivals?)\b/.test(textBlob),
+          hasUtilityKeywords: /\b(account|sign in|sign-in|login|log in|register|wishlist|store locator|help|support|search|cart|bag|checkout|my account)\b/.test(textBlob),
+          hasCategoryKeywords: /\b(shop|men|women|kids|collections?|category|categories|brands|sale|new arrivals?|gifts?)\b/.test(textBlob),
+          hasProductKeywords: /\b(add to cart|quick view|buy now|price|product|sku|\$\s?\d|£\s?\d|€\s?\d)\b/.test(textBlob),
+          hasEditorialKeywords: /\b(blog|journal|editorial|article|stories|story|read more)\b/.test(textBlob),
+          hasPromoKeywords: /\b(save|sale|off|limited time|free shipping|shop now|discover|learn more|new collection|spring|summer|fall|winter)\b/.test(textBlob),
+          hasBrandStoryKeywords: /\b(our story|about us|heritage|craft|mission|brand story|who we are)\b/.test(textBlob),
+          topRegion: sectionInfo.rect.top <= viewport.height * 0.32,
+          shortTopBand: sectionInfo.rect.top <= viewport.height * 0.32 && sectionInfo.rect.height <= 110,
+          hasHorizontalOverflow: Boolean(node && node.scrollWidth > node.clientWidth + 48)
+        };
+      }
+
+      function classifySection(node, index, total, sectionInfo, sectionSignals) {
+        const tag = String(node.tagName || "").toLowerCase();
+        const clueText = sectionSignals && sectionSignals.clueText ? sectionSignals.clueText : "";
+        const linkCount = Number(sectionInfo && sectionInfo.linkCount ? sectionInfo.linkCount : 0);
+        const isHeaderLike = tag === "header" || tag === "nav" || /\b(header|nav|menu)\b/.test(clueText);
 
         if (
           tag === "header" ||
@@ -431,6 +527,26 @@ async function extractStructuredData(page) {
           /\b(header|nav|menu)\b/.test(clueText) ||
           (index === 0 && linkCount >= 3 && sectionInfo.rect.top < viewport.height * 0.4)
         ) {
+          if (sectionSignals && sectionSignals.shortTopBand) {
+            if (
+              !sectionInfo.hasImage &&
+              !sectionSignals.hasSearch &&
+              !sectionSignals.hasUtilityKeywords &&
+              linkCount <= 2 &&
+              (sectionSignals.hasAnnouncementKeywords || (sectionSignals.textSample.length <= 140 && linkCount <= 1))
+            ) {
+              return "announcement-bar";
+            }
+
+            if (sectionSignals.hasSearch || sectionSignals.hasUtilityKeywords) {
+              return "utility-nav";
+            }
+
+            if (isHeaderLike || linkCount >= 4 || sectionSignals.hasCategoryKeywords) {
+              return "primary-nav";
+            }
+          }
+
           return "header";
         }
 
@@ -443,12 +559,103 @@ async function extractStructuredData(page) {
         }
 
         if (
+          sectionSignals &&
+          sectionSignals.topRegion &&
+          sectionSignals.shortTopBand &&
+          (sectionSignals.hasSearch || sectionSignals.hasUtilityKeywords)
+        ) {
+          return "utility-nav";
+        }
+
+        if (
+          sectionSignals &&
+          sectionSignals.topRegion &&
+          (isHeaderLike || linkCount >= 4)
+        ) {
+          return "primary-nav";
+        }
+
+        if (
+          index <= 2 &&
+          sectionInfo.heading &&
+          sectionInfo.rect.height >= 240 &&
+          sectionInfo.hasImage &&
+          sectionInfo.approxColumns >= 2
+        ) {
+          return "hero-split";
+        }
+
+        if (
           index <= 1 &&
           sectionInfo.heading &&
           sectionInfo.rect.height >= 220 &&
           (sectionInfo.hasCTA || sectionInfo.hasImage)
         ) {
           return "hero";
+        }
+
+        if (
+          sectionSignals &&
+          sectionInfo.repeatedBlocks >= 4 &&
+          sectionInfo.rect.height <= 260 &&
+          (sectionSignals.hasCategoryKeywords || linkCount >= 4) &&
+          (sectionInfo.approxColumns >= 3 || sectionSignals.labels.length >= 4)
+        ) {
+          return "category-strip";
+        }
+
+        if (
+          sectionSignals &&
+          sectionInfo.repeatedBlocks >= 3 &&
+          sectionSignals.imageCount >= 2 &&
+          sectionSignals.hasProductKeywords
+        ) {
+          return sectionSignals.hasHorizontalOverflow ? "product-carousel" : "product-grid";
+        }
+
+        if (
+          sectionSignals &&
+          sectionInfo.repeatedBlocks >= 2 &&
+          sectionInfo.approxColumns >= 2 &&
+          sectionSignals.hasEditorialKeywords
+        ) {
+          return "editorial-grid";
+        }
+
+        if (
+          sectionSignals &&
+          sectionInfo.repeatedBlocks >= 3 &&
+          sectionSignals.iconLikeCount >= 3 &&
+          sectionInfo.rect.height <= 320 &&
+          !sectionSignals.hasProductKeywords
+        ) {
+          return "feature-icons";
+        }
+
+        if (
+          sectionInfo.approxColumns >= 2 &&
+          sectionInfo.hasCTA &&
+          sectionInfo.repeatedBlocks >= 2 &&
+          sectionInfo.rect.height <= 420
+        ) {
+          return "multi-column-cta";
+        }
+
+        if (
+          sectionSignals &&
+          sectionSignals.hasPromoKeywords &&
+          (sectionInfo.hasCTA || sectionInfo.hasImage) &&
+          sectionInfo.textDensity !== "high"
+        ) {
+          return "promo-banner";
+        }
+
+        if (
+          sectionSignals &&
+          sectionSignals.hasBrandStoryKeywords &&
+          sectionInfo.textDensity !== "low"
+        ) {
+          return "brand-story";
         }
 
         if (sectionInfo.approxLayout === "grid" || (sectionInfo.approxColumns >= 2 && sectionInfo.repeatedBlocks >= 3)) {
@@ -458,10 +665,10 @@ async function extractStructuredData(page) {
         return "section";
       }
 
-      function collectSectionContent(node, sectionId) {
-        const heading = findFirstText(node, "h1, h2, h3", 6);
+      function collectSectionContent(node, sectionId, sectionType, sectionInfo, sectionSignals) {
+        const heading = sectionInfo && sectionInfo.heading ? sectionInfo.heading : findFirstText(node, "h1, h2, h3", 6);
         const subheading = findFirstText(node, "p, h4, h5, h6", 8);
-        const cta = findFirstCta(node);
+        const cta = sectionInfo && sectionInfo.ctaText ? sectionInfo.ctaText : findFirstCta(node);
         const paragraphMatches = queryVisible(node, "p", 8, (match) => normalizeText(match.innerText || "", 200));
         const paragraphTexts = paragraphMatches
           .map((match) => normalizeText(match.innerText || "", 200))
@@ -473,6 +680,14 @@ async function extractStructuredData(page) {
         if (subheading) content.subheading = subheading;
         if (cta) content.cta = cta;
         if (supportingText) content.supportingText = supportingText;
+        if (
+          sectionSignals &&
+          Array.isArray(sectionSignals.labels) &&
+          sectionSignals.labels.length >= 2 &&
+          /^(announcement-bar|utility-nav|primary-nav|category-strip|product-grid|product-carousel|feature-icons|editorial-grid)$/i.test(sectionType || "")
+        ) {
+          content.labels = sectionSignals.labels.slice(0, 6);
+        }
 
         return Object.keys(content).length ? { [sectionId]: content } : null;
       }
@@ -580,6 +795,8 @@ async function extractStructuredData(page) {
         const assets = {
           logo: null,
           heroImages: [],
+          categoryImages: [],
+          promoImages: [],
           icons: []
         };
 
@@ -614,20 +831,40 @@ async function extractStructuredData(page) {
 
         const heroSectionIds = new Set(
           pageStructure
-            .filter((item) => item && item.type === "hero" && resolvedSectionIds.has(item.id))
+            .filter((item) => item && /^(hero|hero-split)$/i.test(item.type || "") && resolvedSectionIds.has(item.id))
+            .map((item) => item.id)
+        );
+        const categorySectionIds = new Set(
+          pageStructure
+            .filter((item) => item && /^(category-strip|product-grid|product-carousel)$/i.test(item.type || "") && resolvedSectionIds.has(item.id))
+            .map((item) => item.id)
+        );
+        const promoSectionIds = new Set(
+          pageStructure
+            .filter((item) => item && /^(promo-banner|multi-column-cta)$/i.test(item.type || "") && resolvedSectionIds.has(item.id))
             .map((item) => item.id)
         );
 
         sectionNodes.forEach((node, index) => {
-          if (assets.heroImages.length >= 3) return;
+          if (assets.heroImages.length >= 3 && assets.categoryImages.length >= 3 && assets.promoImages.length >= 2) return;
           const sectionId = `section-${index + 1}`;
           const imagesInSection = queryVisible(node, "img", 6, () => true);
           imagesInSection.forEach((image) => {
-            if (assets.heroImages.length >= 3) return;
             const rect = getRect(image);
             const source = getImageSource(image);
             if (!source || source === assets.logo) return;
-            if (!heroSectionIds.has(sectionId) && rect.height < 300) return;
+            if (heroSectionIds.has(sectionId) && (rect.height >= 220 || rect.width >= viewport.width * 0.3)) {
+              pushUnique(assets.heroImages, source, 3);
+              return;
+            }
+            if (categorySectionIds.has(sectionId) && (rect.height >= 80 || rect.width >= 80)) {
+              pushUnique(assets.categoryImages, source, 3);
+              return;
+            }
+            if (promoSectionIds.has(sectionId) && (rect.height >= 140 || rect.width >= viewport.width * 0.28)) {
+              pushUnique(assets.promoImages, source, 2);
+              return;
+            }
             if (rect.height >= 300 || rect.width >= viewport.width * 0.35) {
               pushUnique(assets.heroImages, source, 3);
             }
@@ -644,9 +881,30 @@ async function extractStructuredData(page) {
           }
         });
 
-        const totalAssetRefs = [assets.logo].filter(Boolean).length + assets.heroImages.length + assets.icons.length;
+        let remainingAssetRefs = MAX_ASSET_REFS - [assets.logo].filter(Boolean).length;
+        ["heroImages", "categoryImages", "promoImages", "icons"].forEach((key) => {
+          if (remainingAssetRefs <= 0) {
+            assets[key] = [];
+            return;
+          }
+          if (assets[key].length > remainingAssetRefs) {
+            assets[key] = assets[key].slice(0, remainingAssetRefs);
+          }
+          remainingAssetRefs -= assets[key].length;
+        });
+
+        const totalAssetRefs = [assets.logo].filter(Boolean).length +
+          assets.heroImages.length +
+          assets.categoryImages.length +
+          assets.promoImages.length +
+          assets.icons.length;
         if (totalAssetRefs > MAX_ASSET_REFS) {
-          assets.icons = assets.icons.slice(0, Math.max(0, MAX_ASSET_REFS - [assets.logo].filter(Boolean).length - assets.heroImages.length));
+          assets.icons = assets.icons.slice(0, Math.max(0, MAX_ASSET_REFS - (
+            [assets.logo].filter(Boolean).length +
+            assets.heroImages.length +
+            assets.categoryImages.length +
+            assets.promoImages.length
+          )));
         }
 
         return assets;
@@ -701,14 +959,57 @@ async function extractStructuredData(page) {
         if (averageTextLength >= 2.4) contentDensity = "high";
         else if (averageTextLength <= 1.4) contentDensity = "low";
 
+        const topBandCount = pageStructure.filter((item) => item && /^(announcement-bar|utility-nav|primary-nav|header)$/i.test(item.type || "")).length;
+        const heroSection = pageStructure.find((item) => item && /^(hero|hero-split)$/i.test(item.type || ""));
+        const heroNode = heroSection ? sectionNodes[pageStructure.indexOf(heroSection)] : null;
+        const heroRect = heroNode ? getRect(heroNode) : null;
+        let heroDominance = "low";
+        if (heroRect && heroRect.height >= viewport.height * 0.55) heroDominance = "high";
+        else if (heroRect && heroRect.height >= viewport.height * 0.32) heroDominance = "medium";
+
+        let sectionDensity = "medium";
+        if (pageStructure.length >= 8 || contentDensity === "high") sectionDensity = "high";
+        else if (pageStructure.length <= 4 && contentDensity === "low") sectionDensity = "low";
+
+        let visualHierarchy = "simple";
+        if (topBandCount >= 2 || pageStructure.length >= 8) visualHierarchy = "dense";
+        else if (pageStructure.length >= 5 || new Set(pageStructure.map((item) => item.type)).size >= 4) visualHierarchy = "layered";
+
         const layoutHints = {
           hasCenteredLayout,
           sectionSpacing,
-          contentDensity
+          contentDensity,
+          heroDominance,
+          topBandCount,
+          sectionDensity,
+          visualHierarchy
         };
         if (maxWidth) layoutHints.maxWidth = maxWidth;
         if (headerStyle) layoutHints.headerStyle = headerStyle;
         return layoutHints;
+      }
+
+      function collectPageSignals(pageStructure, layoutHints) {
+        const typeSet = new Set(pageStructure.map((item) => item && item.type).filter(Boolean));
+        if (!typeSet.size) return {};
+
+        const pageSignals = {
+          hasAnnouncementBar: typeSet.has("announcement-bar"),
+          hasUtilityNav: typeSet.has("utility-nav"),
+          hasPrimaryNav: typeSet.has("primary-nav") || typeSet.has("header"),
+          hasCategoryStrip: typeSet.has("category-strip"),
+          hasProductModules: typeSet.has("product-grid") || typeSet.has("product-carousel"),
+          hasPromoBanners: typeSet.has("promo-banner") || typeSet.has("multi-column-cta"),
+          hasEditorialGrid: typeSet.has("editorial-grid")
+        };
+
+        pageSignals.isCommerceDense = (
+          (pageSignals.hasPrimaryNav && pageSignals.hasCategoryStrip && pageSignals.hasProductModules) ||
+          Object.values(pageSignals).filter(Boolean).length >= 4 ||
+          String(layoutHints && layoutHints.visualHierarchy ? layoutHints.visualHierarchy : "") === "dense"
+        );
+
+        return Object.values(pageSignals).some(Boolean) ? pageSignals : {};
       }
 
       const sectionNodes = collectSectionCandidates();
@@ -723,24 +1024,30 @@ async function extractStructuredData(page) {
         const approxColumns = inferColumns(node);
         const repeatedBlocks = inferRepeatedBlocks(node);
         const heading = findFirstText(node, "h1, h2, h3", 6);
-        const cta = findFirstCta(node);
-        const hasImage = Boolean(queryVisible(node, "img", 1, () => true).length);
+        const ctaText = findFirstCta(node);
+        const textDensity = inferTextDensity(node);
+        const linkCount = countVisibleLinks(node);
         const sectionInfo = {
           rect,
           heading,
-          hasCTA: Boolean(cta),
-          hasImage,
+          ctaText,
+          hasCTA: Boolean(ctaText),
           repeatedBlocks,
           approxColumns,
-          approxLayout: inferLayoutLabel(approxColumns, repeatedBlocks)
+          approxLayout: inferLayoutLabel(approxColumns, repeatedBlocks),
+          textDensity,
+          linkCount
         };
+        const sectionSignals = buildSectionSignals(node, sectionInfo);
+        const hasImage = sectionSignals.imageCount > 0;
+        sectionInfo.hasImage = hasImage;
         const entry = {
           id: `section-${index + 1}`,
-          type: classifySection(node, index, sectionNodes.length, sectionInfo),
+          type: classifySection(node, index, sectionNodes.length, sectionInfo, sectionSignals),
           order: index + 1,
           hasImage,
-          hasCTA: Boolean(cta),
-          textDensity: inferTextDensity(node),
+          hasCTA: Boolean(ctaText),
+          textDensity,
           approxLayout: sectionInfo.approxLayout,
           approxColumns,
           isFullWidth: rect.width >= viewport.width * 0.82,
@@ -748,7 +1055,7 @@ async function extractStructuredData(page) {
         };
         pageStructure.push(entry);
 
-        const contentEntry = collectSectionContent(node, entry.id);
+        const contentEntry = collectSectionContent(node, entry.id, entry.type, sectionInfo, sectionSignals);
         if (contentEntry) {
           Object.assign(sectionContent, contentEntry);
         }
@@ -762,12 +1069,15 @@ async function extractStructuredData(page) {
       if (Object.keys(visualTokens).length) structuredData.visualTokens = visualTokens;
 
       const assets = collectAssets(sectionNodes, pageStructure);
-      if (assets.logo || assets.heroImages.length || assets.icons.length) {
+      if (assets.logo || assets.heroImages.length || assets.categoryImages.length || assets.promoImages.length || assets.icons.length) {
         structuredData.assets = assets;
       }
 
       const layoutHints = collectLayoutHints(sectionNodes, pageStructure);
       if (Object.keys(layoutHints).length) structuredData.layoutHints = layoutHints;
+
+      const pageSignals = collectPageSignals(pageStructure, layoutHints);
+      if (Object.keys(pageSignals).length) structuredData.pageSignals = pageSignals;
 
       return structuredData;
     }, VIEWPORT);
