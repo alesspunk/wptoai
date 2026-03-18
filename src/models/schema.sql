@@ -39,6 +39,22 @@ CREATE INDEX IF NOT EXISTS idx_leads_email ON leads(email);
 CREATE INDEX IF NOT EXISTS idx_leads_quote_id ON leads(quote_id);
 CREATE INDEX IF NOT EXISTS idx_leads_lead_status ON leads(lead_status);
 
+CREATE TABLE IF NOT EXISTS precheckout_site_scans (
+  site_key TEXT PRIMARY KEY,
+  site_url TEXT NOT NULL,
+  scan_status TEXT NOT NULL DEFAULT 'pending' CHECK (scan_status IN ('pending', 'scanning', 'completed', 'failed')),
+  preview_image_url TEXT,
+  detected_pages INTEGER,
+  detected_pages_data JSONB NOT NULL DEFAULT '[]'::jsonb,
+  site_title TEXT,
+  site_description TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_precheckout_site_scans_site_url ON precheckout_site_scans(site_url);
+CREATE INDEX IF NOT EXISTS idx_precheckout_site_scans_updated_at ON precheckout_site_scans(updated_at);
+
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   email TEXT NOT NULL UNIQUE,

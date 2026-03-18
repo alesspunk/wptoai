@@ -29,7 +29,10 @@ async function siteScanController(req, res) {
 
       if (quoteId) {
         await quoteService.updateQuoteScanById(quoteId, patch);
+        console.log("SITE_SCAN_ATTACHED_TO_QUOTE", quoteId);
       } else {
+        await quoteService.storeDeferredPrecheckoutScan(result.siteUrl, patch);
+        console.log("SITE_SCAN_DEFERRED_BIND", result.siteUrl);
         await quoteService.updateLatestQuoteScanBySiteUrl(result.siteUrl, patch);
       }
     } catch (error) {
