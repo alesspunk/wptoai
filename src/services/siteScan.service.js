@@ -181,6 +181,66 @@ async function extractStructuredData(page) {
         return `${Math.round(value / step) * step}px`;
       }
 
+      function normalizeColor(value) {
+        const normalized = String(value || "").trim().toLowerCase();
+        if (isTransparentColor(normalized)) return "";
+        if (/^#([0-9a-f]{3}){1,2}$/i.test(normalized)) {
+          if (normalized.length === 4) {
+            return `#${normalized.slice(1).split("").map((part) => part + part).join("")}`;
+          }
+          return normalized;
+        }
+
+        const rgbaMatch = normalized.match(/^rgba?\(([^)]+)\)$/i);
+        if (!rgbaMatch) return normalized;
+
+        const parts = rgbaMatch[1].split(",").map((part) => part.trim());
+        if (parts.length < 3) return normalized;
+        const alpha = parts.length >= 4 ? parseFloat(parts[3]) : 1;
+        if (!Number.isFinite(alpha) || alpha <= 0) return "";
+
+        const rgb = parts.slice(0, 3).map((part) => {
+          const numeric = Math.max(0, Math.min(255, Math.round(parseFloat(part))));
+          return Number.isFinite(numeric) ? numeric : 0;
+        });
+
+        return `#${rgb.map((part) => part.toString(16).padStart(2, "0")).join("")}`;
+      }
+
+      function normalizeFontFamily(value) {
+        const families = String(value || "")
+          .split(",")
+          .map((part) => part.trim().replace(/^['"]|['"]$/g, ""))
+          .filter(Boolean);
+        if (!families.length) return "";
+        const preferred = families.find((part) => !/^(serif|sans-serif|monospace|system-ui|ui-sans-serif|ui-serif|ui-monospace|inherit|initial|unset)$/i.test(part));
+        return preferred || families[0] || "";
+      }
+
+      function classifyFontStyle(weightValue) {
+        const numericWeight = toNumber(weightValue);
+        return numericWeight >= 600 ? "bold" : "regular";
+      }
+
+      function classifyRadius(radiusValue) {
+        if (!Number.isFinite(radiusValue) || radiusValue <= 0) return "none";
+        if (radiusValue <= 6) return "small";
+        if (radiusValue <= 14) return "medium";
+        return "large";
+      }
+
+      function addColorWeight(target, color, weight) {
+        const normalized = normalizeColor(color);
+        if (!normalized) return;
+        target.set(normalized, (target.get(normalized) || 0) + (weight || 1));
+      }
+
+      function pickRankedColors(target) {
+        return Array.from(target.entries())
+          .sort((leftEntry, rightEntry) => rightEntry[1] - leftEntry[1])
+          .map((entry) => entry[0]);
+      }
+
       function isTransparentColor(value) {
         const normalized = String(value || "").trim().toLowerCase();
         return !normalized ||
@@ -1012,6 +1072,396 @@ async function extractStructuredData(page) {
         return Object.values(pageSignals).some(Boolean) ? pageSignals : {};
       }
 
+      function collectDesignSystem(sectionNodes, pageStructure, layoutHints, pageSignals, visualTokens) {
+        try {
+          if (!document.body || !sectionNodes.length || !pageStructure.length) return {};
+
+          const typeSet = new Set(pageStructure.map((item) => item && item.type).filter(Boolean));
+          const bodyStyle = getStyle(document.body);
+          const rootStyle = getStyle(document.documentElement);
+          const pageBackgroundColor = normalizeColor(
+            (bodyStyle && bodyStyle.backgroundColor) ||
+            (rootStyle && rootStyle.backgroundColor) ||
+            ""
+          );
+          const textColor = normalizeColor(
+            (bodyStyle && bodyStyle.color) ||
+            (visualTokens && visualTokens.colors && visualTokens.colors.text) ||
+            ""
+          );
+
+          const backgroundCandidates = new Map();
+          const surfaceCandidates = new Map();
+          const accentCandidates = new Map();
+          const textCandidates = new Map();
+          const mutedTextCandidates = new Map();
+          const borderCandidates = new Map();
+
+          addColorWeight(backgroundCandidates, visualTokens && visualTokens.colors && visualTokens.colors.background, 5);
+          addColorWeight(backgroundCandidates, pageBackgroundColor, 4);
+          addColorWeight(textCandidates, textColor, 5);
+          addColorWeight(accentCandidates, visualTokens && visualTokens.colors && visualTokens.colors.accent, 4);
+
+          sectionNodes.slice(0, 8).forEach((node, index) => {
+            const style = getStyle(node);
+            const rect = getRect(node);
+            if (!style || rect.width < 120 || rect.height < 60) return;
+            const backgroundColor = normalizeColor(style.backgroundColor);
+            if (backgroundColor) {
+              if (index === 0 || rect.width >= viewport.width * 0.82) {
+                addColorWeight(backgroundCandidates, backgroundColor, index === 0 ? 4 : 2);
+              } else {
+                addColorWeight(surfaceCandidates, backgroundColor, 2);
+              }
+            }
+            const borderWidth = Math.max(
+              toNumber(style.borderTopWidth),
+              toNumber(style.borderLeftWidth),
+              toNumber(style.borderWidth)
+            );
+            if (borderWidth > 0) {
+              addColorWeight(borderCandidates, style.borderColor, 2);
+            }
+          });
+
+          const headingNodes = queryVisible(document.body, "h1, h2, h3", 6, (match) => normalizeText(match.innerText || "", 120));
+          const bodyTextNodes = queryVisible(
+            document.body,
+            "p, li, small, label, span",
+            18,
+            (match) => normalizeText(match.innerText || "", 120)
+          );
+          const interactiveNodes = queryVisible(
+            document.body,
+            "a[href], button, [role='button'], input[type='button'], input[type='submit']",
+            16,
+            (match) => {
+              const text = normalizeText(
+                match.innerText || match.value || match.getAttribute("aria-label") || "",
+                80
+              );
+              return Boolean(text);
+            }
+          );
+
+          headingNodes.forEach((node, index) => {
+            const style = getStyle(node);
+            if (!style) return;
+            addColorWeight(textCandidates, style.color, index === 0 ? 3 : 1);
+          });
+
+          bodyTextNodes.forEach((node, index) => {
+            const style = getStyle(node);
+            if (!style) return;
+            const nodeColor = normalizeColor(style.color);
+            if (!nodeColor) return;
+            if (textColor && nodeColor !== textColor) {
+              addColorWeight(mutedTextCandidates, nodeColor, index < 6 ? 2 : 1);
+              return;
+            }
+            addColorWeight(textCandidates, nodeColor, 1);
+          });
+
+          const buttonStyleCounts = { solid: 0, outline: 0, text: 0 };
+          const radiusSamples = [];
+          let sawRadiusSample = false;
+
+          interactiveNodes.forEach((node) => {
+            const style = getStyle(node);
+            const rect = getRect(node);
+            if (!style || rect.width < 32 || rect.height < 20) return;
+
+            const className = normalizeText([
+              node.className || "",
+              node.id || "",
+              node.getAttribute("role") || ""
+            ].join(" "), 120).toLowerCase();
+            const borderWidth = Math.max(
+              toNumber(style.borderTopWidth),
+              toNumber(style.borderLeftWidth),
+              toNumber(style.borderWidth)
+            );
+            const paddingX = toNumber(style.paddingLeft) + toNumber(style.paddingRight);
+            const backgroundColor = normalizeColor(style.backgroundColor);
+            const foregroundColor = normalizeColor(style.color);
+            const isButtonLike = /(\bbtn\b|button|cta)/.test(className) ||
+              /^(button|input)$/i.test(node.tagName || "") ||
+              String(node.getAttribute("role") || "").toLowerCase() === "button" ||
+              borderWidth > 0 ||
+              !isTransparentColor(style.backgroundColor) ||
+              (rect.height >= 30 && paddingX >= 20);
+
+            if (!isButtonLike) {
+              if (foregroundColor && foregroundColor !== textColor) {
+                addColorWeight(accentCandidates, foregroundColor, 1);
+              }
+              return;
+            }
+
+            const radius = toNumber(style.borderTopLeftRadius || style.borderRadius);
+            sawRadiusSample = true;
+            radiusSamples.push(radius);
+
+            if (backgroundColor && backgroundColor !== pageBackgroundColor && backgroundColor !== textColor) {
+              addColorWeight(accentCandidates, backgroundColor, 3);
+              buttonStyleCounts.solid += 1;
+            } else if (borderWidth > 0 && !isTransparentColor(style.borderColor)) {
+              addColorWeight(borderCandidates, style.borderColor, 2);
+              if (foregroundColor && foregroundColor !== textColor) {
+                addColorWeight(accentCandidates, foregroundColor, 2);
+              }
+              buttonStyleCounts.outline += 1;
+            } else {
+              if (foregroundColor && foregroundColor !== textColor) {
+                addColorWeight(accentCandidates, foregroundColor, 1);
+              }
+              buttonStyleCounts.text += 1;
+            }
+          });
+
+          const cardCandidates = [];
+          pageStructure.forEach((item, index) => {
+            if (cardCandidates.length >= 10) return;
+            if (!item || !/^(grid|product-grid|product-carousel|editorial-grid|feature-icons|multi-column-cta|category-strip)$/i.test(item.type || "")) {
+              return;
+            }
+            const node = sectionNodes[index];
+            const children = getDirectVisibleChildren(unwrapDominantChild(node), 6).filter((child) => {
+              const rect = getRect(child);
+              return rect.width >= 96 && rect.height >= 72;
+            });
+            children.forEach((child) => {
+              if (cardCandidates.length < 10) cardCandidates.push(child);
+            });
+          });
+
+          const cardStyleCounts = { flat: 0, outlined: 0, elevated: 0 };
+          cardCandidates.forEach((node) => {
+            const style = getStyle(node);
+            if (!style) return;
+            const backgroundColor = normalizeColor(style.backgroundColor);
+            const borderWidth = Math.max(
+              toNumber(style.borderTopWidth),
+              toNumber(style.borderLeftWidth),
+              toNumber(style.borderWidth)
+            );
+            const radius = toNumber(style.borderTopLeftRadius || style.borderRadius);
+            sawRadiusSample = true;
+            radiusSamples.push(radius);
+
+            if (style.boxShadow && style.boxShadow !== "none") {
+              cardStyleCounts.elevated += 1;
+              return;
+            }
+            if (borderWidth > 0 && !isTransparentColor(style.borderColor)) {
+              addColorWeight(borderCandidates, style.borderColor, 1);
+              cardStyleCounts.outlined += 1;
+              return;
+            }
+            if (backgroundColor && backgroundColor !== pageBackgroundColor) {
+              addColorWeight(surfaceCandidates, backgroundColor, 2);
+              cardStyleCounts.flat += 1;
+            }
+          });
+
+          const colorRoles = {};
+          const backgroundRanked = pickRankedColors(backgroundCandidates);
+          const surfaceRanked = pickRankedColors(surfaceCandidates);
+          const accentRanked = pickRankedColors(accentCandidates);
+          const textRanked = pickRankedColors(textCandidates);
+          const mutedRanked = pickRankedColors(mutedTextCandidates);
+          const borderRanked = pickRankedColors(borderCandidates);
+
+          const backgroundRole = backgroundRanked[0] || pageBackgroundColor;
+          const textRole = textRanked[0] || textColor;
+          const primaryRole = accentRanked[0] || textRole;
+          const secondaryRole = accentRanked.find((color) => color && color !== primaryRole) || "";
+          const surfaceRole = surfaceRanked.find((color) => color && color !== backgroundRole) || "";
+          const mutedTextRole = mutedRanked.find((color) => color && color !== textRole) || "";
+          const borderRole = borderRanked.find((color) => color && color !== backgroundRole) || "";
+
+          if (primaryRole) colorRoles.primary = primaryRole;
+          if (secondaryRole) colorRoles.secondary = secondaryRole;
+          if (backgroundRole) colorRoles.background = backgroundRole;
+          if (surfaceRole) colorRoles.surface = surfaceRole;
+          if (textRole) colorRoles.text = textRole;
+          if (mutedTextRole) colorRoles.mutedText = mutedTextRole;
+          if (borderRole) colorRoles.border = borderRole;
+
+          const typographySystem = {};
+          const headingNode = headingNodes[0] || null;
+          const headingStyle = headingNode ? getStyle(headingNode) : null;
+          const bodyTextNode = bodyTextNodes[0] || null;
+          const bodyTextStyle = bodyTextNode ? getStyle(bodyTextNode) : null;
+          const bodyFontFamily = normalizeFontFamily(
+            (bodyTextStyle && bodyTextStyle.fontFamily) ||
+            (bodyStyle && bodyStyle.fontFamily) ||
+            (rootStyle && rootStyle.fontFamily) ||
+            ""
+          );
+          const headingFontFamily = normalizeFontFamily(
+            (headingStyle && headingStyle.fontFamily) ||
+            bodyFontFamily
+          );
+          const baseFontSize = (bodyTextStyle && bodyTextStyle.fontSize) || (bodyStyle && bodyStyle.fontSize) || "";
+          const headingFontSize = headingStyle ? toNumber(headingStyle.fontSize) : 0;
+          const baseFontSizeValue = toNumber(baseFontSize);
+          const headingScale = baseFontSizeValue > 0 ? headingFontSize / baseFontSizeValue : 0;
+
+          if (headingFontFamily) typographySystem.headingFontFamily = headingFontFamily;
+          if (bodyFontFamily) typographySystem.bodyFontFamily = bodyFontFamily;
+          if (headingStyle) typographySystem.headingStyle = classifyFontStyle(headingStyle.fontWeight);
+          if (bodyTextStyle || bodyStyle) {
+            typographySystem.bodyStyle = classifyFontStyle(
+              (bodyTextStyle && bodyTextStyle.fontWeight) ||
+              (bodyStyle && bodyStyle.fontWeight) ||
+              ""
+            );
+          }
+          if (baseFontSize) typographySystem.baseFontSize = baseFontSize;
+          if (headingScale >= 2.1) typographySystem.headingScale = "large";
+          else if (headingScale >= 1.45) typographySystem.headingScale = "medium";
+          else if (headingScale > 0) typographySystem.headingScale = "small";
+
+          const spacingSystem = {};
+          const fullWidthCount = pageStructure.filter((item) => item && item.isFullWidth).length;
+          const maxWidthValue = toNumber(layoutHints && layoutHints.maxWidth ? layoutHints.maxWidth : "");
+          let containerWidth = "";
+          if (fullWidthCount >= Math.max(2, Math.ceil(pageStructure.length / 2))) containerWidth = "full";
+          else if (maxWidthValue >= 1220) containerWidth = "wide";
+          else if (maxWidthValue >= 960) containerWidth = "medium";
+          else if (maxWidthValue > 0) containerWidth = "narrow";
+
+          if (layoutHints && layoutHints.sectionSpacing) {
+            spacingSystem.sectionSpacing = layoutHints.sectionSpacing === "large"
+              ? "spacious"
+              : layoutHints.sectionSpacing;
+          }
+          if (containerWidth) spacingSystem.containerWidth = containerWidth;
+          if (layoutHints && layoutHints.contentDensity) spacingSystem.contentDensity = layoutHints.contentDensity;
+
+          const shapeSystem = {};
+          if (sawRadiusSample) {
+            const averageRadius = radiusSamples.length
+              ? radiusSamples.reduce((sum, value) => sum + value, 0) / radiusSamples.length
+              : 0;
+            shapeSystem.borderRadius = classifyRadius(averageRadius);
+          }
+
+          const buttonStyleEntries = Object.entries(buttonStyleCounts).filter((entry) => entry[1] > 0);
+          if (buttonStyleEntries.length) {
+            buttonStyleEntries.sort((leftEntry, rightEntry) => rightEntry[1] - leftEntry[1]);
+            const buttonTotal = buttonStyleEntries.reduce((sum, entry) => sum + entry[1], 0);
+            shapeSystem.buttonStyle = buttonStyleEntries[0][1] >= Math.max(2, Math.ceil(buttonTotal * 0.6))
+              ? buttonStyleEntries[0][0]
+              : "mixed";
+          }
+
+          const cardStyleEntries = Object.entries(cardStyleCounts).filter((entry) => entry[1] > 0);
+          if (cardStyleEntries.length) {
+            cardStyleEntries.sort((leftEntry, rightEntry) => rightEntry[1] - leftEntry[1]);
+            const cardTotal = cardStyleEntries.reduce((sum, entry) => sum + entry[1], 0);
+            shapeSystem.cardStyle = cardStyleEntries[0][1] >= Math.max(2, Math.ceil(cardTotal * 0.6))
+              ? cardStyleEntries[0][0]
+              : "mixed";
+          }
+
+          const layoutPatterns = {};
+          const topBandCount = pageStructure.filter((item) => item && /^(announcement-bar|utility-nav|primary-nav|header)$/i.test(item.type || "")).length;
+          const headerSection = pageStructure.find((item) => item && /^(announcement-bar|utility-nav|primary-nav|header)$/i.test(item.type || ""));
+          const heroSection = pageStructure.find((item) => item && /^(hero|hero-split)$/i.test(item.type || ""));
+          const contentSections = pageStructure.filter((item) => item && !/^(announcement-bar|utility-nav|primary-nav|header|footer)$/i.test(item.type || ""));
+          const nonStackedCount = contentSections.filter((item) => item && item.approxColumns >= 2).length;
+          const gridCounts = { 2: 0, 3: 0, 4: 0 };
+
+          contentSections.forEach((item) => {
+            const columns = Number(item && item.approxColumns ? item.approxColumns : 0);
+            if (columns >= 2 && columns <= 4) {
+              gridCounts[columns] += 1;
+            }
+          });
+
+          if (topBandCount >= 2) layoutPatterns.headerPattern = "multi-band";
+          else if (headerSection) {
+            layoutPatterns.headerPattern = (
+              (layoutHints && layoutHints.headerStyle === "minimal") ||
+              (headerSection.approxColumns <= 1 && !pageSignals.hasPrimaryNav)
+            )
+              ? "minimal"
+              : "single-band";
+          }
+
+          if (heroSection) {
+            if (heroSection.type === "hero-split" || heroSection.approxColumns >= 2) layoutPatterns.heroPattern = "split";
+            else if (!heroSection.hasImage) layoutPatterns.heroPattern = "text-only";
+            else if (heroSection.textDensity === "high") layoutPatterns.heroPattern = "editorial";
+            else layoutPatterns.heroPattern = "image-dominant";
+          } else if (contentSections[0] && contentSections[0].type === "editorial-grid") {
+            layoutPatterns.heroPattern = "editorial";
+          }
+
+          if (contentSections.length) {
+            if (!nonStackedCount) layoutPatterns.sectionRhythm = "stacked";
+            else {
+              let transitions = 0;
+              for (let index = 1; index < contentSections.length; index += 1) {
+                const previousMode = contentSections[index - 1].approxColumns >= 2 ? "multi" : "stacked";
+                const currentMode = contentSections[index].approxColumns >= 2 ? "multi" : "stacked";
+                if (previousMode !== currentMode) transitions += 1;
+              }
+              layoutPatterns.sectionRhythm = transitions >= Math.max(1, Math.floor(contentSections.length / 3))
+                ? "alternating"
+                : "mixed";
+            }
+          }
+
+          const rankedGridPatterns = Object.entries(gridCounts)
+            .filter((entry) => entry[1] > 0)
+            .sort((leftEntry, rightEntry) => rightEntry[1] - leftEntry[1]);
+          if (rankedGridPatterns.length === 1) {
+            layoutPatterns.gridPattern = `${rankedGridPatterns[0][0]}-column`;
+          } else if (rankedGridPatterns.length >= 2) {
+            layoutPatterns.gridPattern = rankedGridPatterns[0][1] > rankedGridPatterns[1][1]
+              ? `${rankedGridPatterns[0][0]}-column`
+              : "mixed";
+          }
+
+          const componentHints = {};
+          if (pageSignals.hasAnnouncementBar) componentHints.hasTopAnnouncementBar = true;
+          if (pageSignals.hasUtilityNav) componentHints.hasUtilityNav = true;
+          if (pageSignals.hasPrimaryNav) componentHints.hasPrimaryNav = true;
+          if (typeSet.has("category-strip")) componentHints.hasCategoryTiles = true;
+          if (typeSet.has("promo-banner") || typeSet.has("multi-column-cta")) componentHints.hasPromoModules = true;
+          if (typeSet.has("editorial-grid")) componentHints.hasEditorialGrid = true;
+          if (typeSet.has("feature-icons")) componentHints.hasFeatureIcons = true;
+
+          const newsletterMatch = queryVisible(
+            document.body,
+            "section, article, aside, footer, form, div",
+            24,
+            (match) => {
+              const text = normalizeText(match.innerText || "", 220).toLowerCase();
+              const hasEmailInput = Boolean(match.querySelector(
+                "input[type='email'], input[name*='email' i], input[placeholder*='email' i]"
+              ));
+              return hasEmailInput && /\b(newsletter|subscribe|sign up|join our list|get updates|stay in touch)\b/.test(text);
+            }
+          );
+          if (newsletterMatch.length) componentHints.hasNewsletterBlock = true;
+
+          const designSystem = {};
+          if (Object.keys(colorRoles).length) designSystem.colorRoles = colorRoles;
+          if (Object.keys(typographySystem).length) designSystem.typographySystem = typographySystem;
+          if (Object.keys(spacingSystem).length) designSystem.spacingSystem = spacingSystem;
+          if (Object.keys(shapeSystem).length) designSystem.shapeSystem = shapeSystem;
+          if (Object.keys(layoutPatterns).length) designSystem.layoutPatterns = layoutPatterns;
+          if (Object.keys(componentHints).length) designSystem.componentHints = componentHints;
+          return designSystem;
+        } catch (_error) {
+          return {};
+        }
+      }
+
       const sectionNodes = collectSectionCandidates();
       if (!sectionNodes.length) return {};
 
@@ -1078,6 +1528,9 @@ async function extractStructuredData(page) {
 
       const pageSignals = collectPageSignals(pageStructure, layoutHints);
       if (Object.keys(pageSignals).length) structuredData.pageSignals = pageSignals;
+
+      const designSystem = collectDesignSystem(sectionNodes, pageStructure, layoutHints, pageSignals, visualTokens);
+      if (Object.keys(designSystem).length) structuredData.designSystem = designSystem;
 
       return structuredData;
     }, VIEWPORT);
