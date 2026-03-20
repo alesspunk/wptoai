@@ -1462,6 +1462,374 @@ async function extractStructuredData(page) {
         }
       }
 
+      function collectComponentPatterns(sectionNodes, pageStructure, layoutHints, pageSignals, designSystem) {
+        try {
+          if (!sectionNodes.length || !pageStructure.length) return {};
+
+          function getSectionBundle(pattern) {
+            const index = pageStructure.findIndex((item) => item && pattern.test(item.type || ""));
+            if (index < 0 || !sectionNodes[index]) return null;
+            return {
+              item: pageStructure[index],
+              node: sectionNodes[index]
+            };
+          }
+
+          function getVisibleMatches(node, selector, limit, predicate) {
+            if (!node) return [];
+            const matches = node.querySelectorAll(selector);
+            const output = [];
+            const maxChecks = Math.min(matches.length, Math.max(limit * 8, limit));
+            for (let index = 0; index < maxChecks; index += 1) {
+              if (output.length >= limit) break;
+              const match = matches[index];
+              if (!isElementVisible(match)) continue;
+              if (predicate && !predicate(match)) continue;
+              output.push(match);
+            }
+            return output;
+          }
+
+          function getVisibleChildren(node, limit, minWidth, minHeight) {
+            const root = unwrapDominantChild(node);
+            if (!root || !root.children) return [];
+            const children = Array.from(root.children);
+            const output = [];
+            const maxChecks = Math.min(children.length, Math.max(limit * 4, limit));
+            for (let index = 0; index < maxChecks; index += 1) {
+              if (output.length >= limit) break;
+              const child = children[index];
+              if (!isElementVisible(child)) continue;
+              const rect = getRect(child);
+              if (rect.width < (minWidth || 0) || rect.height < (minHeight || 0)) continue;
+              output.push(child);
+            }
+            return output;
+          }
+
+          function classifyHorizontalZone(rect, containerRect) {
+            if (!rect || !containerRect || rect.width <= 0 || containerRect.width <= 0) return "unknown";
+            const centerRatio = (
+              (rect.left + rect.width / 2) - containerRect.left
+            ) / Math.max(containerRect.width, 1);
+            if (centerRatio <= 0.38) return "left";
+            if (centerRatio >= 0.62) return "right";
+            return "center";
+          }
+
+          function getLargestMediaNode(node, limit) {
+            const mediaNodes = getVisibleMatches(node, "img, picture img, svg", limit || 4, () => true)
+              .filter((mediaNode) => {
+                const rect = getRect(mediaNode);
+                return rect.width >= 24 || rect.height >= 24;
+              });
+            if (!mediaNodes.length) return null;
+            mediaNodes.sort((leftNode, rightNode) => {
+              const leftRect = getRect(leftNode);
+              const rightRect = getRect(rightNode);
+              return (rightRect.width * rightRect.height) - (leftRect.width * leftRect.height);
+            });
+            return mediaNodes[0];
+          }
+
+          const componentPatterns = {};
+          const typeSet = new Set(pageStructure.map((item) => item && item.type).filter(Boolean));
+
+          const headerBundles = pageStructure
+            .map((item, index) => ({
+              item,
+              node: sectionNodes[index]
+            }))
+            .filter((entry) => entry.item && entry.node && /^(announcement-bar|utility-nav|primary-nav|header)$/i.test(entry.item.type || ""))
+            .slice(0, 4);
+
+          if (headerBundles.length) {
+            const headerPattern = {};
+            const primaryHeader = headerBundles.find((entry) => /^(primary-nav|header)$/i.test(entry.item.type || "")) || headerBundles[headerBundles.length - 1];
+            const navLinks = primaryHeader
+              ? getVisibleMatches(primaryHeader.node, "a[href]", 12, (match) => normalizeText(match.innerText || match.getAttribute("aria-label") || "", 80))
+              : [];
+            const navLabels = [];
+            const seenLabels = new Set();
+            navLinks.forEach((link) => {
+              const label = normalizeText(link.innerText || link.getAttribute("aria-label") || "", 80);
+              const key = label.toLowerCase();
+              if (!label || seenLabels.has(key)) return;
+              seenLabels.add(key);
+              navLabels.push(label);
+            });
+
+            if (headerBundles.length >= 2 || pageSignals.hasAnnouncementBar || pageSignals.hasUtilityNav) {
+              headerPattern.pattern = "multi-band";
+            } else if ((layoutHints && layoutHints.headerStyle === "minimal") || navLabels.length <= 2) {
+              headerPattern.pattern = "minimal";
+            } else {
+              headerPattern.pattern = "single-band";
+            }
+
+            if (pageSignals.hasAnnouncementBar) headerPattern.hasAnnouncementBar = true;
+            if (pageSignals.hasUtilityNav) headerPattern.hasUtilityNav = true;
+            if (pageSignals.hasPrimaryNav) headerPattern.hasPrimaryNav = true;
+            if (navLabels.length) headerPattern.navItemCount = navLabels.length;
+
+            if (primaryHeader) {
+              const logoNode = getLargestMediaNode(primaryHeader.node, 4);
+              if (logoNode) {
+                headerPattern.logoPosition = classifyHorizontalZone(getRect(logoNode), getRect(primaryHeader.node));
+              } else {
+                headerPattern.logoPosition = "unknown";
+              }
+            }
+
+            if (Object.keys(headerPattern).length) componentPatterns.header = headerPattern;
+          }
+
+          const heroBundle = getSectionBundle(/^(hero|hero-split)$/i);
+          if (heroBundle) {
+            const heroPattern = {};
+            const heroRect = getRect(heroBundle.node);
+            const heroTextNodes = getVisibleMatches(
+              heroBundle.node,
+              "h1, h2, h3, p, a[href], button",
+              8,
+              (match) => normalizeText(match.innerText || match.getAttribute("aria-label") || "", 120)
+            );
+            const heroMediaNode = getLargestMediaNode(heroBundle.node, 4);
+            const heroMediaRect = heroMediaNode ? getRect(heroMediaNode) : null;
+
+            heroPattern.pattern = String(
+              designSystem &&
+              designSystem.layoutPatterns &&
+              designSystem.layoutPatterns.heroPattern
+                ? designSystem.layoutPatterns.heroPattern
+                : ""
+            ) || (
+              !heroBundle.item.hasImage
+                ? "text-only"
+                : (heroBundle.item.type === "hero-split" || heroBundle.item.approxColumns >= 2)
+                  ? "split"
+                  : heroBundle.item.textDensity === "high"
+                    ? "editorial"
+                    : "image-dominant"
+            );
+
+            if (heroBundle.item.hasCTA) heroPattern.hasCTA = true;
+
+            if (heroTextNodes.length) {
+              const measuredRects = heroTextNodes
+                .slice(0, 4)
+                .map((node) => getRect(node))
+                .filter((rect) => rect.width > 0 && rect.height > 0);
+              if (measuredRects.length) {
+                const averageCenter = measuredRects.reduce((sum, rect) => sum + rect.left + rect.width / 2, 0) / measuredRects.length;
+                const relativeRect = {
+                  left: averageCenter - 1,
+                  width: 2
+                };
+                const alignment = heroBundle.item.isCentered
+                  ? "center"
+                  : classifyHorizontalZone(relativeRect, heroRect);
+                if (alignment) heroPattern.contentAlignment = alignment;
+              }
+            } else {
+              heroPattern.contentAlignment = heroBundle.item.isCentered ? "center" : "unknown";
+            }
+
+            if (heroMediaRect) {
+              if (heroMediaRect.width >= heroRect.width * 0.7 && heroMediaRect.height >= heroRect.height * 0.45) {
+                heroPattern.mediaPlacement = "background";
+              } else {
+                heroPattern.mediaPlacement = classifyHorizontalZone(heroMediaRect, heroRect);
+              }
+            } else {
+              heroPattern.mediaPlacement = "none";
+            }
+
+            if (heroBundle.item.hasImage && heroTextNodes.length && heroMediaRect) {
+              const textRect = getRect(heroTextNodes[0]);
+              const textCenterX = textRect.left + textRect.width / 2;
+              const textCenterY = textRect.top + textRect.height / 2;
+              if (
+                heroPattern.mediaPlacement === "background" ||
+                (
+                  textCenterX >= heroMediaRect.left &&
+                  textCenterX <= heroMediaRect.right &&
+                  textCenterY >= heroMediaRect.top &&
+                  textCenterY <= heroMediaRect.bottom
+                )
+              ) {
+                heroPattern.hasOverlayText = true;
+              }
+            }
+
+            if (Object.keys(heroPattern).length) componentPatterns.hero = heroPattern;
+          }
+
+          const categoryBundle = getSectionBundle(/^category-strip$/i);
+          if (categoryBundle) {
+            const categoryPattern = {
+              exists: true
+            };
+            const categoryItems = getVisibleChildren(categoryBundle.node, 8, 56, 32);
+            if (categoryItems.length) categoryPattern.itemCount = categoryItems.length;
+
+            if (categoryItems.length) {
+              let imageLabelCount = 0;
+              let iconLabelCount = 0;
+              let textOnlyCount = 0;
+              categoryItems.forEach((itemNode) => {
+                const mediaNode = getLargestMediaNode(itemNode, 3);
+                if (!mediaNode) {
+                  textOnlyCount += 1;
+                  return;
+                }
+                const mediaRect = getRect(mediaNode);
+                if (mediaRect.width <= 72 && mediaRect.height <= 72) iconLabelCount += 1;
+                else imageLabelCount += 1;
+              });
+
+              if (textOnlyCount === categoryItems.length) categoryPattern.style = "text-only";
+              else if (imageLabelCount >= Math.max(2, Math.ceil(categoryItems.length * 0.6))) categoryPattern.style = "image-label";
+              else if (iconLabelCount >= Math.max(2, Math.ceil(categoryItems.length * 0.6))) categoryPattern.style = "icon-label";
+              else categoryPattern.style = "mixed";
+            }
+
+            componentPatterns.categoryStrip = categoryPattern;
+          }
+
+          const productBundle = getSectionBundle(/^(product-grid|product-carousel)$/i);
+          if (productBundle) {
+            const productPattern = {
+              exists: true
+            };
+            const cardNodes = getVisibleChildren(productBundle.node, 8, 96, 72);
+            if (cardNodes.length) productPattern.cardCountEstimate = cardNodes.length;
+
+            const columnCount = productBundle.item.approxColumns || inferColumns(productBundle.node);
+            if (columnCount >= 2 && columnCount <= 4) productPattern.columnPattern = `${columnCount}-column`;
+            else if (cardNodes.length) productPattern.columnPattern = "mixed";
+
+            if (cardNodes.length) {
+              const cardStyleCounts = {
+                "image-title": 0,
+                "image-title-cta": 0,
+                "image-title-copy": 0
+              };
+
+              cardNodes.forEach((cardNode) => {
+                const hasImage = Boolean(getLargestMediaNode(cardNode, 3));
+                const hasTitle = Boolean(getVisibleMatches(
+                  cardNode,
+                  "h1, h2, h3, h4, h5, h6, [role='heading']",
+                  2,
+                  (match) => normalizeText(match.innerText || "", 80)
+                ).length);
+                const hasCopy = Boolean(getVisibleMatches(
+                  cardNode,
+                  "p, small",
+                  2,
+                  (match) => normalizeText(match.innerText || "", 120)
+                ).length);
+                const hasCta = Boolean(getVisibleMatches(
+                  cardNode,
+                  "button, input[type='button'], input[type='submit'], a[href]",
+                  3,
+                  (match) => /\b(shop|buy|view|details|discover|learn more|quick view|add to cart|select)\b/i.test(
+                    normalizeText(match.innerText || match.value || match.getAttribute("aria-label") || "", 80)
+                  )
+                ).length);
+                if (!hasImage || !hasTitle) return;
+                if (hasCta) cardStyleCounts["image-title-cta"] += 1;
+                else if (hasCopy) cardStyleCounts["image-title-copy"] += 1;
+                else cardStyleCounts["image-title"] += 1;
+              });
+
+              const rankedCardStyles = Object.entries(cardStyleCounts)
+                .filter((entry) => entry[1] > 0)
+                .sort((leftEntry, rightEntry) => rightEntry[1] - leftEntry[1]);
+              if (rankedCardStyles.length === 1) {
+                productPattern.cardStyle = rankedCardStyles[0][0];
+              } else if (rankedCardStyles.length >= 2) {
+                productPattern.cardStyle = rankedCardStyles[0][1] >= Math.max(2, Math.ceil(cardNodes.length * 0.5))
+                  ? rankedCardStyles[0][0]
+                  : "mixed";
+              }
+            }
+
+            componentPatterns.productGrid = productPattern;
+          }
+
+          const promoBundle = getSectionBundle(/^(promo-banner|multi-column-cta)$/i);
+          if (promoBundle) {
+            const promoPattern = {
+              exists: true
+            };
+            const promoModules = /multi-column-cta/i.test(promoBundle.item.type || "")
+              ? getVisibleChildren(promoBundle.node, 6, 120, 80)
+              : [];
+            const moduleCountEstimate = promoModules.length || Math.max(1, Math.min(3, promoBundle.item.approxColumns || 1));
+            if (moduleCountEstimate) promoPattern.moduleCountEstimate = moduleCountEstimate;
+
+            if (promoModules.length) {
+              let imageLedCount = 0;
+              let copyLedCount = 0;
+              promoModules.forEach((moduleNode) => {
+                const hasImage = Boolean(getLargestMediaNode(moduleNode, 3));
+                const textLength = normalizeText(moduleNode.innerText || "", 240).length;
+                if (hasImage && textLength <= 180) imageLedCount += 1;
+                else copyLedCount += 1;
+              });
+              if (imageLedCount && !copyLedCount) promoPattern.style = "image-led";
+              else if (copyLedCount && !imageLedCount) promoPattern.style = "copy-led";
+              else promoPattern.style = "mixed";
+            } else if (promoBundle.item.hasImage && promoBundle.item.textDensity !== "high") {
+              promoPattern.style = "image-led";
+            } else if (!promoBundle.item.hasImage || promoBundle.item.textDensity === "high") {
+              promoPattern.style = "copy-led";
+            }
+
+            componentPatterns.promoModules = promoPattern;
+          }
+
+          const footerBundle = getSectionBundle(/^footer$/i);
+          if (footerBundle) {
+            const footerPattern = {};
+            const footerLinks = getVisibleMatches(
+              footerBundle.node,
+              "a[href]",
+              14,
+              (match) => {
+                const label = normalizeText(match.innerText || match.getAttribute("aria-label") || "", 80);
+                return Boolean(label || match.getAttribute("href"));
+              }
+            );
+            const footerText = normalizeText(footerBundle.node.innerText || "", 400).toLowerCase();
+            const socialLinkCount = footerLinks.filter((link) => /instagram|facebook|twitter|x\.com|linkedin|pinterest|youtube|tiktok/i.test(String(link.getAttribute("href") || ""))).length;
+            const navLinkCount = footerLinks.filter((link) => normalizeText(link.innerText || link.getAttribute("aria-label") || "", 80)).length;
+
+            if ((pageSignals.isCommerceDense || typeSet.has("product-grid") || typeSet.has("category-strip")) && navLinkCount >= 5) {
+              footerPattern.pattern = "commerce";
+            } else if (navLinkCount >= 4) {
+              footerPattern.pattern = "link-heavy";
+            } else if (navLinkCount <= 2 && footerText.length <= 160) {
+              footerPattern.pattern = "minimal";
+            } else {
+              footerPattern.pattern = "unknown";
+            }
+
+            if (navLinkCount >= 3) footerPattern.hasNavLinks = true;
+            if (/\b(copyright|all rights reserved|privacy|terms|cookies)\b|©/.test(footerText)) footerPattern.hasLegalText = true;
+            if (socialLinkCount > 0) footerPattern.hasSocialLinks = true;
+
+            if (Object.keys(footerPattern).length) componentPatterns.footer = footerPattern;
+          }
+
+          return componentPatterns;
+        } catch (_error) {
+          return {};
+        }
+      }
+
       const sectionNodes = collectSectionCandidates();
       if (!sectionNodes.length) return {};
 
@@ -1531,6 +1899,9 @@ async function extractStructuredData(page) {
 
       const designSystem = collectDesignSystem(sectionNodes, pageStructure, layoutHints, pageSignals, visualTokens);
       if (Object.keys(designSystem).length) structuredData.designSystem = designSystem;
+
+      const componentPatterns = collectComponentPatterns(sectionNodes, pageStructure, layoutHints, pageSignals, designSystem);
+      if (Object.keys(componentPatterns).length) structuredData.componentPatterns = componentPatterns;
 
       return structuredData;
     }, VIEWPORT);
