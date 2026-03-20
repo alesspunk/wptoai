@@ -859,14 +859,87 @@ async function extractStructuredData(page) {
           promoImages: [],
           icons: []
         };
+        const realHomepageAssets = {};
 
         function pushUnique(target, value, limit) {
-          if (!value || target.includes(value) || target.length >= limit) return;
-          target.push(value);
+          const normalized = normalizeAssetUrl(value);
+          if (!normalized || isFilteredAssetUrl(normalized) || target.includes(normalized) || target.length >= limit) return;
+          target.push(normalized);
+        }
+
+        function pushClassifiedUnique(target, value, type, limit) {
+          const normalized = normalizeAssetUrl(value);
+          if (!normalized || isFilteredAssetUrl(normalized) || target.length >= limit) return;
+          if (target.some((entry) => entry && entry.url === normalized)) return;
+          target.push({
+            url: normalized,
+            type
+          });
+        }
+
+        function normalizeAssetUrl(value) {
+          const normalized = normalizeText(value || "", 500);
+          if (!normalized) return "";
+          if (/^(data:|blob:)/i.test(normalized)) return "";
+          try {
+            const resolved = new URL(normalized, window.location.href);
+            if (!/^https?:$/i.test(resolved.protocol)) return "";
+            return resolved.href;
+          } catch (_error) {
+            return "";
+          }
+        }
+
+        function isFilteredAssetUrl(value) {
+          const normalized = String(value || "").toLowerCase();
+          if (!normalized) return true;
+          if (/\/(?:1x1|pixel)(?:[./_-]|$)/i.test(normalized)) return true;
+          if (/\b(sprite|spacer|blank|tracking|tracker|beacon)\b/i.test(normalized)) return true;
+          return false;
+        }
+
+        function isTinyAsset(image, rect) {
+          const width = Math.max(rect && rect.width ? rect.width : 0, Number(image && image.naturalWidth) || 0);
+          const height = Math.max(rect && rect.height ? rect.height : 0, Number(image && image.naturalHeight) || 0);
+          return width > 0 && height > 0 && width <= 4 && height <= 4;
         }
 
         function getImageSource(image) {
-          return normalizeText(image.currentSrc || image.src || image.getAttribute("src") || "", 500);
+          return normalizeAssetUrl(image && (image.currentSrc || image.src || image.getAttribute("src") || ""));
+        }
+
+        function getBackgroundImageSource(node) {
+          const style = getStyle(node);
+          if (!style || !style.backgroundImage || style.backgroundImage === "none") return "";
+          const match = String(style.backgroundImage || "").match(/url\((['"]?)(.*?)\1\)/i);
+          if (!match || !match[2]) return "";
+          return normalizeAssetUrl(match[2]);
+        }
+
+        function collectSectionBackgroundCandidates(node, limit) {
+          const candidates = [];
+          const roots = [node, unwrapDominantChild(node)];
+          roots.forEach((candidate) => {
+            if (!candidate || candidates.length >= limit) return;
+            const source = getBackgroundImageSource(candidate);
+            if (!source || candidates.includes(source)) return;
+            candidates.push(source);
+          });
+
+          if (candidates.length < limit && node) {
+            const children = Array.from(node.children || []).slice(0, 4);
+            children.forEach((child) => {
+              if (candidates.length >= limit) return;
+              if (!isElementVisible(child)) return;
+              const rect = getRect(child);
+              if (rect.width < 120 || rect.height < 80) return;
+              const source = getBackgroundImageSource(child);
+              if (!source || candidates.includes(source)) return;
+              candidates.push(source);
+            });
+          }
+
+          return candidates;
         }
 
         let logoNode = images.find((image) => {
@@ -886,7 +959,14 @@ async function extractStructuredData(page) {
         }
 
         if (logoNode) {
-          assets.logo = getImageSource(logoNode) || null;
+          const logoSource = getImageSource(logoNode);
+          if (logoSource) {
+            assets.logo = logoSource;
+            realHomepageAssets.logo = {
+              url: logoSource,
+              type: "logo"
+            };
+          }
         }
 
         const heroSectionIds = new Set(
@@ -906,27 +986,60 @@ async function extractStructuredData(page) {
         );
 
         sectionNodes.forEach((node, index) => {
-          if (assets.heroImages.length >= 3 && assets.categoryImages.length >= 3 && assets.promoImages.length >= 2) return;
+          if (
+            assets.heroImages.length >= 3 &&
+            assets.categoryImages.length >= 3 &&
+            assets.promoImages.length >= 2 &&
+            ((realHomepageAssets.heroImages && realHomepageAssets.heroImages.length >= 2) || !heroSectionIds.size) &&
+            ((realHomepageAssets.categoryImages && realHomepageAssets.categoryImages.length >= 8) || !categorySectionIds.size) &&
+            ((realHomepageAssets.promoImages && realHomepageAssets.promoImages.length >= 4) || !promoSectionIds.size)
+          ) {
+            return;
+          }
           const sectionId = `section-${index + 1}`;
           const imagesInSection = queryVisible(node, "img", 6, () => true);
+          const backgroundCandidates = collectSectionBackgroundCandidates(node, 2);
           imagesInSection.forEach((image) => {
             const rect = getRect(image);
             const source = getImageSource(image);
-            if (!source || source === assets.logo) return;
+            if (!source || source === assets.logo || isTinyAsset(image, rect)) return;
             if (heroSectionIds.has(sectionId) && (rect.height >= 220 || rect.width >= viewport.width * 0.3)) {
               pushUnique(assets.heroImages, source, 3);
+              realHomepageAssets.heroImages = realHomepageAssets.heroImages || [];
+              pushClassifiedUnique(realHomepageAssets.heroImages, source, "hero", 2);
               return;
             }
             if (categorySectionIds.has(sectionId) && (rect.height >= 80 || rect.width >= 80)) {
               pushUnique(assets.categoryImages, source, 3);
+              realHomepageAssets.categoryImages = realHomepageAssets.categoryImages || [];
+              pushClassifiedUnique(realHomepageAssets.categoryImages, source, "category", 8);
               return;
             }
             if (promoSectionIds.has(sectionId) && (rect.height >= 140 || rect.width >= viewport.width * 0.28)) {
               pushUnique(assets.promoImages, source, 2);
+              realHomepageAssets.promoImages = realHomepageAssets.promoImages || [];
+              pushClassifiedUnique(realHomepageAssets.promoImages, source, "promo", 4);
               return;
             }
             if (rect.height >= 300 || rect.width >= viewport.width * 0.35) {
               pushUnique(assets.heroImages, source, 3);
+              realHomepageAssets.heroImages = realHomepageAssets.heroImages || [];
+              pushClassifiedUnique(realHomepageAssets.heroImages, source, "hero", 2);
+            }
+          });
+
+          backgroundCandidates.forEach((source) => {
+            if (!source || source === assets.logo) return;
+            if (heroSectionIds.has(sectionId)) {
+              pushUnique(assets.heroImages, source, 3);
+              realHomepageAssets.heroImages = realHomepageAssets.heroImages || [];
+              pushClassifiedUnique(realHomepageAssets.heroImages, source, "hero", 2);
+              return;
+            }
+            if (promoSectionIds.has(sectionId)) {
+              pushUnique(assets.promoImages, source, 2);
+              realHomepageAssets.promoImages = realHomepageAssets.promoImages || [];
+              pushClassifiedUnique(realHomepageAssets.promoImages, source, "promo", 4);
             }
           });
         });
@@ -935,7 +1048,7 @@ async function extractStructuredData(page) {
           if (assets.icons.length >= 6) return;
           const source = getImageSource(image);
           const rect = getRect(image);
-          if (!source || source === assets.logo || assets.heroImages.includes(source)) return;
+          if (!source || source === assets.logo || assets.heroImages.includes(source) || isTinyAsset(image, rect)) return;
           if (rect.width <= 64 && rect.height <= 64) {
             pushUnique(assets.icons, source, 6);
           }
@@ -965,6 +1078,16 @@ async function extractStructuredData(page) {
             assets.categoryImages.length +
             assets.promoImages.length
           )));
+        }
+
+        const hasRealHomepageAssets = Boolean(
+          realHomepageAssets.logo ||
+          (realHomepageAssets.heroImages && realHomepageAssets.heroImages.length) ||
+          (realHomepageAssets.categoryImages && realHomepageAssets.categoryImages.length) ||
+          (realHomepageAssets.promoImages && realHomepageAssets.promoImages.length)
+        );
+        if (hasRealHomepageAssets) {
+          assets.realHomepageAssets = realHomepageAssets;
         }
 
         return assets;
@@ -1887,7 +2010,14 @@ async function extractStructuredData(page) {
       if (Object.keys(visualTokens).length) structuredData.visualTokens = visualTokens;
 
       const assets = collectAssets(sectionNodes, pageStructure);
-      if (assets.logo || assets.heroImages.length || assets.categoryImages.length || assets.promoImages.length || assets.icons.length) {
+      if (
+        assets.logo ||
+        assets.heroImages.length ||
+        assets.categoryImages.length ||
+        assets.promoImages.length ||
+        assets.icons.length ||
+        (assets.realHomepageAssets && Object.keys(assets.realHomepageAssets).length)
+      ) {
         structuredData.assets = assets;
       }
 
